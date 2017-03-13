@@ -1,4 +1,5 @@
 import tensorflow as tf
+from process_data import get_batch_gen
 
 
 HIDDEN_SIZE = 300
@@ -7,6 +8,7 @@ NUM_ITERS = 50000
 WORD_EMBED_DIM = 300
 SENT_EMBED_DIM = 100
 LONGEST_SENTENCE = 50
+ALPHA = 0.01
 
 
 def data():
@@ -14,7 +16,8 @@ def data():
         # batch size x no. time steps x embedding dimension
         premises = tf.placeholder(tf.float64, [BATCH_SIZE, None, WORD_EMBED_DIM], name='premises')
         hypotheses = tf.placeholder(tf.float64, [BATCH_SIZE, None, WORD_EMBED_DIM], name='hypotheses')
-        return premises, hypotheses
+        y = tf.placeholder(tf.float64, [BATCH_SIZE, 1, 3], name='y')
+        return premises, hypotheses, y
 
 
 def create_rnn(sentences, name):
@@ -32,6 +35,7 @@ def create_rnn(sentences, name):
                                                      length,            # sequence length
                                                      initial_state)     # initial state
             return output, initial_state, output_state
+            # output is BATCH_SIZE x LENGTH x WORD_EMBED_DIM
 
 
 def create_rnns(premises, hypotheses):
@@ -41,20 +45,16 @@ def create_rnns(premises, hypotheses):
 
 
 def encode_sentences(sentence_rnn_output, name):
-    with tf.variable_scope(name + '_encode_scope'):
-        W_s1 = tf.Variable(tf.random_uniform([WORD_EMBED_DIM, SENT_EMBED_DIM],
-                                             -1.0, 1.0, dtype=tf.float64),
-                           name='W_s1')
-        W_s2 = tf.Variable(tf.random_uniform([1, LONGEST_SENTENCE],
-                                             -1.0, 1.0, dtype=tf.float64),
-                           name='W_s2')
-        encode1 = tf.map_fn(lambda h: tf.tanh(tf.matmul(h, W_s1)),
-                            sentence_rnn_output,
-                            name='encode1')
-        encoding = tf.map_fn(lambda h: tf.tanh(tf.matmul(W_s2, h)),
-                             encode1,
-                             name=name + '_encoding')
-        return encoding
+    h1 = tf.contrib.layers.fully_connected(sentence_rnn_output,
+                                           SENT_EMBED_DIM,
+                                           tf.tanh)
+    W_s2 = tf.Variable(tf.random_uniform([1, LONGEST_SENTENCE],
+                                         -1.0, 1.0, dtype=tf.float64),
+                       name='W_s2')
+    encoding = tf.map_fn(lambda h: tf.matmul(W_s2, h),
+                         h1,
+                         name=name + '_encoding')
+    return encoding
 
 
 def align(premise_output, hypothesis_output):
@@ -64,29 +64,55 @@ def align(premise_output, hypothesis_output):
 
 
 def classify(encoded_premises, encoded_hypotheses):
-    # BATCH_SIZE x 1 x 200
-    concatenated_sentences = tf.concat([encoded_premises, encoded_hypotheses],
-                                       axis=2,
-                                       name='concatenated_sentences')
-    concatenated_sentences_with_bias = tf.concat([tf.ones([BATCH_SIZE, 1, 1],
-                                                          dtype=tf.float64),
-                                                  concatenated_sentences],
-                                                 axis=2)
-    W_h1 = tf.Variable(tf.random_uniform([BATCH_SIZE, 2 * SENT_EMBED_DIM + 1]))
-    hidden_layer_z = tf.placeholder(tf.float64,
-                                    [BATCH_SIZE, 1, 200],
-                                    name='hidden_layer_z')
+    # BATCH_SIZE x 1 x SENT_EMBED_DIM * 2
+    concatenated_sents = tf.concat([encoded_premises, encoded_hypotheses],
+                                   axis=2,
+                                   name='concatenated_sentences')
+    # BATCH_SIZE x 1 x SENT_EMBED_DIM * 2
+    hidden_layer = tf.contrib.layers.fully_connected(concatenated_sents,
+                                                     SENT_EMBED_DIM * 2,
+                                                     tf.tanh)
+    # BATCH_SIZE x 1 x 3
+    logits = tf.contrib.layers.fully_connected(hidden_layer,
+                                               3,
+                                               None)
+    return logits
 
+
+def loss(logits, y):
+    cost = tf.reduce_mean(tf.nn.softmax_cross_entropy_with_logits(logits=logits,
+                                                                  labels=y,
+                                                                  name='loss'))
+    return cost
+
+
+def optimization(loss):
+    optimizer = tf.train.AdamOptimizer(ALPHA).minimize(loss)
+    return optimizer
 
 
 def train(batch_gen):
-
     for iter in range(NUM_ITERS):  # for batch in read_batch(...) (see CS20SI)
         batch = next(batch_gen)
 
 
 if __name__ == '__main__':
-    premise, hypothesis = data()
-    premise_output, _, _ = create_sentence_rnn(premise, 'premise')
-    hypothesis_output, _, _ = create_sentence_rnn(hypothesis, 'hypothesis')
-    alignment_output = align(premise_output, hypothesis_output)
+    premises, hypotheses, y = data()
+    premises_output, hypotheses_output, = create_rnns(premises, hypotheses)
+    encoded_premises = encode_sentences(premises_output, 'encoded_premises')
+    encoded_hypotheses = encode_sentences(hypotheses_output, 'encoded_hypotheses')
+    logits = classify(encoded_premises, encoded_hypotheses)
+    cost = loss(logits, y)
+    optimizer = optimization(cost)
+    with tf.Session() as sess:
+        sess.run(tf.global_variables_initializer())
+        average_loss = 0.0
+        step = 0
+        for premises, hypotheses, labels in get_batch_gen(BATCH_SIZE):
+            step += 1
+            batch_loss, _ = sess.run([cost, optimizer],
+                                     {premises: premises,
+                                      hypotheses: hypotheses,
+                                      y: labels})
+            average_loss += batch_loss
+            print('Average loss at step %s: %s' % (step, average_loss))
