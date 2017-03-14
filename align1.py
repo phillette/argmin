@@ -113,7 +113,7 @@ if __name__ == '__main__':
         with tf.Session(config=config) as sess:
             writer = tf.summary.FileWriter('graphs', sess.graph)
             sess.run(tf.global_variables_initializer())
-            ckpt = tf.train.get_checkpoint_state(os.path.dirname('checkpoints/align1/checkpoint'))
+            ckpt = tf.train.get_checkpoint_state(os.path.dirname('checkpoints/align/checkpoint'))
             if ckpt and ckpt.model_checkpoint_path:
                 saver.restore(sess, ckpt.model_checkpoint_path)
             average_loss = 0.0
@@ -127,6 +127,6 @@ if __name__ == '__main__':
                 if (iteration + 1) % REPORT_EVERY == 0:
                     print('Average loss at step %s: %s' % (iteration + 1,
                                                            average_loss / (iteration + 1)))
-                    saver.save(sess, 'checkpoints/align1', iteration)
+                    saver.save(sess, 'checkpoints/align/align1', iteration)
                 iteration += 1
         # need a test of accuracy here...
