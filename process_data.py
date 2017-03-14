@@ -1,6 +1,7 @@
 from mongoi import SNLIDb, array_to_string, string_to_array
 import spacy
 import numpy as np
+import itertools
 
 
 ENCODING_VALUES = {'neutral': 0,
@@ -114,9 +115,21 @@ def get_batch_gen(batch_size, word_embed_size, collection):
         yield batch
 
 
+def test_doc():
+    with open('data/sco_ind.txt') as f:
+        text = f.read()
+    paras = text.split('\n')
+    sents = itertools.chain(*[para.split('.') for para in text.split('\n') if para != ''])
+    sents = [sent.strip() for sent in sents if sent != '']
+    nlp = spacy.load('en')
+    docs = [nlp(sent) for sent in sents]
+    #max_length = 0  # turns out to be 37
+    #for doc in docs:
+    #    if max_length < len(doc):
+    #        max_length = len(doc)
+    matrices = [pad_sentence(sentence_matrix(sent, nlp), 402, 300) for sent in sents]
+    return matrices
+
+
 if __name__ == '__main__':
-    batch_gen = get_batch_gen(100, 300, 'train')
-    batch = next(batch_gen)
-    print(batch.premises)
-    print(batch.hypotheses)
-    print(batch.labels)
+    test_doc()

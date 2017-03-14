@@ -13,20 +13,20 @@ ALPHA = 0.0001
 REPORT_EVERY = 100
 
 
-def data():
+def data(batch_size=BATCH_SIZE):
     with tf.name_scope('data'):
         # batch size x no. time steps x embedding dimension
-        premises = tf.placeholder(tf.float64, [BATCH_SIZE, None, WORD_EMBED_DIM], name='premises')
-        hypotheses = tf.placeholder(tf.float64, [BATCH_SIZE, None, WORD_EMBED_DIM], name='hypotheses')
-        y = tf.placeholder(tf.float64, [BATCH_SIZE, 1, 3], name='y')
+        premises = tf.placeholder(tf.float64, [batch_size, None, WORD_EMBED_DIM], name='premises')
+        hypotheses = tf.placeholder(tf.float64, [batch_size, None, WORD_EMBED_DIM], name='hypotheses')
+        y = tf.placeholder(tf.float64, [batch_size, 1, 3], name='y')
         return premises, hypotheses, y
 
 
-def create_rnn(sentences, name):
+def create_rnn(sentences, name, batch_size=BATCH_SIZE):
     with tf.variable_scope(name + '_rnn_scope'):
         with tf.name_scope(name + '_rnn'):
             cell = tf.contrib.rnn.GRUCell(HIDDEN_SIZE)
-            initial_state = tf.placeholder_with_default(cell.zero_state(BATCH_SIZE,
+            initial_state = tf.placeholder_with_default(cell.zero_state(batch_size,
                                                                         tf.float64),
                                                         shape=[None, HIDDEN_SIZE],
                                                         name=name + '_initial_state')
@@ -40,9 +40,9 @@ def create_rnn(sentences, name):
             # output is BATCH_SIZE x LENGTH x WORD_EMBED_DIM
 
 
-def create_rnns(premises, hypotheses):
-    premises_output, _, _ = create_rnn(premises, 'premises')
-    hypotheses_output, _, _ = create_rnn(hypotheses, 'hypotheses')
+def create_rnns(premises, hypotheses, batch_size=BATCH_SIZE):
+    premises_output, _, _ = create_rnn(premises, 'premises', batch_size)
+    hypotheses_output, _, _ = create_rnn(hypotheses, 'hypotheses', batch_size)
     return premises_output, hypotheses_output
 
 
@@ -144,6 +144,33 @@ def predict(sess, collection, correct_predictions):
             print('Accuracy after %s: %s' % (total_seen, total_correct / total_seen))
         print('Final accuracy: %s' % (total_correct / total_seen))
 
+
+def predict_one(predictions):
+    predicted_label = tf.argmax(predictions, 1)
+    return predicted_label
+
+
+class Model:
+    def __init__(self):
+        self.premises, self.hypotheses, _ = data(1)
+        self.premises_output, self.hypotheses_output, = create_rnns(premises, hypotheses, 1)
+        self.encoded_premises = encode_sentences(self.premises_output, 'encoded_premises')
+        self.encoded_hypotheses = encode_sentences(self.hypotheses_output, 'encoded_hypotheses')
+        self.logits, self.predictions = classify(self.encoded_premises, self.encoded_hypotheses)
+        self.predicted_label = predict_one(self.predictions)
+
+    def predict(self, premise, hypothesis):
+        config = tf.ConfigProto(allow_soft_placement=True)
+        with tf.Session(config=config) as sess:
+            sess.run(tf.global_variables_initializer())
+            # load checkpointed parameter values
+            saver = tf.train.Saver()
+            ckpt = tf.train.get_checkpoint_state(os.path.dirname('checkpoints/align1.ckpt'))
+            if ckpt and ckpt.model_checkpoint_path:
+                saver.restore(sess, ckpt.model_checkpoint_path)
+            return sess.run(self.predicted_label, {self.premises: premise, self.hypotheses: hypothesis})
+
+
 if __name__ == '__main__':
     premises, hypotheses, y = data()
     premises_output, hypotheses_output, = create_rnns(premises, hypotheses)
@@ -156,4 +183,5 @@ if __name__ == '__main__':
     correct_predictions, accuracy = eval(predictions, y)
     config = tf.ConfigProto(allow_soft_placement=True)
     with tf.Session(config=config) as sess:
+        sess.run(tf.global_variables_initializer())
         predict(sess, 'test', correct_predictions)
