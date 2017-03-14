@@ -13,9 +13,11 @@ if __name__ == '__main__':
     model = Model()
     for i in range(num_sents):
         for j in range(num_sents):
-            premise = sents[i]
-            hypothesis = sents[j]
+            premise = sents[i][np.newaxis, ...]
+            hypothesis = sents[j][np.newaxis, ...]
             label = model.predict(premise, hypothesis)
+            print(label)
+            print(label.shape)
             if label == 1:
                 adj_support[i][j] = 1
             elif label == 2:

@@ -153,7 +153,7 @@ def predict_one(predictions):
 class Model:
     def __init__(self):
         self.premises, self.hypotheses, _ = data(1)
-        self.premises_output, self.hypotheses_output, = create_rnns(premises, hypotheses, 1)
+        self.premises_output, self.hypotheses_output, = create_rnns(self.premises, self.hypotheses, 1)
         self.encoded_premises = encode_sentences(self.premises_output, 'encoded_premises')
         self.encoded_hypotheses = encode_sentences(self.hypotheses_output, 'encoded_hypotheses')
         self.logits, self.predictions = classify(self.encoded_premises, self.encoded_hypotheses)
