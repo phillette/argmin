@@ -1,0 +1,6 @@
+model_checkpoint_path: "align1.ckpt-5499"
+all_model_checkpoint_paths: "align1.ckpt-5099"
+all_model_checkpoint_paths: "align1.ckpt-5199"
+all_model_checkpoint_paths: "align1.ckpt-5299"
+all_model_checkpoint_paths: "align1.ckpt-5399"
+all_model_checkpoint_paths: "align1.ckpt-5499"

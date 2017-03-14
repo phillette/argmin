@@ -135,10 +135,10 @@ def predict(sess, collection, correct_predictions):
         total_correct = 0
         total_seen = 0
         for batch in get_batch_gen(BATCH_SIZE, WORD_EMBED_DIM, collection):
-            number_correct, _ = sess.run(correct_predictions,
-                                         {premises: batch.premises,
-                                          hypotheses: batch.hypotheses,
-                                          y: batch.labels})
+            number_correct = sess.run(correct_predictions,
+                                      {premises: batch.premises,
+                                       hypotheses: batch.hypotheses,
+                                       y: batch.labels})
             total_correct += number_correct
             total_seen += BATCH_SIZE
             print('Accuracy after %s: %s' % (total_seen, total_correct / total_seen))
@@ -184,4 +184,4 @@ if __name__ == '__main__':
     config = tf.ConfigProto(allow_soft_placement=True)
     with tf.Session(config=config) as sess:
         sess.run(tf.global_variables_initializer())
-        predict(sess, 'test', correct_predictions)
+        predict(sess, 'train', correct_predictions)
