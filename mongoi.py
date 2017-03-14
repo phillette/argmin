@@ -40,13 +40,13 @@ class RepositoryFacade:
             exec('self.%s = Repository(self.db.%s)' % (collection, collection))
 
 
-class CarstensFacade(RepositoryFacade):
+class Carstens(RepositoryFacade):
     """Repository Facade for the Carstens and Toni (2015) data set. """
     def __init__(self):
         RepositoryFacade.__init__(self, 'localhost', 27017, 'carstens', ['all'])
 
 
-class SNLIDbFacade(RepositoryFacade):
+class SNLIDb(RepositoryFacade):
     """ Repository Facade for the SNLI 1.0 data set. """
     def __init__(self):
         RepositoryFacade.__init__(self, 'localhost', 27017, 'snlidb', ['train', 'dev', 'test'])

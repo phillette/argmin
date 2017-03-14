@@ -80,7 +80,7 @@ def classify(encoded_premises, encoded_hypotheses):
 
 
 def loss(logits, y):
-    cost = tf.reduce_mean(tf.nn.softmax_cross_entropy_with_logits(logits=logits,
+    cost = tf.reduce_sum(tf.nn.softmax_cross_entropy_with_logits(logits=logits,
                                                                   labels=y,
                                                                   name='loss'))
     return cost
