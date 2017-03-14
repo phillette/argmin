@@ -1,14 +1,16 @@
 import tensorflow as tf
 from process_data import get_batch_gen
+import os
 
 
 HIDDEN_SIZE = 300
-BATCH_SIZE = 3
+BATCH_SIZE = 100
 NUM_ITERS = 50000
 WORD_EMBED_DIM = 300
 SENT_EMBED_DIM = 100
-LONGEST_SENTENCE = 50
-ALPHA = 0.01
+LONGEST_SENTENCE = 402
+ALPHA = 1e-2
+REPORT_EVERY = 100
 
 
 def data():
@@ -28,7 +30,7 @@ def create_rnn(sentences, name):
                                                                         tf.float64),
                                                         shape=[None, HIDDEN_SIZE],
                                                         name=name + '_initial_state')
-            length = tf.reduce_sum(tf.reduce_max(tf.sign(sentences), 2), 1)
+            length = tf.reduce_sum(tf.reduce_max(tf.sign(sentences), 2), 1)  # need to confirm this works
             #length = tf.multiply(tf.ones([BATCH_SIZE]), 50)
             output, output_state = tf.nn.dynamic_rnn(cell,              # cell
                                                      sentences,         # inputs
@@ -80,9 +82,9 @@ def classify(encoded_premises, encoded_hypotheses):
 
 
 def loss(logits, y):
-    cost = tf.reduce_sum(tf.nn.softmax_cross_entropy_with_logits(logits=logits,
-                                                                  labels=y,
-                                                                  name='loss'))
+    cost = tf.reduce_mean(tf.nn.softmax_cross_entropy_with_logits(logits=logits,
+                                                                 labels=y,
+                                                                 name='loss'))
     return cost
 
 
@@ -97,22 +99,34 @@ def train(batch_gen):
 
 
 if __name__ == '__main__':
-    premises, hypotheses, y = data()
-    premises_output, hypotheses_output, = create_rnns(premises, hypotheses)
-    encoded_premises = encode_sentences(premises_output, 'encoded_premises')
-    encoded_hypotheses = encode_sentences(hypotheses_output, 'encoded_hypotheses')
-    logits = classify(encoded_premises, encoded_hypotheses)
-    cost = loss(logits, y)
-    optimizer = optimization(cost)
-    with tf.Session() as sess:
-        sess.run(tf.global_variables_initializer())
-        average_loss = 0.0
-        step = 0
-        for premises, hypotheses, labels in get_batch_gen(BATCH_SIZE):
-            step += 1
-            batch_loss, _ = sess.run([cost, optimizer],
-                                     {premises: premises,
-                                      hypotheses: hypotheses,
-                                      y: labels})
-            average_loss += batch_loss
-            print('Average loss at step %s: %s' % (step, average_loss))
+    with tf.device('/gpu:0'):
+        premises, hypotheses, y = data()
+        premises_output, hypotheses_output, = create_rnns(premises, hypotheses)
+        encoded_premises = encode_sentences(premises_output, 'encoded_premises')
+        encoded_hypotheses = encode_sentences(hypotheses_output, 'encoded_hypotheses')
+        logits = classify(encoded_premises, encoded_hypotheses)
+        cost = loss(logits, y)
+        optimizer = optimization(cost)
+        global_step = tf.Variable(0, dtype=tf.int32, trainable=False, name='global_step')
+        saver = tf.train.Saver()
+        config = tf.ConfigProto(allow_soft_placement=True)
+        with tf.Session(config=config) as sess:
+            writer = tf.summary.FileWriter('graphs', sess.graph)
+            sess.run(tf.global_variables_initializer())
+            ckpt = tf.train.get_checkpoint_state(os.path.dirname('checkpoints/align1/checkpoint'))
+            if ckpt and ckpt.model_checkpoint_path:
+                saver.restore(sess, ckpt.model_checkpoint_path)
+            average_loss = 0.0
+            iteration = global_step.eval()
+            for batch in get_batch_gen(BATCH_SIZE, WORD_EMBED_DIM, 'train'):
+                batch_loss, _ = sess.run([cost, optimizer],
+                                         {premises: batch.premises,
+                                          hypotheses: batch.hypotheses,
+                                          y: batch.labels})
+                average_loss += batch_loss
+                if (iteration + 1) % REPORT_EVERY == 0:
+                    print('Average loss at step %s: %s' % (iteration + 1,
+                                                           average_loss / (iteration + 1)))
+                    saver.save(sess, 'checkpoints/align1', iteration)
+                iteration += 1
+        # need a test of accuracy here...

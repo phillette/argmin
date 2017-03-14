@@ -39,6 +39,9 @@ class RepositoryFacade:
         for collection in collections:
             exec('self.%s = Repository(self.db.%s)' % (collection, collection))
 
+    def repository(self, collection):
+        return getattr(self, collection)
+
 
 class Carstens(RepositoryFacade):
     """Repository Facade for the Carstens and Toni (2015) data set. """

@@ -73,7 +73,9 @@ class Align1Tests(unittest.TestCase):
                                               self.y: labels
                                           })
             average_loss += batch_loss
-            print('Average loss at step %s: %s' % (step, average_loss))
+            if (step + 1) % REPORT_EVERY == 0:
+                print('Average loss at step %s: %s' % (step + 1,
+                                                       average_loss / (step + 1)))
 
     def tearDown(self):
         self.sess.close()
