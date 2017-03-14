@@ -78,13 +78,14 @@ def classify(encoded_premises, encoded_hypotheses):
     logits = tf.contrib.layers.fully_connected(hidden_layer,
                                                3,
                                                None)
-    return logits
+    predictions = tf.nn.softmax(logits)
+    return logits, predictions
 
 
 def loss(logits, y):
     cost = tf.reduce_mean(tf.nn.softmax_cross_entropy_with_logits(logits=logits,
-                                                                 labels=y,
-                                                                 name='loss'))
+                                                                  labels=y,
+                                                                  name='loss'))
     return cost
 
 
@@ -93,40 +94,66 @@ def optimization(loss):
     return optimizer
 
 
-def train(batch_gen):
-    for iter in range(NUM_ITERS):  # for batch in read_batch(...) (see CS20SI)
-        batch = next(batch_gen)
-
-
-if __name__ == '__main__':
+def train(sess, global_step, cost, optimizer, premises, hypotheses, y):
     with tf.device('/gpu:0'):
-        premises, hypotheses, y = data()
-        premises_output, hypotheses_output, = create_rnns(premises, hypotheses)
-        encoded_premises = encode_sentences(premises_output, 'encoded_premises')
-        encoded_hypotheses = encode_sentences(hypotheses_output, 'encoded_hypotheses')
-        logits = classify(encoded_premises, encoded_hypotheses)
-        cost = loss(logits, y)
-        optimizer = optimization(cost)
-        global_step = tf.Variable(0, dtype=tf.int32, trainable=False, name='global_step')
         saver = tf.train.Saver()
-        config = tf.ConfigProto(allow_soft_placement=True)
-        with tf.Session(config=config) as sess:
-            writer = tf.summary.FileWriter('graphs', sess.graph)
-            sess.run(tf.global_variables_initializer())
-            ckpt = tf.train.get_checkpoint_state(os.path.dirname('checkpoints/align1.ckpt'))
-            if ckpt and ckpt.model_checkpoint_path:
-                saver.restore(sess, ckpt.model_checkpoint_path)
-            average_loss = 0.0
-            iteration = global_step.eval()
-            for batch in get_batch_gen(BATCH_SIZE, WORD_EMBED_DIM, 'train'):
-                batch_loss, _ = sess.run([cost, optimizer],
+        sess.run(tf.global_variables_initializer())
+        ckpt = tf.train.get_checkpoint_state(os.path.dirname('checkpoints/align1.ckpt'))
+        if ckpt and ckpt.model_checkpoint_path:
+            saver.restore(sess, ckpt.model_checkpoint_path)
+        average_loss = 0.0
+        iteration = global_step.eval()
+        for batch in get_batch_gen(BATCH_SIZE, WORD_EMBED_DIM, 'train'):
+            batch_loss, _ = sess.run([cost, optimizer],
+                                     {premises: batch.premises,
+                                      hypotheses: batch.hypotheses,
+                                      y: batch.labels})
+            average_loss += batch_loss
+            if (iteration + 1) % REPORT_EVERY == 0:
+                print('Average loss at step %s: %s' % (iteration + 1,
+                                                       average_loss / (iteration + 1)))
+                saver.save(sess, 'checkpoints/align1.ckpt', iteration)
+            iteration += 1
+
+
+def eval(y_hat, y):
+    correct_predictions = tf.equal(tf.argmax(y_hat, 1), tf.argmax(y, 1))
+    accuracy = tf.reduce_mean(tf.cast(correct_predictions, 'float'))
+    return correct_predictions, accuracy
+
+
+def predict(sess, collection, correct_predictions):
+    with tf.device('/gpu:0'):
+        # init variables
+        sess.run(tf.global_variables_initializer())
+        # load checkpointed parameter values
+        saver = tf.train.Saver()
+        ckpt = tf.train.get_checkpoint_state(os.path.dirname('checkpoints/align1.ckpt'))
+        if ckpt and ckpt.model_checkpoint_path:
+            saver.restore(sess, ckpt.model_checkpoint_path)
+        # get batches and start predicting
+        total_correct = 0
+        total_seen = 0
+        for batch in get_batch_gen(BATCH_SIZE, WORD_EMBED_DIM, collection):
+            number_correct, _ = sess.run(correct_predictions,
                                          {premises: batch.premises,
                                           hypotheses: batch.hypotheses,
                                           y: batch.labels})
-                average_loss += batch_loss
-                if (iteration + 1) % REPORT_EVERY == 0:
-                    print('Average loss at step %s: %s' % (iteration + 1,
-                                                           average_loss / (iteration + 1)))
-                    saver.save(sess, 'checkpoints/align1.ckpt', iteration)
-                iteration += 1
-        # need a test of accuracy here...
+            total_correct += number_correct
+            total_seen += BATCH_SIZE
+            print('Accuracy after %s: %s' % (total_seen, total_correct / total_seen))
+        print('Final accuracy: %s' % (total_correct / total_seen))
+
+if __name__ == '__main__':
+    premises, hypotheses, y = data()
+    premises_output, hypotheses_output, = create_rnns(premises, hypotheses)
+    encoded_premises = encode_sentences(premises_output, 'encoded_premises')
+    encoded_hypotheses = encode_sentences(hypotheses_output, 'encoded_hypotheses')
+    logits, predictions = classify(encoded_premises, encoded_hypotheses)
+    cost = loss(logits, y)
+    optimizer = optimization(cost)
+    global_step = tf.Variable(0, dtype=tf.int32, trainable=False, name='global_step')
+    correct_predictions, accuracy = eval(predictions, y)
+    config = tf.ConfigProto(allow_soft_placement=True)
+    with tf.Session(config=config) as sess:
+        predict(sess, 'test', correct_predictions)
