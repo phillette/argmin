@@ -117,7 +117,8 @@ def pad_out_sentences(batch, pad_max=True, premise_pad_length=None, hypothesis_p
 def add_third_dimensions(batch):
     batch.premises = np.concatenate(list(M[np.newaxis, ...] for M in batch.premises), axis=0)
     batch.hypotheses = np.concatenate(list(M[np.newaxis, ...] for M in batch.hypotheses), axis=0)
-    batch.labels = np.concatenate(list(M[np.newaxis, ...] for M in batch.labels), axis=0)
+    #batch.labels = np.concatenate(list(M[np.newaxis, ...] for M in batch.labels), axis=0)
+    batch.labels = np.vstack(batch.labels)
 
 
 def test_doc():
