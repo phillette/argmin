@@ -95,12 +95,12 @@ def optimization(loss):
     return optimizer
 
 
-def train(sess, global_step, cost, optimizer, premises, hypotheses, y):
+def train(sess, global_step, cost, optimizer, premises, hypotheses, y, load_ckpt=True):
     with tf.device('/gpu:0'):
         saver = tf.train.Saver()
         sess.run(tf.global_variables_initializer())
         ckpt = tf.train.get_checkpoint_state(os.path.dirname('checkpoints/align1.ckpt'))
-        if ckpt and ckpt.model_checkpoint_path:
+        if load_ckpt and ckpt and ckpt.model_checkpoint_path:
             saver.restore(sess, ckpt.model_checkpoint_path)
         average_loss = 0.0
         iteration = global_step.eval()
@@ -185,4 +185,4 @@ if __name__ == '__main__':
     config = tf.ConfigProto(allow_soft_placement=True)
     with tf.Session(config=config) as sess:
         sess.run(tf.global_variables_initializer())
-        predict(sess, 'train', correct_predictions)
+        train(sess, global_step, cost, optimizer, premises, hypotheses, y, False)
