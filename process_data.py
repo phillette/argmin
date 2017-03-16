@@ -71,8 +71,9 @@ class Batch:
         self.labels = labels
 
 
-def pad_sentence(sentence, desired_length, word_embed_dim):
+def pad_sentence(sentence, desired_length):
     original_length = sentence.shape[0]
+    word_embed_dim = sentence.shape[1]
     if original_length < desired_length:
         sentence = np.concatenate([sentence,
                                    np.zeros((desired_length - original_length,
@@ -81,7 +82,7 @@ def pad_sentence(sentence, desired_length, word_embed_dim):
     return sentence
 
 
-def get_batch_gen(batch_size, word_embed_size, collection):
+def get_batch_gen(batch_size, collection):
     # each batch is a float64 array of shape: BATCH_SIZE x None x WORD_EMBED_DIM
     db = SNLIDb()
     gen = db.repository(collection).find_all()
@@ -89,30 +90,34 @@ def get_batch_gen(batch_size, word_embed_size, collection):
         premises = []
         hypotheses = []
         labels = []
-        max_premise = 0
-        max_hypothesis = 0
         # read elements of the batch and determine max size
         for i in range(batch_size):
             doc = next(gen)
             premise = string_to_array(doc['premise'])
             hypothesis = string_to_array(doc['hypothesis'])
             label = encode(doc['gold_label'])
-            if premise.shape[0] > max_premise:
-                max_premise = premise.shape[0]
-            if hypothesis.shape[0] > max_hypothesis:
-                max_hypothesis = hypothesis.shape[0]
             premises.append(premise)
             hypotheses.append(hypothesis)
             labels.append(label)
-        # pad out matrices
-        premises = list(pad_sentence(premise, 402, word_embed_size) for premise in premises)
-        hypotheses = list(pad_sentence(hypothesis, 402, word_embed_size) for hypothesis in hypotheses)
-        # add third dimension and concatenate
-        premises = np.concatenate(list(M[np.newaxis, ...] for M in premises), axis=0)
-        hypotheses = np.concatenate(list(M[np.newaxis, ...] for M in hypotheses), axis=0)
-        labels = np.concatenate(list(M[np.newaxis, ...] for M in labels), axis=0)
         batch = Batch(premises, hypotheses, labels)
+        pad_out_sentences(batch)
+        add_third_dimensions(batch)
         yield batch
+
+
+def pad_out_sentences(batch, pad_max=True, premise_pad_length=None, hypothesis_pad_length=None):
+    # at this stage the premises and hypotheses are still lists of matrices
+    if pad_max:
+        premise_pad_length = max([premise.shape[0] for premise in batch.premises])
+        hypothesis_pad_length = max([hypothesis.shape[0] for hypothesis in batch.hypotheses])
+    batch.premises = list(pad_sentence(premise, premise_pad_length) for premise in batch.premises)
+    batch.hypotheses = list(pad_sentence(hypothesis, hypothesis_pad_length) for hypothesis in batch.hypotheses)
+
+
+def add_third_dimensions(batch):
+    batch.premises = np.concatenate(list(M[np.newaxis, ...] for M in batch.premises), axis=0)
+    batch.hypotheses = np.concatenate(list(M[np.newaxis, ...] for M in batch.hypotheses), axis=0)
+    batch.labels = np.concatenate(list(M[np.newaxis, ...] for M in batch.labels), axis=0)
 
 
 def test_doc():
@@ -127,7 +132,7 @@ def test_doc():
     #for doc in docs:
     #    if max_length < len(doc):
     #        max_length = len(doc)
-    matrices = [pad_sentence(sentence_matrix(sent, nlp), 402, 300) for sent in sents]
+    matrices = [pad_sentence(sentence_matrix(sent, nlp), 402) for sent in sents]
     return matrices
 
 

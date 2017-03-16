@@ -1,5 +1,7 @@
 import tensorflow as tf
 from tf_decorators import define_scope
+from training import train
+from process_data import get_batch_gen
 
 
 class AdditiveSentence:
@@ -17,7 +19,7 @@ class AdditiveSentence:
         premise_vectors = tf.reduce_sum(self.premises, 1)  #    [batch_size, max_premise_length, word_embed_length]
                                                            # => [batch_size, word_embed_length]
         hypothesis_vectors = tf.reduce_sum(self.hypotheses, 1)  # as above
-        concatenated_sents = None  # concated into shape [1, 2 * word_embed_length]
+        concatenated_sents = tf.concat([premise_vectors, hypothesis_vectors], 1)  # [1, 2 * word_embed_length]
         hidden_output_1 = tf.contrib.layers.fully_connected(concatenated_sents,
                                                             tf.shape(concatenated_sents, 1),
                                                             tf.tanh,
@@ -59,4 +61,7 @@ class Aligned:
 
 
 if __name__ == '__main__':
-    pass
+    batch_size = 100
+    model = AdditiveSentence()
+    batch_gen = get_batch_gen(batch_size, 'dev')
+    train(model, batch_gen)
