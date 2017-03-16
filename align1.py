@@ -47,6 +47,7 @@ def create_rnns(premises, hypotheses, batch_size=BATCH_SIZE):
 
 
 def encode_sentences(sentence_rnn_output, name):
+    return sentence_rnn_output
     h1 = tf.contrib.layers.fully_connected(sentence_rnn_output,
                                            SENT_EMBED_DIM,
                                            tf.tanh)
