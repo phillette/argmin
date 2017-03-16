@@ -89,8 +89,8 @@ class Aligned:
 
 if __name__ == '__main__':
     batch_size = 10
-    model = AdditiveSentence(alpha=0.01)
+    model = AdditiveSentence(alpha=0.01)  # i think the optimizer could be moved to the training function
     for i in range(10):
         print('Epoch %s' % (i + 1))
-        batch_gen = get_batch_gen(batch_size, 'dev')
+        batch_gen = get_batch_gen(batch_size, 'dev')  # somehow this needs to be randomized for each epoch
         train(model, batch_gen)
