@@ -1,2 +1,6 @@
-model_checkpoint_path: "additive_sentence.ckpt-99"
-all_model_checkpoint_paths: "additive_sentence.ckpt-99"
+model_checkpoint_path: "additive_sentence.ckpt-4999"
+all_model_checkpoint_paths: "additive_sentence.ckpt-4599"
+all_model_checkpoint_paths: "additive_sentence.ckpt-4699"
+all_model_checkpoint_paths: "additive_sentence.ckpt-4799"
+all_model_checkpoint_paths: "additive_sentence.ckpt-4899"
+all_model_checkpoint_paths: "additive_sentence.ckpt-4999"

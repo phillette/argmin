@@ -82,17 +82,38 @@ def pad_sentence(sentence, desired_length):
     return sentence
 
 
+class RandomizedGenerator:
+    def __init__(self, collection='train', batch_size=100, buffer_factor=4):
+        self._collection = collection
+        self._batch_size = batch_size
+        self._buffer_factor = buffer_factor
+        self._snli = SNLIDb()
+        self._gen = self._snli.repository(collection).find_all()
+        self._buffered = []
+        self._fill_buffer()
+
+    def _fill_buffer(self):
+        for i in range(self._batch_size * self._buffer_factor):
+            self._buffered.append(next(self._gen))
+
+    def next(self):
+        sample = np.random.choice(self._buffered, size=1)[0]
+        self._buffered.remove(sample)
+        if len(self._buffered) == 0:
+            self._fill_buffer()
+        return sample
+
+
 def get_batch_gen(batch_size, collection):
     # each batch is a float64 array of shape: BATCH_SIZE x None x WORD_EMBED_DIM
-    db = SNLIDb()
-    gen = db.repository(collection).find_all()
+    # but the labels is just batch_size x 3
+    gen = RandomizedGenerator(collection, batch_size)
     while True:
         premises = []
         hypotheses = []
         labels = []
-        # read elements of the batch and determine max size
         for i in range(batch_size):
-            doc = next(gen)
+            doc = gen.next()
             premise = string_to_array(doc['premise'])
             hypothesis = string_to_array(doc['hypothesis'])
             label = encode(doc['gold_label'])
@@ -137,5 +158,42 @@ def test_doc():
     return matrices
 
 
+def count_no_gold_labels(collection):
+    db = SNLIDb()
+    train_all = db.repository(collection).find_all()
+    count = 0
+    all = 0
+    for doc in train_all:
+        if doc['gold_label'] == '-':
+            count += 1
+        all += 1
+    print('Count = %s' % count)
+    print('Percentage = %s' % (count / all))
+    # train: 785, 0.0014
+
+
+def count_missing_word_vectors(collection):
+    nlp = spacy.load('en')
+    zero_vector = np.zeros((300,), dtype='float')
+    db = SNLIDb()
+    all_docs = db.repository(collection).find_all()
+    count = 0
+    all = 0
+    for doc in all_docs:
+        for word_vector in string_to_array(doc['premise']).tolist():
+            all += 1
+            if np.array_equal(word_vector, zero_vector):
+                count += 1
+        for word_vector in string_to_array(doc['hypothesis']).tolist():
+            all += 1
+            if np.array_equal(word_vector, zero_vector):
+                count += 1
+    print('Count = %s' % count)
+    print('Percentage = %s' % (count / all))
+    # train:
+    # dev: 182, 0.00077
+    # test:
+
+
 if __name__ == '__main__':
-    test_doc()
+    count_missing_word_vectors('train')

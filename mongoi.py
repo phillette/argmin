@@ -89,6 +89,9 @@ class Repository:
         """
         self.collection.insert_one(document)
 
+    def random_sample(self, size):
+        return self.collection.aggregate([{'$sample': {'size': size}}])
+
     def update_one(self, _id, attr_value_dict):
         """
         Update the given attribute of the document with the given id to the value given.

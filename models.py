@@ -5,11 +5,10 @@ from process_data import get_batch_gen
 
 
 class AdditiveSentence:
-    def __init__(self, word_embed_length=300, hidden_size=300, alpha=0.001):
+    def __init__(self, word_embed_length=300, hidden_size=300):
         self.name = 'additive_sentence'
         self.global_step = tf.Variable(0, dtype=tf.int32, trainable=False, name='global_step')
         self.hidden_size = hidden_size
-        self.alpha = alpha
         self.premises = tf.placeholder(dtype=tf.float64, shape=[None, None, word_embed_length], name='premises')
         self.hypotheses = tf.placeholder(dtype=tf.float64, shape=[None, None, word_embed_length], name='hypotheses')
         self.concatenated_length = 2 * word_embed_length
@@ -20,7 +19,6 @@ class AdditiveSentence:
         self._logits
         self.loss
         self.predict
-        self.optimize
         self._correct_predictions
         self.accuracy
 
@@ -66,11 +64,6 @@ class AdditiveSentence:
         return tf.reduce_sum(tf.nn.softmax_cross_entropy_with_logits(logits=self._logits, labels=self.y))
 
     @define_scope
-    def optimize(self):
-        optimizer = tf.train.AdamOptimizer(self.alpha)
-        return optimizer.minimize(self.loss)
-
-    @define_scope
     def predict(self):
         return tf.nn.softmax(self._logits)
 
@@ -88,9 +81,13 @@ class Aligned:
 
 
 if __name__ == '__main__':
-    batch_size = 10
-    model = AdditiveSentence(alpha=0.01)  # i think the optimizer could be moved to the training function
-    for i in range(10):
+    batch_size = 100
+    num_epochs = 1
+    num_iters = 5000
+    report_every = 100
+    learning_rate = 0.00009
+    model = AdditiveSentence()
+    for i in range(num_epochs):
         print('Epoch %s' % (i + 1))
-        batch_gen = get_batch_gen(batch_size, 'dev')  # somehow this needs to be randomized for each epoch
-        train(model, batch_gen)
+        batch_gen = get_batch_gen(batch_size, 'train')
+        train(model, batch_gen, learning_rate=learning_rate, num_iters=num_iters, report_every=report_every)
