@@ -16,7 +16,7 @@ def train(model, batch_gen, learning_rate=0.01, num_iters=1000, report_every=100
         iteration = model.global_step.eval()
         while iteration < (starting_point + num_iters):
             batch = next(batch_gen)
-            batch_loss, batch_accuracy, _ = sess.run([model.loss, model.accuracy, model.optimize],
+            batch_loss, batch_accuracy, _ = sess.run([model.loss, model.accuracy_train, model.optimize],
                                                      {
                                                          model.premises: batch.premises,
                                                          model.hypotheses: batch.hypotheses,

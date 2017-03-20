@@ -15,10 +15,8 @@ class AdditiveSentence:
                                        name='global_step')
         self.p_keep_input = tf.Variable(0.8, dtype=tf.float64, trainable=False)
         self.p_keep_hidden = tf.Variable(0.5, dtype=tf.float64, trainable=False)
-        self.concatenated_length = 2 * word_embed_length
-        self.hidden_layer_size = tf.cast(tf.divide(self.concatenated_length,
-                                                   self.p_keep_hidden.initialized_value()),
-                                         tf.int32)
+        self.concatenated_length = 600
+        self.hidden_layer_size = 1200
         self.drop_input = dropout_vector(self.p_keep_input.initialized_value(),
                                          [1, self.concatenated_length + 1])
         self.drop_hidden = dropout_vector(self.p_keep_hidden.initialized_value(),
@@ -120,11 +118,23 @@ class AdditiveSentence:
 
     @define_scope('parameters')
     def _parameters(self):
-        self.Theta1 = tf.Variable(tf.random_uniform([601, 900], -1.0, 1.0, tf.float64),
+        self.Theta1 = tf.Variable(tf.random_uniform(shape=[self.concatenated_length + 1,
+                                                           self.hidden_layer_size],
+                                                    minval=-1.0,
+                                                    maxval=1.0,
+                                                    dtype=tf.float64),
                                   name='Theta1')
-        self.Theta2 = tf.Variable(tf.random_uniform([901, 900], -1.0, 1.0, tf.float64),
+        self.Theta2 = tf.Variable(tf.random_uniform(shape=[self.hidden_layer_size + 1,
+                                                           self.hidden_layer_size],
+                                                    minval=-1.0,
+                                                    maxval=1.0,
+                                                    dtype=tf.float64),
                                   name='Theta2')
-        self.Theta3 = tf.Variable(tf.random_uniform([901, 3], -1.0, 1.0, tf.float64),
+        self.Theta3 = tf.Variable(tf.random_uniform(shape=[self.hidden_layer_size + 1,
+                                                           3],  # the number of labels
+                                                    minval=-1.0,
+                                                    maxval=1.0,
+                                                    dtype=tf.float64),
                                   name='Theta3')
         return [self.Theta1, self.Theta2, self.Theta3]
 
@@ -143,14 +153,14 @@ class Aligned:
 
 if __name__ == '__main__':
     batch_size = 100
-    num_epochs = 10
-    num_iters = 100
-    report_every = 10
-    learning_rate = 0.00009
+    num_epochs = 1
+    num_iters = 5000
+    report_every = 500
+    learning_rate = 1e-3
     model = AdditiveSentence()
     for i in range(num_epochs):
         print('Epoch %s' % (i + 1))
-        batch_gen = get_batch_gen('dev')
+        batch_gen = get_batch_gen('train')
         train(model, batch_gen,
               learning_rate=learning_rate,
               num_iters=num_iters,

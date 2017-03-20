@@ -209,4 +209,5 @@ def count_missing_word_vectors(collection):
 
 
 if __name__ == '__main__':
-    count_missing_word_vectors('train')
+    nlp = spacy.load('en')
+    matrices_into_mongo(nlp, 'train')
