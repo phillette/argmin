@@ -5,7 +5,6 @@ import os
 def train(model, batch_gen, learning_rate=0.01, num_iters=1000, report_every=100, load_ckpt=True):
     #sess_config = tf.ConfigProto(allow_soft_placement=True)
     with tf.Session() as sess:
-        optimizer = tf.train.AdamOptimizer(learning_rate).minimize(model.loss)
         saver = tf.train.Saver()
         sess.run(tf.global_variables_initializer())
         ckpt = tf.train.get_checkpoint_state(os.path.dirname('checkpoints/%s/%s.ckpt' % (model.name, model.name)))
@@ -17,7 +16,7 @@ def train(model, batch_gen, learning_rate=0.01, num_iters=1000, report_every=100
         iteration = model.global_step.eval()
         while iteration < (starting_point + num_iters):
             batch = next(batch_gen)
-            batch_loss, batch_accuracy, _ = sess.run([model.loss, model.accuracy, optimizer],
+            batch_loss, batch_accuracy, _ = sess.run([model.loss, model.accuracy, model.optimize],
                                                      {
                                                          model.premises: batch.premises,
                                                          model.hypotheses: batch.hypotheses,

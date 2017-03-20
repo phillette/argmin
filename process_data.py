@@ -4,10 +4,22 @@ import numpy as np
 import itertools
 
 
-ENCODING_VALUES = {'neutral': 0,
-                   'entailment': 1,
-                   'contradiction': 2,
-                   '-': 0}  # will have to deal with this properly!!!
+BATCH_SIZES = {'train': 68,
+               'dev': 50,
+               'test': 50}
+COLLECTION_SIZES = {'train': 55012,
+                    'dev': 10000,
+                    'test': 10000}
+ENCODING_TO_LABEL = {0: 'neutral',
+                     1: 'entailment',
+                     2: 'contradiction'}
+ITER_COUNTS = {'train': 809,
+               'dev': 200,
+               'test': 200}
+LABEL_TO_ENCODING = {'neutral': 0,
+                     'entailment': 1,
+                     'contradiction': 2,
+                     '-': 0}  # will have to deal with this properly!!!
 
 
 def sentence_matrix(sentence, nlp):
@@ -30,7 +42,7 @@ def matrices_into_mongo(nlp, collection):
 
 def encode(label):
     encoding = np.zeros((1, 3), dtype='float64')
-    encoding[0, ENCODING_VALUES[label]] = 1
+    encoding[0, LABEL_TO_ENCODING[label]] = 1
     return encoding
 
 
@@ -83,9 +95,9 @@ def pad_sentence(sentence, desired_length):
 
 
 class RandomizedGenerator:
-    def __init__(self, collection='train', batch_size=100, buffer_factor=4):
+    def __init__(self, collection='train', buffer_factor=4):
         self._collection = collection
-        self._batch_size = batch_size
+        self._batch_size = BATCH_SIZES[collection]
         self._buffer_factor = buffer_factor
         self._snli = SNLIDb()
         self._gen = self._snli.repository(collection).find_all()
@@ -100,19 +112,20 @@ class RandomizedGenerator:
         sample = np.random.choice(self._buffered, size=1)[0]
         self._buffered.remove(sample)
         if len(self._buffered) == 0:
-            self._fill_buffer()
+            if self._gen.alive:
+                self._fill_buffer()
         return sample
 
 
-def get_batch_gen(batch_size, collection):
+def get_batch_gen(collection):
     # each batch is a float64 array of shape: BATCH_SIZE x None x WORD_EMBED_DIM
     # but the labels is just batch_size x 3
-    gen = RandomizedGenerator(collection, batch_size)
+    gen = RandomizedGenerator(collection, BATCH_SIZES[collection])
     while True:
         premises = []
         hypotheses = []
         labels = []
-        for i in range(batch_size):
+        for i in range(BATCH_SIZES[collection]):
             doc = gen.next()
             premise = string_to_array(doc['premise'])
             hypothesis = string_to_array(doc['hypothesis'])
@@ -155,7 +168,7 @@ def test_doc():
     #    if max_length < len(doc):
     #        max_length = len(doc)
     matrices = [pad_sentence(sentence_matrix(sent, nlp), 402) for sent in sents]
-    return matrices
+    return sents, matrices
 
 
 def count_no_gold_labels(collection):
