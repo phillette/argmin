@@ -9,7 +9,8 @@ def train(model, collection, num_epochs, load_ckpt=True):
         saver = tf.train.Saver()
         sess.run(tf.global_variables_initializer())
         load_checkpoint(model, saver, sess, load_ckpt)
-        for i in range(num_epochs):
+        for epoch in range(num_epochs):
+            print('Epoch %s' % epoch)
             batch_gen = get_batch_gen(collection)
             average_loss = 0
             average_accuracy = 0.0
