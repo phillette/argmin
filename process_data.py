@@ -4,7 +4,7 @@ import numpy as np
 import itertools
 
 
-BATCH_SIZES = {'train': 68,
+BATCH_SIZE = {'train': 68,
                'dev': 50,
                'test': 50}
 COLLECTION_SIZES = {'train': 55012,
@@ -13,13 +13,17 @@ COLLECTION_SIZES = {'train': 55012,
 ENCODING_TO_LABEL = {0: 'neutral',
                      1: 'entailment',
                      2: 'contradiction'}
-ITER_COUNTS = {'train': 809,
-               'dev': 200,
-               'test': 200}
+NUM_ITERS = {'train': 809,
+             'dev': 200,
+             'test': 200}
 LABEL_TO_ENCODING = {'neutral': 0,
                      'entailment': 1,
                      'contradiction': 2,
                      '-': 0}  # will have to deal with this properly!!!
+REPORT_EVERY = {'train': 101,
+                'dev': 20,
+                'test': 20}
+LONGEST_SENTENCE_SNLI = 402
 
 
 def sentence_matrix(sentence, nlp):
@@ -97,7 +101,7 @@ def pad_sentence(sentence, desired_length):
 class RandomizedGenerator:
     def __init__(self, collection='train', buffer_factor=4):
         self._collection = collection
-        self._batch_size = BATCH_SIZES[collection]
+        self._batch_size = BATCH_SIZE[collection]
         self._buffer_factor = buffer_factor
         self._snli = SNLIDb()
         self._gen = self._snli.repository(collection).find_all()
@@ -120,12 +124,12 @@ class RandomizedGenerator:
 def get_batch_gen(collection):
     # each batch is a float64 array of shape: BATCH_SIZE x None x WORD_EMBED_DIM
     # but the labels is just batch_size x 3
-    gen = RandomizedGenerator(collection, BATCH_SIZES[collection])
+    gen = RandomizedGenerator(collection, BATCH_SIZE[collection])
     while True:
         premises = []
         hypotheses = []
         labels = []
-        for i in range(BATCH_SIZES[collection]):
+        for i in range(BATCH_SIZE[collection]):
             doc = gen.next()
             premise = string_to_array(doc['premise'])
             hypothesis = string_to_array(doc['hypothesis'])
@@ -139,7 +143,10 @@ def get_batch_gen(collection):
         yield batch
 
 
-def pad_out_sentences(batch, pad_max=True, premise_pad_length=None, hypothesis_pad_length=None):
+def pad_out_sentences(batch,
+                      pad_max=False,
+                      premise_pad_length=LONGEST_SENTENCE_SNLI,
+                      hypothesis_pad_length=LONGEST_SENTENCE_SNLI):
     # at this stage the premises and hypotheses are still lists of matrices
     if pad_max:
         premise_pad_length = max([premise.shape[0] for premise in batch.premises])

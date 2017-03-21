@@ -1,4 +1,5 @@
 import tensorflow as tf
+import os
 
 
 def add_bias(tensor, dtype=tf.float64, axis=1):
@@ -16,3 +17,30 @@ def dropout_vector(keep_prob, shape):
     return tf.where(condition=tf.random_uniform(shape, 0.0, 1.0, tf.float64) > 1 - keep_prob,
                     x=tf.ones(shape, tf.float64),
                     y=tf.zeros(shape, tf.float64))
+
+
+def feed_dict(model, batch):
+    return {model.premises: batch.premises,
+            model.hypotheses: batch.hypotheses,
+            model.y: batch.labels}
+
+
+def length(sequence):
+    """
+    Courtesy of Danijar Hafner:
+    https://danijar.com/variable-sequence-lengths-in-tensorflow/
+    """
+    used = tf.sign(tf.reduce_max(tf.abs(sequence), reduction_indices=2))
+    length = tf.reduce_sum(used, reduction_indices=1)
+    length = tf.cast(length, tf.int32)
+    return length
+
+
+def load_checkpoint(model, saver, sess, load_ckpt=True):
+    if not load_ckpt:
+        return
+    ckpt = tf.train.get_checkpoint_state(os.path.dirname('checkpoints/%s/%s.ckpt' % (model.name, model.name)))
+    if load_ckpt and ckpt and ckpt.model_checkpoint_path:
+        saver.restore(sess, ckpt.model_checkpoint_path)
+    else:
+        raise Exception('No checkpoint found')
