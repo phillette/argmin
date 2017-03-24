@@ -51,3 +51,7 @@ def load_checkpoint(model, saver, sess, load_ckpt=True, transfer=False):
         saver.restore(sess, ckpt.model_checkpoint_path)
     else:
         raise Exception('No checkpoint found')
+
+
+def save_checkpoint(model, saver, sess, iteration, transfer=False):
+    saver.save(sess, ckpt_path(model.name, transfer), iteration)

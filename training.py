@@ -1,6 +1,6 @@
 import tensorflow as tf
 from process_data import get_batch_gen, NUM_ITERS, REPORT_EVERY
-from util import feed_dict, load_checkpoint
+from util import feed_dict, load_checkpoint, save_checkpoint
 
 
 def train(model, collection, num_epochs, load_ckpt=True, transfer=False):
@@ -26,5 +26,5 @@ def train(model, collection, num_epochs, load_ckpt=True, transfer=False):
                     print('Step %s: average loss = %s; average accuracy = %s' % (iteration + 1,
                                                                                  average_loss / (iteration + 1),
                                                                                  average_accuracy / (iteration + 1)))
-                    saver.save(sess, 'checkpoints/%s/%s.ckpt' % (model.name, model.name), iteration)
+                    save_checkpoint(model, saver, sess, iteration, transfer)
                 iteration += 1
