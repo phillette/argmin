@@ -3,13 +3,14 @@ from process_data import get_batch_gen, NUM_ITERS, REPORT_EVERY
 from util import feed_dict, load_checkpoint
 
 
-def train(model, collection, num_epochs, load_ckpt=True):
+def train(model, collection, num_epochs, load_ckpt=True, transfer=False):
     #sess_config = tf.ConfigProto(allow_soft_placement=True)
     with tf.Session() as sess:
         saver = tf.train.Saver()
         sess.run(tf.global_variables_initializer())
-        load_checkpoint(model, saver, sess, load_ckpt)
-        for i in range(num_epochs):
+        load_checkpoint(model, saver, sess, load_ckpt, transfer)
+        for epoch in range(num_epochs):
+            print('Epoch %s' % (epoch + 1))
             batch_gen = get_batch_gen(collection)
             average_loss = 0
             average_accuracy = 0.0

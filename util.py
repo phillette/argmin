@@ -36,10 +36,17 @@ def length(sequence):
     return length
 
 
-def load_checkpoint(model, saver, sess, load_ckpt=True):
+def ckpt_path(model_name, transfer=False):
+    if transfer:
+        return os.path.dirname('checkpoints/%s/transfer/%s.ckpt' % (model_name, model_name))
+    else:
+        return os.path.dirname('checkpoints/%s/%s.ckpt' % (model_name, model_name))
+
+
+def load_checkpoint(model, saver, sess, load_ckpt=True, transfer=False):
     if not load_ckpt:
         return
-    ckpt = tf.train.get_checkpoint_state(os.path.dirname('checkpoints/%s/%s.ckpt' % (model.name, model.name)))
+    ckpt = tf.train.get_checkpoint_state(ckpt_path(model.name, transfer))
     if load_ckpt and ckpt and ckpt.model_checkpoint_path:
         saver.restore(sess, ckpt.model_checkpoint_path)
     else:
