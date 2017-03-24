@@ -6,10 +6,16 @@ from process_data import BATCH_SIZE, LONGEST_SENTENCE_SNLI
 from util import add_bias, dropout_vector, clip_gradients, length
 
 
-def bi_rnn(sentences, hidden_size, scope):
+def bi_rnn(sentences, hidden_size, scope,
+           dropout=False, p_dropout=0.8):
     sequence_lengths = length(sentences)
     forward_cell = rnn.BasicLSTMCell(hidden_size, forget_bias=1.0)
     backward_cell = rnn.BasicLSTMCell(hidden_size, forget_bias=1.0)
+    if dropout:
+        forward_cell = tf.contrib.rnn.DropoutWrapper(cell=forward_cell,
+                                                     output_keep_prob=p_dropout)
+        backward_cell = tf.contrib.rnn.DropoutWrapper(cell=backward_cell,
+                                                      output_keep_prob=p_dropout)
     output, output_states = tf.nn.bidirectional_dynamic_rnn(cell_fw=forward_cell,
                                                             cell_bw=backward_cell,
                                                             inputs=sentences,
@@ -215,11 +221,20 @@ class AdditiveSentence:
 
 
 class BiRNN:
-    def __init__(self, word_embed_length=300, learning_rate=0.001, hidden_size=100):
+    """
+    Learning rate: 1e-3
+    Training set accuracy = 0.969
+    Test set accuracy = 0.6828
+    Carstens = 0.46 (not fully trained but best average accuracy of a batch before gradients explode)
+    """
+    def __init__(self, word_embed_length=300, learning_rate=0.001, hidden_size=100,
+                 dropout=False, p_dropout=0.8):
         self.name = 'bi_rnn'
         self.word_embed_length = word_embed_length
         self.learning_rate = learning_rate
         self.hidden_size = hidden_size
+        self.dropout = dropout
+        self.p_dropout = p_dropout
         self.time_steps = LONGEST_SENTENCE_SNLI
         self.global_step = tf.Variable(0,
                                        dtype=tf.int32,
@@ -245,9 +260,11 @@ class BiRNN:
 
     @define_scope('bi_rnns')
     def _bi_rnns(self):
-        _, self.premise_output_states = bi_rnn(self.premises, self.hidden_size, 'premise_bi_rnn')
+        _, self.premise_output_states = bi_rnn(self.premises, self.hidden_size, 'premise_bi_rnn',
+                                               self.dropout, self.p_dropout)
         self.premise_out = tf.concat([state.c for state in self.premise_output_states], axis=1)
-        _, self.hypothesis_output_states = bi_rnn(self.hypotheses, self.hidden_size, 'hypothesis_bi_rnn')
+        _, self.hypothesis_output_states = bi_rnn(self.hypotheses, self.hidden_size, 'hypothesis_bi_rnn',
+                                                  self.dropout, self.p_dropout)
         self.hypothesis_out = tf.concat([state.c for state in self.hypothesis_output_states], axis=1)
         self.rnn_output = tf.concat([self.premise_out, self.hypothesis_out],
                                     axis=1,
@@ -296,6 +313,22 @@ class BiRNN:
     @define_scope
     def optimize(self):
         return tf.train.AdamOptimizer(self.learning_rate).minimize(self.loss)
+
+
+class BiRNNDropout(ModelBase):
+    def __init__(self, word_embed_length=300, learning_rate=0.001, hidden_size=100):
+        ModelBase.__init__(self, word_embed_length=300, learning_rate=0.001, hidden_size=100)
+        self.name = 'bi_rnn'
+
+        self._data
+        self._bi_rnns
+        self._logits
+        self.loss
+        self.optimize
+        self.accuracy_train
+        self.accuracy
+
+
 
 
 class Aligned(ModelBase):
