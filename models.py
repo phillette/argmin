@@ -60,10 +60,6 @@ class ModelBase:
         return self.premises, self.hypotheses, self.y
 
     @define_scope
-    def logits(self):
-        raise NotImplementedError()
-
-    @define_scope
     def loss(self):
         return tf.reduce_sum(tf.nn.softmax_cross_entropy_with_logits(labels=self.y,
                                                                      logits=self.logits,
@@ -298,11 +294,37 @@ class BiRNN:
         return tf.train.AdamOptimizer(self.learning_rate).minimize(self.loss)
 
 
+class BiRNNDropout:
+    def __init__(self, word_embed_length=300, learning_rate=0.001, hidden_size=100):
+        self.name = 'bi_rnn'
+        self.word_embed_length = word_embed_length
+        self.learning_rate = learning_rate
+        self.hidden_size = hidden_size
+        self.time_steps = LONGEST_SENTENCE_SNLI
+        self.global_step = tf.Variable(0,
+                                       dtype=tf.int32,
+                                       trainable=False,
+                                       name='global_step')
+        self._data
+        self._bi_rnns
+        self._logits
+        self.loss
+        self.optimize
+        self.accuracy_train
+        self.accuracy
+
+
+
+
 class Aligned(ModelBase):
     def __init__(self):
         ModelBase.__init__(self, word_embed_length=300, learning_rate=0.001, hidden_size=100)
         self.name = 'aligned'
         self._bi_rnns
+
+    @define_scope('alignment')
+    def _alignment(self):
+        pass
 
     @define_scope('bi_rnns')
     def _bi_rnns(self):

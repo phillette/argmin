@@ -1,28 +1,33 @@
-from mongoi import SNLIDb, array_to_string, string_to_array
+from mongoi import SNLIDb, array_to_string, string_to_array, Carstens
 import spacy
 import numpy as np
 import itertools
+import pandas as pd
 
 
 BATCH_SIZE = {'train': 68,
-               'dev': 50,
-               'test': 50}
+              'dev': 50,
+              'test': 50,
+              'carstens': 2}
 COLLECTION_SIZES = {'train': 55012,
                     'dev': 10000,
-                    'test': 10000}
+                    'test': 10000,
+                    'carstens': 4058}
 ENCODING_TO_LABEL = {0: 'neutral',
                      1: 'entailment',
                      2: 'contradiction'}
 NUM_ITERS = {'train': 809,
              'dev': 200,
-             'test': 200}
+             'test': 200,
+             'carstens': 2026}
 LABEL_TO_ENCODING = {'neutral': 0,
                      'entailment': 1,
                      'contradiction': 2,
                      '-': 0}  # will have to deal with this properly!!!
 REPORT_EVERY = {'train': 101,
                 'dev': 20,
-                'test': 20}
+                'test': 20,
+                'carstens': 200}
 LONGEST_SENTENCE_SNLI = 402
 
 
@@ -100,11 +105,11 @@ def pad_sentence(sentence, desired_length):
 
 class RandomizedGenerator:
     def __init__(self, collection='train', buffer_factor=4):
-        self._collection = collection
+        self._collection = 'all' if collection == 'carstens' else collection
         self._batch_size = BATCH_SIZE[collection]
         self._buffer_factor = buffer_factor
-        self._snli = SNLIDb()
-        self._gen = self._snli.repository(collection).find_all()
+        self._db = Carstens() if collection == 'carstens' else SNLIDb()
+        self._gen = self._db.repository(self._collection).find_all()
         self._buffered = []
         self._fill_buffer()
 
@@ -215,6 +220,28 @@ def count_missing_word_vectors(collection):
     # test:
 
 
-if __name__ == '__main__':
+def carstens_into_mongo(file_path='/home/hanshan/carstens.csv'):
+    X = pd.read_csv(file_path, header=None)
+    label = {
+        'n': 'neutral',
+        's': 'entailment',
+        'a': 'contradiction'
+    }
+    db = Carstens()
     nlp = spacy.load('en')
-    matrices_into_mongo(nlp, 'train')
+    id = 0
+    for x in X.iterrows():
+        id += 1
+        doc = {
+            '_id': id,
+            'sentence1': x[1][3],
+            'sentence2': x[1][4],
+            'gold_label': label[x[1][5]]
+        }
+        doc['premise'] = array_to_string(sentence_matrix(doc['sentence1'], nlp))
+        doc['hypothesis'] = array_to_string(sentence_matrix(doc['sentence2'], nlp))
+        db.all.insert_one(doc)
+
+
+if __name__ == '__main__':
+    carstens_into_mongo()

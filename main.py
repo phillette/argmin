@@ -4,8 +4,6 @@ from prediction import accuracy
 
 
 if __name__ == '__main__':
-    model = BiRNN(learning_rate=1e-3)
-    train(model, 'train', 12, load_ckpt=False)
-    accuracy(model, 'train')
-    accuracy(model, 'dev')
-    accuracy(model, 'test')
+    model = BiRNN(learning_rate=1e-12)  # originally 1e-3 with good results
+    #train(model, 'carstens', 10, load_ckpt=True, transfer=True)
+    accuracy(model, 'carstens')
