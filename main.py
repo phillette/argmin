@@ -12,3 +12,4 @@ if __name__ == '__main__':
         accuracy(model, 'carstens', sess)  # loading and saving of checkpoints currently not working.
 
 # 54.9306144334 (dev for sure, maybe also test)
+#73% accuracy on full set of Carstens - looks like it can go higher from the end of training pattern/tendency
