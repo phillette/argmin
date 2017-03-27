@@ -8,11 +8,15 @@ import pandas as pd
 BATCH_SIZE = {'train': 68,
               'dev': 50,
               'test': 50,
-              'carstens': 2}
+              'carstens': 101,
+              'carstens_train': 100,
+              'carstens_test': 1058}
 COLLECTION_SIZES = {'train': 55012,
                     'dev': 10000,
                     'test': 10000,
-                    'carstens': 4058}
+                    'carstens': 4058,
+                    'carstens_train': 3000,
+                    'carstens_test': 1058}
 ENCODING_TO_LABEL = {0: 'neutral',
                      1: 'entailment',
                      2: 'contradiction'}
@@ -24,12 +28,16 @@ LONGEST_SENTENCE_SNLI = 402
 NUM_ITERS = {'train': 809,
              'dev': 200,
              'test': 200,
-             'carstens': 2026}
+             'carstens': 40,
+             'carstens_train': 30,
+             'carstens_test': 1}
 NUM_LABELS = 3
 REPORT_EVERY = {'train': 101,
                 'dev': 20,
                 'test': 20,
-                'carstens': 200}
+                'carstens': 4,
+                'carstens_train': 3,
+                'carstens_test': 1}
 
 
 def sentence_matrix(sentence, nlp):
@@ -106,17 +114,18 @@ def pad_sentence(sentence, desired_length):
 
 class RandomizedGenerator:
     def __init__(self, collection='train', buffer_factor=4):
-        self._collection = 'all' if collection == 'carstens' else collection
+        self._collection = 'all' if collection == 'carstens' else collection  # collection.startswith('carstens')
         self._batch_size = BATCH_SIZE[collection]
         self._buffer_factor = buffer_factor
-        self._db = Carstens() if collection == 'carstens' else SNLIDb()
+        self._db = Carstens() if collection == 'carstens' else SNLIDb()  # collection.startswith('carstens')
         self._gen = self._db.repository(self._collection).find_all()
         self._buffered = []
         self._fill_buffer()
 
     def _fill_buffer(self):
         for i in range(self._batch_size * self._buffer_factor):
-            self._buffered.append(next(self._gen))
+            if self._gen.alive:
+                self._buffered.append(next(self._gen))
 
     def next(self):
         sample = np.random.choice(self._buffered, size=1)[0]
