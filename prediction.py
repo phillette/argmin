@@ -6,21 +6,18 @@ import numpy as np
 from util import load_checkpoint, feed_dict
 
 
-def accuracy(model, collection):
+def accuracy(model, collection, sess):
+    # make sure sess.run(tf.global_variables_initializer()) has already been called
     batch_gen = get_batch_gen(collection)
     num_iters = NUM_ITERS[collection]
-    with tf.Session() as sess:
-        saver = tf.train.Saver()
-        sess.run(tf.global_variables_initializer())
-        ckpt = tf.train.get_checkpoint_state(os.path.dirname('checkpoints/%s/%s.ckpt' % (model.name,
-                                                                                         model.name)))
-        load_checkpoint(model, saver, sess)
-        average_accuracy = 0
-        for iter in range(num_iters):
-            batch = next(batch_gen)
-            batch_accuracy = sess.run(model.accuracy, feed_dict(model, batch))
-            average_accuracy += batch_accuracy
-        print('%s set accuracy = %s' % (collection, average_accuracy / num_iters))
+    saver = tf.train.Saver()
+    load_checkpoint(model, saver, sess)
+    average_accuracy = 0
+    for iter in range(num_iters):
+        batch = next(batch_gen)
+        batch_accuracy = sess.run(model.accuracy, feed_dict(model, batch))
+        average_accuracy += batch_accuracy
+    print('%s set accuracy = %s' % (collection, average_accuracy / num_iters))
 
 
 class Prediction:
