@@ -2,13 +2,13 @@ import tensorflow as tf
 from tensorflow.contrib import rnn
 from tf_decorators import define_scope
 from training import train
-from process_data import BATCH_SIZE, LONGEST_SENTENCE_SNLI
-from util import add_bias, dropout_vector, clip_gradients, length
+from process_data import LONGEST_SENTENCE_SNLI, NUM_LABELS, get_batch_gen
+from util import clip_gradients, length, feed_dict
 
 
 def bi_rnn(sentences, hidden_size, scope,
            dropout=False, p_dropout=0.8):
-    sequence_lengths = length(sentences)
+    sequence_length = length(sentences)
     forward_cell = rnn.BasicLSTMCell(hidden_size, forget_bias=1.0)
     backward_cell = rnn.BasicLSTMCell(hidden_size, forget_bias=1.0)
     if dropout:
@@ -19,18 +19,39 @@ def bi_rnn(sentences, hidden_size, scope,
     output, output_states = tf.nn.bidirectional_dynamic_rnn(cell_fw=forward_cell,
                                                             cell_bw=backward_cell,
                                                             inputs=sentences,
-                                                            sequence_length=sequence_lengths,
+                                                            sequence_length=sequence_length,
                                                             dtype=tf.float64,
                                                             scope=scope)
     return output, output_states
 
 
-class ModelBase:
-    def __init__(self, word_embed_length=300, learning_rate=0.001, hidden_size=100):
+def lstm_encoder(sentences, hidden_size, scope, p_dropout=0.8):
+    sequence_length = length(sentences)
+    cell = rnn.BasicLSTMCell(hidden_size, forget_bias=1.0)
+    cell = tf.contrib.rnn.DropoutWrapper(cell=cell,
+                                         output_keep_prob=p_dropout)
+    output, output_states = tf.nn.dynamic_rnn(cell=cell,
+                                              inputs=sentences,
+                                              sequence_length=sequence_length,
+                                              dtype=tf.float64,
+                                              scope=scope)
+    return output, output_states
+
+
+class Model:
+    def __init__(self, word_embed_length=300, learning_rate=0.001, hidden_size=100,
+                 p_keep_input=0.8, p_keep_hidden=0.5, grad_norm=3.0):
         self.word_embed_length = word_embed_length
         self.learning_rate = learning_rate
         self.hidden_size = hidden_size
         self.time_steps = LONGEST_SENTENCE_SNLI
+        self.p_keep_input = p_keep_input
+        self.p_keep_hidden = p_keep_hidden
+        self.grad_norm = grad_norm
+        self.global_step = tf.Variable(0,
+                                       dtype=tf.int32,
+                                       trainable=False,
+                                       name='global_step')
         self._data
         self.logits
         self.loss
@@ -73,147 +94,49 @@ class ModelBase:
 
     @define_scope
     def optimize(self):
-        return tf.train.AdamOptimizer(self.learning_rate).minimize(self.loss)
-
-
-class AdditiveSentence:
-    def __init__(self, word_embed_length=300, learning_rate=0.001,
-                 p_keep_input=0.8, p_keep_hidden=0.5):
-        self.name = 'additive_sentence'
-        self.word_embed_length = word_embed_length
-        self.learning_rate = learning_rate
-        self.global_step = tf.Variable(0, dtype=tf.int32,
-                                       trainable=False,
-                                       name='global_step')
-        self.p_keep_input = tf.Variable(p_keep_input, dtype=tf.float64, trainable=False)
-        self.p_keep_hidden = tf.Variable(p_keep_hidden, dtype=tf.float64, trainable=False)
-        self.concatenated_length = 600
-        self.hidden_layer_size = 1200
-        self.drop_input = dropout_vector(self.p_keep_input.initialized_value(),
-                                         [1, self.concatenated_length + 1])
-        self.drop_hidden = dropout_vector(self.p_keep_hidden.initialized_value(),
-                                          [1, self.hidden_layer_size + 1])
-        self._data
-        self._concatenated_sents
-        self._parameters
-        self._feedforward_train
-        self._feedforward_test
-        self.loss
-        self.predict
-        self.accuracy
-        self.accuracy_train
-        self.optimize
-
-    @define_scope
-    def accuracy(self):
-        correct_predictions = tf.equal(tf.argmax(self.predict, 1), tf.argmax(self.y, 1))
-        accuracy = tf.reduce_mean(tf.cast(correct_predictions, tf.float64))
-        return accuracy
-
-    @define_scope('accuracy_train')
-    def accuracy_train(self):
-        correct_predictions = tf.equal(tf.argmax(self._feedforward_train, 1), tf.argmax(self.y, 1))
-        accuracy = tf.reduce_mean(tf.cast(correct_predictions, tf.float64))
-        return accuracy
-
-    @define_scope('concatenated_sents')
-    def _concatenated_sents(self):
-        premise_vectors = tf.reduce_sum(self.premises, 1)  # [batch_size, word_embed_length]
-        hypothesis_vectors = tf.reduce_sum(self.hypotheses, 1)  # [batch_size, word_embed_length]
-        concatenated_sents = tf.concat([premise_vectors, hypothesis_vectors],
-                                       1,
-                                       name='concatenated_sentences')  # [1, concatenated_length]
-        return concatenated_sents
-
-    @define_scope('data')
-    def _data(self):
-        self.premises = tf.placeholder(dtype=tf.float64,
-                                       shape=[None, None, self.word_embed_length],
-                                       name='premises')
-        self.hypotheses = tf.placeholder(dtype=tf.float64,
-                                         shape=[None, None, self.word_embed_length],
-                                         name='hypotheses')
-        self.y = tf.placeholder(dtype=tf.float64,
-                                shape=[None, 3],
-                                name='y')
-
-    @define_scope('feedforward_test')
-    def _feedforward_test(self):
-        input_with_bias = add_bias(self._concatenated_sents)
-        hidden_output_1 = tf.tanh(tf.matmul(input_with_bias,
-                                            tf.multiply(self.Theta1, self.p_keep_input)),
-                                  name='augmented_hidden_output_1')
-        hidden_output_1_with_bias = add_bias(hidden_output_1)
-        hidden_output_2 = tf.tanh(tf.matmul(hidden_output_1_with_bias,
-                                            tf.multiply(self.Theta2, self.p_keep_hidden)),
-                                  name='augmented_hidden_output_2')
-        hidden_output_2_with_bias = add_bias(hidden_output_2)
-        logits = tf.matmul(hidden_output_2_with_bias,
-                           tf.multiply(self.Theta3, self.p_keep_hidden),
-                           name='augmented_logits')
-        return logits
-
-    @define_scope('feedforward_train')
-    def _feedforward_train(self):
-        input_with_bias = add_bias(self._concatenated_sents)
-        dropped_input = tf.multiply(input_with_bias,
-                                    self.drop_input,
-                                    name='dropped_input')
-        hidden_output_1 = tf.tanh(tf.matmul(dropped_input,
-                                            self.Theta1),
-                                  name='hidden_output_1')
-        hidden_output_1_with_bias = add_bias(hidden_output_1)
-        dropped_hidden_1 = tf.multiply(hidden_output_1_with_bias,
-                                       self.drop_hidden,
-                                       name='dropped_hidden_1')
-        hidden_output_2 = tf.tanh(tf.matmul(dropped_hidden_1,
-                                            self.Theta2),
-                                  name='hidden_output_2')
-        hidden_output_2_with_bias = add_bias(hidden_output_2)
-        dropped_hidden_2 = tf.multiply(hidden_output_2_with_bias,
-                                       self.drop_hidden,
-                                       name='dropped_hidden_2')
-        logits = tf.matmul(dropped_hidden_2, self.Theta3)
-        return logits
-
-    @define_scope
-    def loss(self):
-        return tf.reduce_sum(tf.nn.softmax_cross_entropy_with_logits(logits=self._feedforward_train,
-                                                                     labels=self.y))
-
-    @define_scope
-    def optimize(self):
-        optimizer = tf.train.AdadeltaOptimizer(self.learning_rate)
-        #optimizer = tf.train.AdamOptimizer(self.learning_rate)
-        grads_and_vars = optimizer.compute_gradients(self.loss, self._parameters)
+        optimizer = tf.train.AdamOptimizer(self.learning_rate)
+        weights = [v for v in tf.get_collection(tf.GraphKeys.TRAINABLE_VARIABLES) if v.name.endswith('weights:0')]
+        grads_and_vars = optimizer.compute_gradients(self.loss, weights)
         clipped_grads_and_vars = clip_gradients(grads_and_vars)
         return optimizer.apply_gradients(clipped_grads_and_vars)
 
-    @define_scope('parameters')
-    def _parameters(self):
-        self.Theta1 = tf.Variable(tf.random_uniform(shape=[self.concatenated_length + 1,
-                                                           self.hidden_layer_size],
-                                                    minval=-1.0,
-                                                    maxval=1.0,
-                                                    dtype=tf.float64),
-                                  name='Theta1')
-        self.Theta2 = tf.Variable(tf.random_uniform(shape=[self.hidden_layer_size + 1,
-                                                           self.hidden_layer_size],
-                                                    minval=-1.0,
-                                                    maxval=1.0,
-                                                    dtype=tf.float64),
-                                  name='Theta2')
-        self.Theta3 = tf.Variable(tf.random_uniform(shape=[self.hidden_layer_size + 1,
-                                                           3],  # the number of labels
-                                                    minval=-1.0,
-                                                    maxval=1.0,
-                                                    dtype=tf.float64),
-                                  name='Theta3')
-        return [self.Theta1, self.Theta2, self.Theta3]
+
+class LSTMEncoder(Model):
+    def __init__(self, word_embed_length=300, learning_rate=0.001, hidden_size=100,
+                 p_keep_input=0.8, p_keep_hidden=0.5, grad_norm=3.0):
+        Model.__init__(self, word_embed_length, learning_rate, hidden_size,
+                       p_keep_input, p_keep_hidden, grad_norm)
+        self.name = 'lstm_encoder'
 
     @define_scope
-    def predict(self):
-        return tf.nn.softmax(self._feedforward_test)
+    def logits(self):
+        _, self.premise_encoding = lstm_encoder(self.premises,       # batch_size x hidden_size
+                                                self.hidden_size,
+                                                'premise_encoding',
+                                                self.p_keep_input)
+        _, self.hypothesis_encoding = lstm_encoder(self.hypotheses,  # batch_size x hidden_size
+                                                   self.hidden_size,
+                                                   'hypothesis_encoding',
+                                                   self.p_keep_input)
+        self.premise_reduced_encoding = tf.contrib.layers.fully_connected(inputs=self.premise_encoding.c,
+                                                                          num_outputs=100,
+                                                                          activation_fn=tf.tanh)
+        self.hypothesis_reduced_encoding = tf.contrib.layers.fully_connected(inputs=self.hypothesis_encoding.c,
+                                                                             num_outputs=100,
+                                                                             activation_fn=tf.tanh)
+        self.concatenated_encodings = tf.concat([self.premise_reduced_encoding, self.hypothesis_reduced_encoding],
+                                                axis=1,
+                                                name='concatenated_encodings')
+        self.tanh1 = tf.contrib.layers.fully_connected(inputs=self.concatenated_encodings,
+                                                       num_outputs=2 * self.hidden_size,
+                                                       activation_fn=tf.tanh)
+        self.tanh2 = tf.contrib.layers.fully_connected(inputs=self.tanh1,
+                                                       num_outputs=2 * self.hidden_size,
+                                                       activation_fn=tf.tanh)
+        self.tanh3 = tf.contrib.layers.fully_connected(inputs=self.tanh2,
+                                                       num_outputs=NUM_LABELS,
+                                                       activation_fn=tf.tanh)
+        return self.tanh3
 
 
 class BiRNN:
@@ -311,15 +234,11 @@ class BiRNN:
         return tf.train.AdamOptimizer(self.learning_rate).minimize(self.loss)
 
 
-class BiRNNDropout(ModelBase):
-    def __init__(self, word_embed_length=300, learning_rate=0.001, hidden_size=100):
-        ModelBase.__init__(self, word_embed_length=300, learning_rate=0.001, hidden_size=100)
-        self.name = 'bi_rnn'
-
-
-class Aligned(ModelBase):
-    def __init__(self):
-        ModelBase.__init__(self, word_embed_length=300, learning_rate=0.001, hidden_size=100)
+class Aligned(Model):
+    def __init__(self, word_embed_length=300, learning_rate=0.001, hidden_size=100,
+                 p_keep_input=0.8, p_keep_hidden=0.5, grad_norm=3.0):
+        Model.__init__(self, word_embed_length, learning_rate, hidden_size,
+                       p_keep_input, p_keep_hidden, grad_norm)
         self.name = 'aligned'
         self._bi_rnns
 
@@ -340,8 +259,12 @@ class Aligned(ModelBase):
 
 
 if __name__ == '__main__':
-    collection = 'train'
-    num_epochs = 10
+    collection = 'dev'
+    batch_gen = get_batch_gen('dev')
     learning_rate = 1e-3
-    model = BiRNN(learning_rate=learning_rate)
-    train(model, collection, num_epochs)
+    model = LSTMEncoder(learning_rate=learning_rate)
+    with tf.Session() as sess:
+        sess.run(tf.global_variables_initializer())
+        result = sess.run(model.premise_reduced_encoding,
+                          feed_dict(model, next(batch_gen)))
+        print(result.shape)

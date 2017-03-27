@@ -1,14 +1,16 @@
 import tensorflow as tf
 from process_data import get_batch_gen, NUM_ITERS, REPORT_EVERY
-from util import feed_dict, load_checkpoint, save_checkpoint
+from util import feed_dict, load_checkpoint, save_checkpoint, log_graph_path
 
 
-def train(model, collection, num_epochs, load_ckpt=True, transfer=False):
-    #sess_config = tf.ConfigProto(allow_soft_placement=True)
+def train(model, collection, num_epochs, load_ckpt=True, save_ckpt=True, write_graph=True, transfer=False):
     with tf.Session() as sess:
+        if write_graph:
+            writer = tf.summary.FileWriter(log_graph_path(model.name), sess.graph)
         saver = tf.train.Saver()
         sess.run(tf.global_variables_initializer())
-        load_checkpoint(model, saver, sess, load_ckpt, transfer)
+        if load_ckpt:
+            load_checkpoint(model, saver, sess, transfer)
         for epoch in range(num_epochs):
             print('Epoch %s' % (epoch + 1))
             batch_gen = get_batch_gen(collection)
@@ -26,5 +28,8 @@ def train(model, collection, num_epochs, load_ckpt=True, transfer=False):
                     print('Step %s: average loss = %s; average accuracy = %s' % (iteration + 1,
                                                                                  average_loss / (iteration + 1),
                                                                                  average_accuracy / (iteration + 1)))
-                    save_checkpoint(model, saver, sess, iteration, transfer)
+                    if save_ckpt:
+                        save_checkpoint(model, saver, sess, iteration, transfer)
                 iteration += 1
+        if write_graph:
+            writer.close()

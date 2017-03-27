@@ -28,8 +28,8 @@ def label_vector_to_matrix(y):
 
 
 def data():
-    X_raw = np.load('data/X.npy')
-    y_raw = np.load('data/y.npy')
+    X_raw = np.load('/data/X.npy')
+    y_raw = np.load('/data/y.npy')
     Xy = np.concatenate([X_raw, y_raw], axis=1)
     np.random.shuffle(Xy)
     X_train = Xy[:M_TRAIN, :400]
@@ -85,13 +85,13 @@ class Model:
 
     def _feedforward(self):
         self.X_dropped_out = tf.contrib.layers.dropout(inputs=self.X_with_bias,
-                                                       keep_prob=self.drop_input,
+                                                       keep_prob=0.8,
                                                        is_training=self.in_training)
         self.vanilla_hidden = tf.contrib.layers.fully_connected(inputs=self.X_dropped_out,
                                                                 num_outputs=26,
                                                                 activation_fn=tf.sigmoid)
         self.hidden_dropped_out = tf.contrib.layers.dropout(inputs=self.vanilla_hidden,
-                                                            keep_prob=self.drop_hidden,
+                                                            keep_prob=0.5,
                                                             is_training=self.in_training)
         self.logits = tf.contrib.layers.fully_connected(inputs=self.hidden_dropped_out,
                                                         num_outputs=10,
@@ -152,7 +152,7 @@ class Model:
 
     def _optimize(self):
         self.optimizer = tf.train.AdamOptimizer(LEARNING_RATE)
-        weights = [v for v in tf.get_collection(tf.GraphKeys.TRAINABLE_VARIABLES) if v.name.enswith('weights:0')]
+        weights = [v for v in tf.get_collection(tf.GraphKeys.TRAINABLE_VARIABLES) if v.name.endswith('weights:0')]
         grads_and_vars = self.optimizer.compute_gradients(self.loss, weights)
         capped_grads_and_vars = [(tf.clip_by_norm(gv[0], clip_norm=5.0, axes=0), gv[1]) for gv in grads_and_vars]
         self.optimize = self.optimizer.apply_gradients(capped_grads_and_vars)

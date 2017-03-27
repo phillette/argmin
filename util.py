@@ -9,7 +9,14 @@ def add_bias(tensor, dtype=tf.float64, axis=1):
                      axis=axis)
 
 
-def clip_gradients(grads_and_vars, norm=5.0, axes=0):
+def ckpt_path(model_name, transfer=False):
+    if transfer:
+        return 'checkpoints/%s/transfer/%s.ckpt' % (model_name, model_name)
+    else:
+        return 'checkpoints/%s/%s.ckpt' % (model_name, model_name)
+
+
+def clip_gradients(grads_and_vars, norm=3.0, axes=0):
     return [(tf.clip_by_norm(gv[0], clip_norm=norm, axes=axes), gv[1]) for gv in grads_and_vars]
 
 
@@ -36,21 +43,14 @@ def length(sequence):
     return length
 
 
-def ckpt_path(model_name, transfer=False):
-    if transfer:
-        return os.path.dirname('checkpoints/%s/transfer/%s.ckpt' % (model_name, model_name))
-    else:
-        return os.path.dirname('checkpoints/%s/%s.ckpt' % (model_name, model_name))
-
-
-def load_checkpoint(model, saver, sess, load_ckpt=True, transfer=False):
-    if not load_ckpt:
-        return
+def load_checkpoint(model, saver, sess, transfer=False):
     ckpt = tf.train.get_checkpoint_state(ckpt_path(model.name, transfer))
-    if load_ckpt and ckpt and ckpt.model_checkpoint_path:
+    if ckpt and ckpt.model_checkpoint_path:
         saver.restore(sess, ckpt.model_checkpoint_path)
-    else:
-        raise Exception('No checkpoint found')
+
+
+def log_graph_path(model_name):
+    return os.path.dirname('graphs/%s' % model_name)
 
 
 def save_checkpoint(model, saver, sess, iteration, transfer=False):

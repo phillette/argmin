@@ -16,19 +16,20 @@ COLLECTION_SIZES = {'train': 55012,
 ENCODING_TO_LABEL = {0: 'neutral',
                      1: 'entailment',
                      2: 'contradiction'}
-NUM_ITERS = {'train': 809,
-             'dev': 200,
-             'test': 200,
-             'carstens': 2026}
 LABEL_TO_ENCODING = {'neutral': 0,
                      'entailment': 1,
                      'contradiction': 2,
                      '-': 0}  # will have to deal with this properly!!!
+LONGEST_SENTENCE_SNLI = 402
+NUM_ITERS = {'train': 809,
+             'dev': 200,
+             'test': 200,
+             'carstens': 2026}
+NUM_LABELS = 3
 REPORT_EVERY = {'train': 101,
                 'dev': 20,
                 'test': 20,
                 'carstens': 200}
-LONGEST_SENTENCE_SNLI = 402
 
 
 def sentence_matrix(sentence, nlp):
