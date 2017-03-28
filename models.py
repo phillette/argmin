@@ -213,13 +213,19 @@ class BiRNN:
         self.hidden_output_1 = tf.contrib.layers.fully_connected(self.rnn_output,
                                                                  self.hidden_size,
                                                                  tf.tanh)
-        self.hidden_output_2 = tf.contrib.layers.fully_connected(self.hidden_output_1,
+        self.hidden_1_dropped = tf.nn.dropout(self.hidden_output_1,
+                                              self.p_keep_hidden)
+        self.hidden_output_2 = tf.contrib.layers.fully_connected(self.hidden_1_dropped,
                                                                  self.hidden_size,
                                                                  tf.tanh)
-        self.hidden_output_3 = tf.contrib.layers.fully_connected(self.hidden_output_2,
+        self.hidden_2_dropped = tf.nn.dropout(self.hidden_output_2,
+                                              self.p_keep_hidden)
+        self.hidden_output_3 = tf.contrib.layers.fully_connected(self.hidden_2_dropped,
                                                                  self.hidden_size,
                                                                  tf.tanh)
-        self.logits = tf.contrib.layers.fully_connected(inputs=self.hidden_output_3,
+        self.hidden_3_dropped = tf.nn.dropout(self.hidden_output_3,
+                                              self.p_keep_hidden)
+        self.logits = tf.contrib.layers.fully_connected(inputs=self.hidden_3_dropped,
                                                         num_outputs=3,
                                                         activation_fn=None)
         return self.logits
