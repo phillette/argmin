@@ -5,18 +5,38 @@ import itertools
 import pandas as pd
 
 
-BATCH_SIZE = {'train': 68,
-              'dev': 50,
-              'test': 50,
-              'carstens': 101,
-              'carstens_train': 100,
-              'carstens_test': 1058}
-COLLECTION_SIZES = {'train': 55012,
-                    'dev': 10000,
-                    'test': 10000,
-                    'carstens': 4058,
-                    'carstens_train': 3000,
-                    'carstens_test': 1058}
+"""
+Note that to split the Carstens data into train and test, I used a variant on this code:
+http://stackoverflow.com/questions/27039083/mongodb-move-documents-from-one-collection-to-another-collection
+First 3500 into train, the next 558 into test, as the _id goes from 1 to 4058.  Use $gt: 3500 and $lt: 5301.
+It would also be simple (simpler perhaps) to modify the carstens_into_mongo function below.
+"""
+
+
+BATCH_SIZE = {
+    'snli': {'train': 68,
+             'dev': 50,
+             'test': 50},
+    'carstens': {'all': 101,
+                 'train': 100,
+                 'test': 558}
+}
+BUFFER_FACTORS = {
+    'snli': {'train': 4,
+             'dev': 4,
+             'test': 4},
+    'carstens': {'all': 4,
+                 'train': 35,
+                 'test': 1}
+}
+COLLECTION_SIZE = {
+    'snli': {'train': 55012,
+             'dev': 10000,
+             'test': 10000},
+    'carstens': {'all': 4058,
+                 'train': 3500,
+                 'test': 558}
+}
 ENCODING_TO_LABEL = {0: 'neutral',
                      1: 'entailment',
                      2: 'contradiction'}
@@ -25,19 +45,24 @@ LABEL_TO_ENCODING = {'neutral': 0,
                      'contradiction': 2,
                      '-': 0}  # will have to deal with this properly!!!
 LONGEST_SENTENCE_SNLI = 402
-NUM_ITERS = {'train': 809,
+NUM_ITERS = {
+    'snli': {'train': 809,
              'dev': 200,
-             'test': 200,
-             'carstens': 40,
-             'carstens_train': 30,
-             'carstens_test': 1}
+             'test': 200},
+    'carstens': {'all': 40,
+                 'train': 35,
+                 'test': 1}
+}
 NUM_LABELS = 3
-REPORT_EVERY = {'train': 101,
-                'dev': 20,
-                'test': 20,
-                'carstens': 4,
-                'carstens_train': 3,
-                'carstens_test': 1}
+REPORT_EVERY = {
+    'snli': {'train': 101,
+             'dev': 20,
+             'test': 20},
+    'carstens': {'all': 4,
+                 'train': 5,
+                 'test': 1
+                 }
+}
 
 
 def sentence_matrix(sentence, nlp):
@@ -113,12 +138,15 @@ def pad_sentence(sentence, desired_length):
 
 
 class RandomizedGenerator:
-    def __init__(self, collection='train', buffer_factor=4):
-        self._collection = 'all' if collection == 'carstens' else collection  # collection.startswith('carstens')
-        self._batch_size = BATCH_SIZE[collection]
-        self._buffer_factor = buffer_factor
-        self._db = Carstens() if collection == 'carstens' else SNLIDb()  # collection.startswith('carstens')
+    def __init__(self, db='snli', collection='train'):
+        self._db_name = db
+        self._collection = collection
+        self._batch_size = BATCH_SIZE[db][collection]
+        self._buffer_factor = BUFFER_FACTORS[db][collection]
+        self._db = Carstens() if db == 'carstens' else SNLIDb()
         self._gen = self._db.repository(self._collection).find_all()
+        self._i_yielded = 0
+        self._i_buffered = 0
         self._buffered = []
         self._fill_buffer()
 
@@ -126,25 +154,37 @@ class RandomizedGenerator:
         for i in range(self._batch_size * self._buffer_factor):
             if self._gen.alive:
                 self._buffered.append(next(self._gen))
+                self._i_buffered += 1
+            else:
+                break  # don't waste time iterating further if we're at the end
 
     def next(self):
+        if len(self._buffered) == 0:
+            self._raise_exception()
         sample = np.random.choice(self._buffered, size=1)[0]
         self._buffered.remove(sample)
         if len(self._buffered) == 0:
             if self._gen.alive:
                 self._fill_buffer()
+        self._i_yielded += 1
         return sample
 
+    def _raise_exception(self):
+        info = 'Attempted to fetch but buffer is empty.  State: ' \
+               '%s yielded; %s buffered.' % (self._i_yielded, self._i_buffered)
+        info += '\ndb: %s; collection: %s' % (self._db_name, self._collection)
+        raise Exception(info)
 
-def get_batch_gen(collection):
+
+def get_batch_gen(db, collection):
     # each batch is a float64 array of shape: BATCH_SIZE x None x WORD_EMBED_DIM
     # but the labels is just batch_size x 3
-    gen = RandomizedGenerator(collection, BATCH_SIZE[collection])
+    gen = RandomizedGenerator(db, collection)
     while True:
         premises = []
         hypotheses = []
         labels = []
-        for i in range(BATCH_SIZE[collection]):
+        for i in range(BATCH_SIZE[db][collection]):
             doc = gen.next()
             premise = string_to_array(doc['premise'])
             hypothesis = string_to_array(doc['hypothesis'])
@@ -251,6 +291,7 @@ def carstens_into_mongo(file_path='/home/hanshan/carstens.csv'):
         doc['premise'] = array_to_string(sentence_matrix(doc['sentence1'], nlp))
         doc['hypothesis'] = array_to_string(sentence_matrix(doc['sentence2'], nlp))
         db.all.insert_one(doc)
+    raise Exception('Could do the train and test split here, too')
 
 
 if __name__ == '__main__':

@@ -11,9 +11,9 @@ def add_bias(tensor, dtype=tf.float64, axis=1):
 
 def ckpt_path(model_name, transfer=False):
     if transfer:
-        return 'checkpoints/%s/transfer/%s.ckpt' % (model_name, model_name)
+        return os.path.dirname('checkpoints/%s/transfer/%s' % (model_name, model_name))
     else:
-        return 'checkpoints/%s/%s.ckpt' % (model_name, model_name)
+        return os.path.dirname('checkpoints/%s/%s/' % (model_name, model_name))
 
 
 def clip_gradients(grads_and_vars, norm=3.0, axes=0):

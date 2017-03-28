@@ -46,7 +46,7 @@ class RepositoryFacade:
 class Carstens(RepositoryFacade):
     """Repository Facade for the Carstens and Toni (2015) data set. """
     def __init__(self):
-        RepositoryFacade.__init__(self, 'localhost', 27017, 'carstens', ['all'])
+        RepositoryFacade.__init__(self, 'localhost', 27017, 'carstens', ['all', 'train', 'test'])
 
 
 class SNLIDb(RepositoryFacade):

@@ -6,10 +6,10 @@ import numpy as np
 from util import load_checkpoint, feed_dict
 
 
-def accuracy(model, collection, sess):
+def accuracy(model, db, collection, sess):
     # make sure sess.run(tf.global_variables_initializer()) has already been called
-    batch_gen = get_batch_gen(collection)
-    num_iters = NUM_ITERS[collection]
+    batch_gen = get_batch_gen(db, collection)
+    num_iters = NUM_ITERS[db][collection]
     saver = tf.train.Saver()
     load_checkpoint(model, saver, sess)
     average_accuracy = 0
