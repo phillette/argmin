@@ -143,14 +143,16 @@ class BiRNN:
     Test set accuracy = 0.6828
     Carstens = 0.46 (not fully trained but best average accuracy of a batch before gradients explode)
     """
-    def __init__(self, word_embed_length=300, learning_rate=0.001, hidden_size=100,
-                 p_keep_input=0.8, p_keep_hidden=0.5):
+    def __init__(self, word_embed_length=300, learning_rate=0.001, rnn_size=100, ff_size=200,
+                 p_keep_rnn=0.8, p_keep_ff=0.5, grad_clip_norm=5.0):
         self.name = 'bi_rnn'
         self.word_embed_length = word_embed_length
         self.learning_rate = learning_rate
-        self.hidden_size = hidden_size
-        self.p_keep_input = p_keep_input
-        self.p_keep_hidden = p_keep_hidden
+        self.rnn_size = rnn_size
+        self.ff_size = ff_size
+        self.p_keep_rnn = p_keep_rnn
+        self.p_keep_ff = p_keep_ff
+        self.grad_clip_norm = grad_clip_norm
         self.time_steps = LONGEST_SENTENCE_SNLI
         self.global_step = tf.Variable(0,
                                        dtype=tf.int32,
@@ -177,14 +179,14 @@ class BiRNN:
     @define_scope('bi_rnns')
     def _bi_rnns(self):
         _, self.premise_output_states = bi_rnn(self.premises,
-                                               self.hidden_size,
+                                               self.rnn_size,
                                                'premise_bi_rnn',
-                                               self.p_keep_input)
+                                               self.p_keep_rnn)
         self.premise_out = tf.concat([state.c for state in self.premise_output_states], axis=1)
         _, self.hypothesis_output_states = bi_rnn(self.hypotheses,
-                                                  self.hidden_size,
+                                                  self.rnn_size,
                                                   'hypothesis_bi_rnn',
-                                                  self.p_keep_input)
+                                                  self.p_keep_rnn)
         self.hypothesis_out = tf.concat([state.c for state in self.hypothesis_output_states], axis=1)
         self.rnn_output = tf.concat([self.premise_out, self.hypothesis_out],
                                     axis=1,
@@ -211,20 +213,20 @@ class BiRNN:
     @define_scope('feedforward')
     def _logits(self):
         self.hidden_output_1 = tf.contrib.layers.fully_connected(self.rnn_output,
-                                                                 self.hidden_size,
+                                                                 self.ff_size,
                                                                  tf.tanh)
         self.hidden_1_dropped = tf.nn.dropout(self.hidden_output_1,
-                                              self.p_keep_hidden)
+                                              self.p_keep_ff)
         self.hidden_output_2 = tf.contrib.layers.fully_connected(self.hidden_1_dropped,
-                                                                 self.hidden_size,
+                                                                 self.ff_size,
                                                                  tf.tanh)
         self.hidden_2_dropped = tf.nn.dropout(self.hidden_output_2,
-                                              self.p_keep_hidden)
+                                              self.p_keep_ff)
         self.hidden_output_3 = tf.contrib.layers.fully_connected(self.hidden_2_dropped,
-                                                                 self.hidden_size,
+                                                                 self.ff_size,
                                                                  tf.tanh)
         self.hidden_3_dropped = tf.nn.dropout(self.hidden_output_3,
-                                              self.p_keep_hidden)
+                                              self.p_keep_ff)
         self.logits = tf.contrib.layers.fully_connected(inputs=self.hidden_3_dropped,
                                                         num_outputs=3,
                                                         activation_fn=None)
@@ -242,7 +244,7 @@ class BiRNN:
         optimizer = tf.train.AdamOptimizer(self.learning_rate)
         weights = [v for v in tf.get_collection(tf.GraphKeys.TRAINABLE_VARIABLES) if v.name.endswith('weights:0')]
         grads_and_vars = optimizer.compute_gradients(self.loss, weights)
-        clipped_grads_and_vars = clip_gradients(grads_and_vars)
+        clipped_grads_and_vars = clip_gradients(grads_and_vars, self.grad_clip_norm)
         return optimizer.apply_gradients(clipped_grads_and_vars)
 
 
