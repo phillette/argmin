@@ -37,13 +37,13 @@ def lstm_encoder(sentences, hidden_size, scope, p_dropout=0.8):
 
 class Model:
     def __init__(self, word_embed_length=300, learning_rate=0.001, hidden_size=100,
-                 p_keep_input=0.8, p_keep_hidden=0.5, grad_norm=3.0):
+                 p_keep_rnn=0.8, p_keep_ff=0.5, grad_norm=3.0):
         self.word_embed_length = word_embed_length
         self.learning_rate = learning_rate
         self.hidden_size = hidden_size
         self.time_steps = LONGEST_SENTENCE_SNLI
-        self.p_keep_input = p_keep_input
-        self.p_keep_hidden = p_keep_hidden
+        self.p_keep_rnn = p_keep_rnn
+        self.p_keep_ff = p_keep_ff
         self.grad_norm = grad_norm
         self.global_step = tf.Variable(0,
                                        dtype=tf.int32,
@@ -100,9 +100,10 @@ class Model:
 
 class LSTMEncoder(Model):
     def __init__(self, word_embed_length=300, learning_rate=0.001, hidden_size=100,
-                 p_keep_input=0.8, p_keep_hidden=0.5, grad_norm=3.0):
+                 p_keep_rnn=0.8, p_keep_ff=0.5, grad_clip_norm=5.0, p_keep_input=0.8):
+        self.p_keep_input = p_keep_input
         Model.__init__(self, word_embed_length, learning_rate, hidden_size,
-                       p_keep_input, p_keep_hidden, grad_norm)
+                       p_keep_rnn, p_keep_ff, grad_clip_norm)
         self.name = 'lstm_encoder'
 
     @define_scope
@@ -110,18 +111,22 @@ class LSTMEncoder(Model):
         _, self.premise_encoding = lstm_encoder(self.premises,       # batch_size x hidden_size
                                                 self.hidden_size,
                                                 'premise_encoding',
-                                                self.p_keep_input)
+                                                self.p_keep_rnn)
         _, self.hypothesis_encoding = lstm_encoder(self.hypotheses,  # batch_size x hidden_size
                                                    self.hidden_size,
                                                    'hypothesis_encoding',
-                                                   self.p_keep_input)
+                                                   self.p_keep_rnn)
         self.premise_reduced_encoding = tf.contrib.layers.fully_connected(inputs=self.premise_encoding.c,
-                                                                          num_outputs=100,
+                                                                          num_outputs=self.hidden_size,
                                                                           activation_fn=tf.tanh)
+        self.premise_reduced_dropped = tf.nn.dropout(self.premise_reduced_encoding,
+                                                     self.p_keep_input)
         self.hypothesis_reduced_encoding = tf.contrib.layers.fully_connected(inputs=self.hypothesis_encoding.c,
-                                                                             num_outputs=100,
+                                                                             num_outputs=self.hidden_size,
                                                                              activation_fn=tf.tanh)
-        self.concatenated_encodings = tf.concat([self.premise_reduced_encoding, self.hypothesis_reduced_encoding],
+        self.hypothesis_reduced_dropped = tf.nn.dropout(self.hypothesis_reduced_encoding,
+                                                        self.p_keep_input)
+        self.concatenated_encodings = tf.concat([self.premise_reduced_dropped, self.hypothesis_reduced_dropped],
                                                 axis=1,
                                                 name='concatenated_encodings')
         self.tanh1 = tf.contrib.layers.fully_connected(inputs=self.concatenated_encodings,
@@ -131,9 +136,14 @@ class LSTMEncoder(Model):
                                                        num_outputs=2 * self.hidden_size,
                                                        activation_fn=tf.tanh)
         self.tanh3 = tf.contrib.layers.fully_connected(inputs=self.tanh2,
-                                                       num_outputs=NUM_LABELS,
+                                                       num_outputs=2 * self.hidden_size,
                                                        activation_fn=tf.tanh)
-        return self.tanh3
+        self.tanh3_dropped = tf.nn.dropout(self.tanh3,
+                                           self.p_keep_ff)
+        self._logits = tf.contrib.layers.fully_connected(inputs=self.tanh3_dropped,
+                                                         num_outputs=NUM_LABELS,
+                                                         activation_fn=None)
+        return self._logits
 
 
 class BiRNN:
