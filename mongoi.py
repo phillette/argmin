@@ -91,6 +91,15 @@ class Repository:
         """
         return self.collection.find()
 
+    def find_in(self, attr, value_list):
+        """
+        Queries the collection for attributes with values in the given list.
+        :param attr: the attribute to search on
+        :param value_list: the list of values to match
+        :return: cursor for matched documents
+        """
+        return self.collection.find({attr: {'$in': value_list}})
+
     def find_one(self, attr, value):
         """
         Find a document from the attribute and value specified.

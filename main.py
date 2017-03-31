@@ -19,6 +19,7 @@ if __name__ == '__main__':
         accuracy(model, db, 'dev', sess)
         accuracy(model, db, 'test', sess)
 
+
 # 54.9306144334 (dev for sure, maybe also test)
 # 73% accuracy on full set of Carstens - looks like it can go higher from the end of training pattern/tendency
 # test-train split Carstens: 25 epochs of BiRNN at alpha=1e-5, still dropping at 25. ~68%. Test ~61%.
