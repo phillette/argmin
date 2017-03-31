@@ -23,14 +23,20 @@ def change_doc_id(doc, new_id, repository):
 def fix_snli_ids():
     db = SNLIDb()
     id = 0
-    for doc in db.train.find_all():
+    all_train = db.train.find_all()
+    all_dev = db.dev.find_all()
+    all_test = db.test.find_all()
+    for _ in range(db.train.count()):
         id += 1
+        doc = next(all_train)
         change_doc_id(doc, id, db.train)
-    for doc in db.dev.find_all():
+    for _ in range(db.dev.count()):
         id += 1
+        doc = next(all_dev)
         change_doc_id(doc, id, db.dev)
-    for doc in db.test.find_all():
+    for _ in range(db.test.count()):
         id += 1
+        doc = next(all_test)
         change_doc_id(doc, id, db.test)
 
 

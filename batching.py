@@ -178,8 +178,7 @@ class RandomizedGeneratorFromIDs:
         self._ids = list(range(COLLECTION_SIZE[db][collection]))
 
     def next(self):
-        new_ids = np.random.choice(a=self._ids,
-                                   size=self._batch_size,
-                                   replace=False)
-        self._ids = [id for id in self._ids if id not in new_ids]
-        return self._db.repository(self._collection).find_in('_id', list(new_ids))  # will this be slow?
+        new_id = np.random.choice(a=self._ids,
+                                  size=1)[0]
+        self._ids.remove(new_id)
+        return self._db.repository(self._collection).find('_id', new_id)  # will this be slow?

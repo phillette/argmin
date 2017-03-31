@@ -46,13 +46,19 @@ class RepositoryFacade:
 class CarstensDb(RepositoryFacade):
     """Repository Facade for the Carstens and Toni (2015) data set. """
     def __init__(self):
-        RepositoryFacade.__init__(self, 'localhost', 27017, 'carstens', ['all', 'train', 'test'])
+        RepositoryFacade.__init__(self, 'localhost', 27017, 'carstens')
+        self.all = Repository(self.db.all)
+        self.train = Repository(self.db.train)
+        self.test = Repository(self.db.test)
 
 
 class SNLIDb(RepositoryFacade):
     """ Repository Facade for the SNLI 1.0 data set. """
     def __init__(self):
-        RepositoryFacade.__init__(self, 'localhost', 27017, 'snlidb', ['train', 'dev', 'test'])
+        RepositoryFacade.__init__(self, 'localhost', 27017, 'snlidb')
+        self.train = Repository(self.db.train)
+        self.dev = Repository(self.db.dev)
+        self.test = Repository(self.db.test)
 
 
 class Repository:
@@ -63,6 +69,13 @@ class Repository:
     """
     def __init__(self, collection):
         self.collection = collection
+
+    def count(self):
+        """
+        Gets the document count in the collection.
+        :return: integer
+        """
+        return self.collection.count()
 
     def delete_one(self, id):
         """

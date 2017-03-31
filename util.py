@@ -46,7 +46,7 @@ def length(sequence):
 def load_checkpoint(model, saver, sess, transfer=False):
     ckpt = tf.train.get_checkpoint_state(ckpt_path(model.name, transfer))
     if ckpt and ckpt.model_checkpoint_path:
-        saver.restore(sess, ckpt.model_checkpoint_path)
+        saver.restore(sess, ckpt.model_checkpoint_path + '.ckpt')
 
 
 def log_graph_path(model_name):
