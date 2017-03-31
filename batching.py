@@ -94,7 +94,8 @@ def get_batch_gen(db, collection, type='gen'):
         premises = []
         hypotheses = []
         labels = []
-        for doc in gen.next():
+        for _ in range(BATCH_SIZE[db][collection]):
+            doc = gen.next()
             premise = string_to_array(doc['premise'])
             hypothesis = string_to_array(doc['hypothesis'])
             label = encode(doc['gold_label'])

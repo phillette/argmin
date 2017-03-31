@@ -16,7 +16,7 @@ def accuracy(model, db, collection, sess):
         batch = next(batch_gen)
         batch_accuracy = sess.run(model.accuracy, feed_dict(model, batch))
         average_accuracy += batch_accuracy
-    print('%s set accuracy = %s' % (collection, average_accuracy / num_iters))
+    print('%s %s set accuracy = %s' % (db, collection, average_accuracy / num_iters))
 
 
 class Prediction:
