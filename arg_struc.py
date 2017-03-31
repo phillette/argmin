@@ -1,6 +1,6 @@
 from process_data import test_doc
 import numpy as np
-from models import AdditiveSentence
+from rnn_encoders import AdditiveSentence
 import networkx as nx
 import matplotlib.pyplot as plt
 from prediction import predict

@@ -43,7 +43,7 @@ class RepositoryFacade:
         return getattr(self, collection)
 
 
-class Carstens(RepositoryFacade):
+class CarstensDb(RepositoryFacade):
     """Repository Facade for the Carstens and Toni (2015) data set. """
     def __init__(self):
         RepositoryFacade.__init__(self, 'localhost', 27017, 'carstens', ['all', 'train', 'test'])
@@ -63,6 +63,26 @@ class Repository:
     """
     def __init__(self, collection):
         self.collection = collection
+
+    def delete_one(self, id):
+        """
+        Removes the document of the given id.
+        Raises an exception if the delete operation fails.
+        :param id: the _id value for the document
+        :return: Result object
+        """
+        result = self.collection.delete_many({'_id': id})
+        if result.deleted_count != 1:
+            raise Exception('Item with _id "%s" not deleted' % id)
+        return result
+
+    def find(self, attr_dict):
+        """
+        Performs a search for records based on the criteria in the attribute dictionary.
+        :param attr_dict: a dictionary of search attributes and values
+        :return: generator with results
+        """
+        return self.collection.find(attr_dict)
 
     def find_all(self):
         """

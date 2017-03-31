@@ -1,4 +1,4 @@
-from mongoi import SNLIDb, array_to_string, string_to_array, Carstens
+from mongoi import SNLIDb, array_to_string, string_to_array, CarstensDb
 import spacy
 import numpy as np
 import itertools
@@ -63,6 +63,26 @@ REPORT_EVERY = {
                  'test': 1
                  }
 }
+
+
+def change_doc_id(doc, new_id, repository):
+    repository.delete_one(doc['_id'])
+    doc['_id'] = new_id
+    repository.insert_one(doc)
+
+
+def fix_snli_ids():
+    db = SNLIDb()
+    id = 0
+    for doc in db.train.find_all():
+        id += 1
+        change_doc_id(doc, id, db.train)
+    for doc in db.dev.find_all():
+        id += 1
+        change_doc_id(doc, id, db.dev)
+    for doc in db.test.find_all():
+        id += 1
+        change_doc_id(doc, id, db.test)
 
 
 def sentence_matrix(sentence, nlp):
@@ -137,13 +157,22 @@ def pad_sentence(sentence, desired_length):
     return sentence
 
 
+"""
+Need to do better randomization:
+- covert _ids to ints
+- bath_gen then gets random int in range
+- select randomly chosen records
+- avoid the ordered generator
+"""
+
+
 class RandomizedGenerator:
     def __init__(self, db='snli', collection='train'):
         self._db_name = db
         self._collection = collection
         self._batch_size = BATCH_SIZE[db][collection]
         self._buffer_factor = BUFFER_FACTORS[db][collection]
-        self._db = Carstens() if db == 'carstens' else SNLIDb()
+        self._db = CarstensDb() if db == 'carstens' else SNLIDb()
         self._gen = self._db.repository(self._collection).find_all()
         self._i_yielded = 0
         self._i_buffered = 0
@@ -247,37 +276,55 @@ def count_no_gold_labels(collection):
     # train: 785, 0.0014
 
 
-def count_missing_word_vectors(collection):
+def has_missing_vector(doc, zero_vector):
+    for word_vector in string_to_array(doc['premise']).tolist():
+        return np.array_equal(word_vector, zero_vector)
+
+
+def missing_word_vectors():
     nlp = spacy.load('en')
     zero_vector = np.zeros((300,), dtype='float')
     db = SNLIDb()
-    all_docs = db.repository(collection).find_all()
-    count = 0
-    all = 0
-    for doc in all_docs:
-        for word_vector in string_to_array(doc['premise']).tolist():
-            all += 1
-            if np.array_equal(word_vector, zero_vector):
-                count += 1
-        for word_vector in string_to_array(doc['hypothesis']).tolist():
-            all += 1
-            if np.array_equal(word_vector, zero_vector):
-                count += 1
-    print('Count = %s' % count)
-    print('Percentage = %s' % (count / all))
-    # train:
-    # dev: 182, 0.00077
-    # test:
+    doc_ids = []
+    for doc in db.train.find_all():
+        if has_missing_vector(doc, zero_vector):
+            doc_ids.append(doc['_id'])
+    for doc in db.dev.find_all():
+        if has_missing_vector(doc, zero_vector):
+            doc_ids.append(doc['_id'])
+    for doc in db.test.find_all():
+        if has_missing_vector(doc, zero_vector):
+            doc_ids.append(doc['_id'])
+    doc_ids = np.array(doc_ids)
+    np.save('missing_word_vector_doc_ids.npy', doc_ids)
+
+
+def no_gold_labels():
+    db = SNLIDb()
+    doc_ids = []
+    for doc in db.train.find({'gold_label': '-'}):
+        doc_ids.append(doc['_id'])
+    for doc in db.train.find({'gold_label': '-'}):
+        doc_ids.append(doc['_id'])
+    for doc in db.train.find({'gold_label': '-'}):
+        doc_ids.append(doc['_id'])
+    doc_ids = np.array(doc_ids)
+    np.save('no_gold_label_doc_ids.npy', doc_ids)
+
+
+# IDEA: look at inter-annotator DISAGREEMENT and remove those observations
+# (maybe makes the dataset cleaner)?  Worth a test...
 
 
 def carstens_into_mongo(file_path='/home/hanshan/carstens.csv'):
+    # should edit this to do the train-test split (3500-558)
     X = pd.read_csv(file_path, header=None)
     label = {
         'n': 'neutral',
         's': 'entailment',
         'a': 'contradiction'
     }
-    db = Carstens()
+    db = CarstensDb()
     nlp = spacy.load('en')
     id = 0
     for x in X.iterrows():
@@ -294,5 +341,19 @@ def carstens_into_mongo(file_path='/home/hanshan/carstens.csv'):
     raise Exception('Could do the train and test split here, too')
 
 
+def carstens_train_test_split():
+    db = CarstensDb()
+    id = 0
+    all = db.all.find_all()
+    while id < 3500:
+        doc = next(all)
+        id += 1
+        db.train.insert_one(doc)
+    while id < 4058:
+        doc = next(all)
+        id += 1
+        db.test.insert_one(doc)
+
+
 if __name__ == '__main__':
-    carstens_into_mongo()
+    fix_snli_ids()

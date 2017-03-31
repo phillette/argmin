@@ -1,7 +1,7 @@
 import tensorflow as tf
 import os
 from process_data import get_batch_gen, NUM_ITERS, ENCODING_TO_LABEL, BATCH_SIZE
-from models import *
+from rnn_encoders import *
 import numpy as np
 from util import load_checkpoint, feed_dict
 
