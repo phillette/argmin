@@ -1,4 +1,4 @@
-from models import *
+from rnn_encoders import *
 from training import train
 from prediction import accuracy
 import tensorflow as tf
