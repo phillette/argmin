@@ -15,7 +15,7 @@ class Config:
                  word_embed_length=300,
                  learning_rate=1e-3,
                  time_steps=LONGEST_SENTENCE_SNLI,
-                 grad_norm=5.0,
+                 grad_clip_norm=5.0,
                  hidden_size=100,
                  rnn_size=300,
                  ff_size=200,
@@ -26,7 +26,7 @@ class Config:
         self.word_embed_length = word_embed_length
         self.learning_rate = learning_rate
         self.time_steps = time_steps
-        self.grad_norm = grad_norm
+        self.grad_clip_norm = grad_clip_norm
         self.hidden_size = hidden_size
         self.rnn_size = rnn_size
         self.ff_size = ff_size
@@ -42,7 +42,7 @@ class Model:
         self.learning_rate = config.learning_rate
         self.lamda = config.lamda
         self.time_steps = config.time_steps
-        self.grad_norm = config.grad_norm
+        self.grad_clip_norm = config.grad_clip_norm
         self.hidden_size = config.hidden_size
         self.rnn_size = config.rnn_size
         self.ff_size = config.ff_size

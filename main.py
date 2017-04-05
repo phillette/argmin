@@ -2,16 +2,18 @@ from rnn_encoders import *
 from training import train
 from prediction import accuracy
 import tensorflow as tf
+from model_base import Config
 
 
 # $ TF_CPP_MIN_LOG_LEVEL=1 python main.py
 
 
 if __name__ == '__main__':
-    model = BiRNN(learning_rate=3e-3,
-                  p_keep_rnn=0.5,
-                  p_keep_ff=0.5,
-                  grad_clip_norm=5.0)
+    config = Config(learning_rate=3e-3,
+                    p_keep_rnn=0.5,
+                    p_keep_ff=0.5,
+                    grad_clip_norm=5.0)
+    model = BiRNNBowman(config)
     with tf.Session() as sess:
         sess.run(tf.global_variables_initializer())
         train(model, 'snli', 'train', 20, sess, load_ckpt=True, save_ckpt=True, transfer=False)
