@@ -17,6 +17,9 @@ class Config:
                  time_steps=LONGEST_SENTENCE_SNLI,
                  grad_norm=5.0,
                  hidden_size=100,
+                 rnn_size=300,
+                 ff_size=200,
+                 lamda=0.9,
                  p_keep_input=0.8,
                  p_keep_rnn=0.5,
                  p_keep_ff=0.5):
@@ -25,6 +28,9 @@ class Config:
         self.time_steps = time_steps
         self.grad_norm = grad_norm
         self.hidden_size = hidden_size
+        self.rnn_size = rnn_size
+        self.ff_size = ff_size
+        self.lamda = lamda
         self.p_keep_input = p_keep_input
         self.p_keep_rnn = p_keep_rnn
         self.p_keep_ff = p_keep_ff

@@ -3,7 +3,7 @@ from tensorflow.contrib import rnn
 from tf_decorators import define_scope
 from batching import LONGEST_SENTENCE_SNLI, NUM_LABELS, get_batch_gen
 from util import clip_gradients, length, feed_dict
-from model_base import Model, fully_connected_with_dropout
+from model_base import Model, fully_connected_with_dropout, Config
 
 
 def bi_rnn(sentences, hidden_size, scope, p_keep=0.8):
@@ -212,26 +212,24 @@ class BiRNNBowman(Model):
         self.rnn_output = tf.concat([self.premise_out, self.hypothesis_out],
                                     axis=1,
                                     name='concatenated_sentences')
-        return self.rnn_output  # batch_size x (4 * hidden_size)
+        return self.rnn_output  # batch_size x (4 * rnn_size)
 
     @define_scope('feedforward')
     def _logits(self):
+        self.dropped_input = tf.nn.dropout(self.rnn_output,
+                                           self.p_keep_input)
         self.hidden_output_1 = tf.contrib.layers.fully_connected(self.rnn_output,
                                                                  self.ff_size,
                                                                  tf.tanh)
         self.hidden_1_dropped = tf.nn.dropout(self.hidden_output_1,
                                               self.p_keep_ff)
-        self.hidden_output_2 = tf.contrib.layers.fully_connected(self.hidden_1_dropped,
+        self.hidden_output_2 = tf.contrib.layers.fully_connected(self.hidden_output_1,
                                                                  self.ff_size,
                                                                  tf.tanh)
-        self.hidden_2_dropped = tf.nn.dropout(self.hidden_output_2,
-                                              self.p_keep_ff)
-        self.hidden_output_3 = tf.contrib.layers.fully_connected(self.hidden_2_dropped,
+        self.hidden_output_3 = tf.contrib.layers.fully_connected(self.hidden_output_2,
                                                                  self.ff_size,
                                                                  tf.tanh)
-        self.hidden_3_dropped = tf.nn.dropout(self.hidden_output_3,
-                                              self.p_keep_ff)
-        self.logits = tf.contrib.layers.fully_connected(inputs=self.hidden_3_dropped,
+        self.logits = tf.contrib.layers.fully_connected(inputs=self.hidden_output_3,
                                                         num_outputs=3,
                                                         activation_fn=None)
         return self.logits
@@ -246,12 +244,12 @@ class BiRNNBowman(Model):
 
 
 if __name__ == '__main__':
+    db = 'snli'
     collection = 'dev'
-    batch_gen = get_batch_gen('dev')
+    batch_gen = get_batch_gen(db, collection)
     learning_rate = 1e-3
-    model = LSTMEncoder(learning_rate=learning_rate)
+    config = Config(learning_rate=learning_rate)
+    model = LSTMEncoder(config)
     with tf.Session() as sess:
         sess.run(tf.global_variables_initializer())
-        result = sess.run(model.premise_reduced_encoding,
-                          feed_dict(model, next(batch_gen)))
-        print(result.shape)
+        # whatever else
