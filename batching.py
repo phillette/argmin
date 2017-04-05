@@ -77,6 +77,22 @@ class Batch:
         self.labels = labels
 
 
+class Batch2:
+    def __init__(self, X, Y):
+        self.X = X
+        self.Y = Y
+
+
+class BatchGenWrapper:
+    def __init__(self, batch_gen_generator, num_iters, report_every):
+        self.batch_gen_generator = batch_gen_generator
+        self.num_iters = num_iters
+        self.report_every = report_every
+
+    def new_batch_generator(self):
+        return self.batch_gen_generator()
+
+
 def encode(label):
     encoding = np.zeros((1, 3), dtype='float64')
     encoding[0, LABEL_TO_ENCODING[label]] = 1

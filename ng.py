@@ -1,16 +1,25 @@
 import tensorflow as tf
 import numpy as np
+from batching import BatchGenWrapper, Batch2
+from training import train2
+from prediction import accuracy2
+from tf_decorators import define_scope
 
 
 M = 5000              # total number of observations
 M_TRAIN = 4500        # number of observations in training set
 M_TEST = 500          # number of observations in test set
-P_INPUT = 0.8         # probability of keeping an input neuron
-P_HIDDEN = 0.5        # probability of keeping a hidden layer neuron
+P_KEEP_INPUT = 0.8         # probability of keeping an input neuron
+P_KEEP_HIDDEN = 0.7        # probability of keeping a hidden layer neuron
 INPUT_FEATURES = 400  # number of features for input layer (per training observation)
 HIDDEN_UNITS = 26     # target number of hidden units (before accounting for dropout)
 NUM_LABELS = 10       # number of output labels (the 10 digits)
-LEARNING_RATE = 0.1   # optimization global learning rate
+LEARNING_RATE = 0.01   # optimization global learning rate
+BATCH_SIZE = 100
+NUM_ITERS = 45
+REPORT_EVERY = 5
+NUM_ITERS_TEST = 5
+NUM_EPOCHS = 40
 
 
 def label_vector_to_matrix(y):
@@ -28,8 +37,8 @@ def label_vector_to_matrix(y):
 
 
 def data():
-    X_raw = np.load('/data/X.npy')
-    y_raw = np.load('/data/y.npy')
+    X_raw = np.load('data/X.npy')
+    y_raw = np.load('data/y.npy')
     Xy = np.concatenate([X_raw, y_raw], axis=1)
     np.random.shuffle(Xy)
     X_train = Xy[:M_TRAIN, :400]
@@ -41,22 +50,57 @@ def data():
     return X_train, Y_train, X_test, Y_test
 
 
+def test_data():
+    X = np.load('data/X_test.npy')
+    Y = np.load('data/Y_test.npy')
+    return X, Y
+
+
+def batch_generator():
+    X = np.load('data/X_train.npy')
+    Y = np.load('data/Y_train.npy')
+    XY = np.concatenate([X, Y], axis=1)
+    indices = list(np.arange(M_TRAIN))
+    for _ in range(NUM_ITERS):
+        batch_indices = np.random.choice(indices, BATCH_SIZE, replace=False)
+        indices = [i for i in indices if i not in batch_indices]
+        XY_batch = XY[batch_indices]
+        X_batch = XY_batch[:, :400]
+        Y_batch = XY_batch[:, 400:]
+        yield Batch2(X_batch, Y_batch)
+
+
+def test_batch_gen():
+    X = np.load('data/X_test.npy')
+    Y = np.load('data/Y_test.npy')
+    for iter in range(NUM_ITERS_TEST):
+        start_index = iter * BATCH_SIZE
+        end_index = (iter + 1) * BATCH_SIZE
+        X_batch = X[start_index:end_index]
+        Y_batch = Y[start_index:end_index]
+        yield Batch2(X_batch, Y_batch)
+
+
 class Model:
     def __init__(self):
         self.in_training = True
-        self._create_graph()
+        self.global_step = tf.Variable(0,
+                                       dtype=tf.int32,
+                                       trainable=False,
+                                       name='global_step')
+        self.name = 'MNIST'
+        self._data_placeholders
+        self._parameters
+        self._dropout_vectors
+        self._feedforward
+        self._feedforward_train
+        self._feedforward_test
+        self.loss
+        self.optimize
+        self.accuracy
+        self.accuracy_train
 
-    def _create_graph(self):
-        self._data_placeholders()
-        self._parameters()
-        self._dropout_vectors()
-        self._feedforward()
-        self._feedforward_train()
-        self._feedforward_test()
-        self._loss()
-        self._optimize()
-        self._accuracy()
-
+    @define_scope('data')
     def _data_placeholders(self):
         self.input_layer_size = INPUT_FEATURES  # 400
         self.hidden_layer_size = 52
@@ -67,10 +111,12 @@ class Model:
                                               shape=[tf.shape(self.X)[0], 1]),
                                       self.X],
                                      axis=1)
-        self.y = tf.placeholder(dtype=tf.float32,
+        self.Y = tf.placeholder(dtype=tf.float32,
                                 shape=[None, NUM_LABELS],
                                 name='y')
+        return self.X, self.X_with_bias, self.Y
 
+    @define_scope('parameters')
     def _parameters(self):
         self.Theta1 = tf.Variable(tf.random_uniform(shape=[INPUT_FEATURES + 1,
                                                            self.hidden_layer_size],
@@ -82,29 +128,35 @@ class Model:
                                                     minval=-1.0,
                                                     maxval=1.0),
                                   name='Theta2')
+        return self.Theta1, self.Theta2
 
+    @define_scope('feedforward')
     def _feedforward(self):
         self.X_dropped_out = tf.contrib.layers.dropout(inputs=self.X_with_bias,
-                                                       keep_prob=0.8,
+                                                       keep_prob=P_KEEP_INPUT,
                                                        is_training=self.in_training)
         self.vanilla_hidden = tf.contrib.layers.fully_connected(inputs=self.X_dropped_out,
                                                                 num_outputs=26,
                                                                 activation_fn=tf.sigmoid)
         self.hidden_dropped_out = tf.contrib.layers.dropout(inputs=self.vanilla_hidden,
-                                                            keep_prob=0.5,
+                                                            keep_prob=P_KEEP_HIDDEN,
                                                             is_training=self.in_training)
         self.logits = tf.contrib.layers.fully_connected(inputs=self.hidden_dropped_out,
                                                         num_outputs=10,
                                                         activation_fn=None)
+        return self.logits
 
+    @define_scope('dropout_vectors')
     def _dropout_vectors(self):
-        self.drop_input = tf.where(condition=tf.random_uniform([1, 401], 0.0, 1.0) > 0.2,
+        self.drop_input = tf.where(condition=tf.random_uniform([1, 401], 0.0, 1.0) > 1 - P_KEEP_INPUT,
                                    x=tf.ones([1, 401]),
                                    y=tf.zeros([1, 401]))
-        self.drop_hidden = tf.where(condition=tf.random_uniform([1, 53], 0.0, 1.0) > 0.5,
+        self.drop_hidden = tf.where(condition=tf.random_uniform([1, 53], 0.0, 1.0) > 1 - P_KEEP_HIDDEN,
                                     x=tf.ones([1, 53]),
                                     y=tf.zeros([1, 53]))
+        return self.drop_input, self.drop_hidden
 
+    @define_scope('feedforward_train')
     def _feedforward_train(self):
         self.thinned_input = tf.multiply(self.X_with_bias,  # batch_size x 401
                                          self.drop_input,   # 1 * 401
@@ -123,13 +175,12 @@ class Model:
         self.z2_train = tf.matmul(self.thinned_hidden,
                                   self.Theta2,
                                   name='z2_train')
+        return self.z2_train
 
+    @define_scope('feedforward_test')
     def _feedforward_test(self):
-        self.augmented_input = tf.multiply(P_INPUT,
-                                           self.X_with_bias,
-                                           name='augmented_input')
-        self.z1_test = tf.matmul(self.augmented_input,
-                                 self.Theta1,
+        self.z1_test = tf.matmul(self.X_with_bias,
+                                 tf.multiply(self.Theta1, P_KEEP_INPUT),
                                  name='z1_test')
         self.a1_test = tf.tanh(self.z1_test,
                                name='a1_test')
@@ -137,32 +188,43 @@ class Model:
                                                     shape=[tf.shape(self.X)[0], 1]),
                                             self.a1_train],
                                            axis=1)
-        self.augmented_hidden = tf.multiply(P_HIDDEN,
-                                            self.a1_test_with_bias,
-                                            name='augmented_hidden')
-        self.z2_test = tf.matmul(self.augmented_hidden,
-                                 self.Theta2,
+        self.z2_test = tf.matmul(self.a1_test_with_bias,
+                                 tf.multiply(self.Theta2, P_KEEP_HIDDEN),
                                  name='z2_test')
         self.a2_test = tf.nn.softmax(self.z2_test, name='a2_test')
+        return self.a2_test
 
-    def _loss(self):
-        self.loss = tf.reduce_sum(tf.nn.softmax_cross_entropy_with_logits(labels=self.y,
-                                                                          logits=self.logits,
-                                                                          name='loss'))
+    @define_scope
+    def loss(self):
+        self._loss = tf.reduce_sum(tf.nn.softmax_cross_entropy_with_logits(labels=self.Y,
+                                                                           logits=self.z2_train,
+                                                                           name='loss'))
+        return self._loss
 
-    def _optimize(self):
+    @define_scope
+    def optimize(self):
         self.optimizer = tf.train.AdamOptimizer(LEARNING_RATE)
         weights = [v for v in tf.get_collection(tf.GraphKeys.TRAINABLE_VARIABLES) if v.name.endswith('weights:0')]
-        grads_and_vars = self.optimizer.compute_gradients(self.loss, weights)
+        #grads_and_vars = self.optimizer.compute_gradients(self.loss, weights)
+        grads_and_vars = self.optimizer.compute_gradients(self.loss, [self.Theta1, self.Theta2])
         capped_grads_and_vars = [(tf.clip_by_norm(gv[0], clip_norm=5.0, axes=0), gv[1]) for gv in grads_and_vars]
-        self.optimize = self.optimizer.apply_gradients(capped_grads_and_vars)
+        self._optimize = self.optimizer.apply_gradients(capped_grads_and_vars)
+        return self._optimize
 
-    def _accuracy(self):
-        self.correct_predictions = tf.equal(tf.argmax(self.logits, 1), tf.argmax(self.y, 1))
-        self.accuracy = tf.reduce_mean(tf.cast(self.correct_predictions, tf.float64))
+    @define_scope
+    def accuracy(self):
+        self.correct_predictions = tf.equal(tf.argmax(self.a2_test, 1), tf.argmax(self.Y, 1))
+        self._accuracy = tf.reduce_mean(tf.cast(self.correct_predictions, tf.float64))
+        return self._accuracy
+
+    @define_scope
+    def accuracy_train(self):
+        self._correct_predictions_train = tf.equal(tf.argmax(tf.nn.softmax(self.z2_train), 1), tf.argmax(self.Y, 1))
+        self._accuracy_train = tf.reduce_mean(tf.cast(self._correct_predictions_train, tf.float64))
+        return self._accuracy_train
 
 
-def train():
+if __name__ == '__main__':
     """
     vanilla test accuracy = 0.834  @ LR = 0.1
     dropout test accuracy = ~0.78  @ LR = 0.1 (higher blows up)
@@ -172,33 +234,12 @@ def train():
     :return:
     """
     model = Model()
-    X_train, Y_train, X_test, Y_test = data()
-    batch_size = 100
-    num_iters = int(M_TRAIN / batch_size)
-    report_every = int(num_iters / 10)
+    batch_gen_wrapper = BatchGenWrapper(batch_gen_generator=batch_generator,
+                                        num_iters=NUM_ITERS,
+                                        report_every=REPORT_EVERY)
+    X_test, Y_test = test_data()
     with tf.Session() as sess:
-        # save the graph
         # somehow sort out loss histogram
         sess.run(tf.global_variables_initializer())
-        average_loss = 0.0
-        average_accuracy = 0.0
-        for iter in range(num_iters):
-            X_batch = X_train[iter * batch_size:(iter + 1) * batch_size, :]
-            y_batch = Y_train[iter * batch_size:(iter + 1) * batch_size, :]
-            batch_loss, _, = sess.run([model.loss,
-                                       model.optimize],
-                                      feed_dict={model.X: X_batch,
-                                                 model.y: y_batch})
-            average_loss += batch_loss
-            if (iter + 1) % report_every == 0:
-                print('Iteration %s: loss=%s' % (iter + 1,
-                                                 average_loss / (iter + 1)))
-        # test set
-        test_accuracy = sess.run([model.accuracy],
-                                 feed_dict={model.X: X_test,
-                                            model.y: Y_test})
-        print('Test accuracy: %s' % test_accuracy[0])
-
-
-if __name__ == '__main__':
-    train()
+        _, _ = train2(model, batch_gen_wrapper, NUM_EPOCHS, sess, load_ckpt=False, save_ckpt=False)
+        accuracy2(model, test_batch_gen(), NUM_ITERS_TEST, sess)

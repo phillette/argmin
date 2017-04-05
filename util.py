@@ -32,6 +32,11 @@ def feed_dict(model, batch):
             model.y: batch.labels}
 
 
+def feed_dict2(model, batch):
+    return {model.X: batch.X,
+            model.Y: batch.Y}
+
+
 def length(sequence):
     """
     Courtesy of Danijar Hafner:

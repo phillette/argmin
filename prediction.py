@@ -2,7 +2,7 @@ import os
 from batching import get_batch_gen, NUM_ITERS, ENCODING_TO_LABEL, BATCH_SIZE
 from rnn_encoders import *
 import numpy as np
-from util import load_checkpoint, feed_dict
+from util import load_checkpoint, feed_dict, feed_dict2
 
 
 def accuracy(model, db, collection, sess):
@@ -17,6 +17,15 @@ def accuracy(model, db, collection, sess):
         batch_accuracy = sess.run(model.accuracy, feed_dict(model, batch))
         average_accuracy += batch_accuracy
     print('%s %s set accuracy = %s' % (db, collection, average_accuracy / num_iters))
+
+
+def accuracy2(model, batch_gen, num_iters, sess):
+    average_accuracy = 0
+    for iter in range(num_iters):
+        batch = next(batch_gen)
+        batch_accuracy = sess.run(model.accuracy, feed_dict2(model, batch))
+        average_accuracy += batch_accuracy
+    print('Accuracy: %s' % (average_accuracy / num_iters))
 
 
 class Prediction:
