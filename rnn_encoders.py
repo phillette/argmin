@@ -192,28 +192,57 @@ class BiRNN:
         return optimizer.apply_gradients(clipped_grads_and_vars)
 
 
-class Aligned(Model):
-    def __init__(self, word_embed_length=300, learning_rate=0.001, hidden_size=100,
-                 p_keep_input=0.8, p_keep_hidden=0.5, grad_norm=3.0):
-        Model.__init__(self, word_embed_length, learning_rate, hidden_size,
-                       p_keep_input, p_keep_hidden, grad_norm)
-        self.name = 'aligned'
-        self._bi_rnns
-
-    @define_scope('alignment')
-    def _alignment(self):
-        pass
+class BiRNNBowman(Model):
+    def __init__(self, config):
+        Model.__init__(self, config)
+        self.name = 'bi_rnn_bowman'
 
     @define_scope('bi_rnns')
     def _bi_rnns(self):
-        _, self.premise_output_states = bi_rnn(self.premises, self.hidden_size, 'premise_bi_rnn')
+        _, self.premise_output_states = bi_rnn(self.premises,
+                                               self.rnn_size,
+                                               'premise_bi_rnn',
+                                               self.p_keep_rnn)
         self.premise_out = tf.concat([state.c for state in self.premise_output_states], axis=1)
-        _, self.hypothesis_output_states = bi_rnn(self.hypotheses, self.hidden_size, 'hypothesis_bi_rnn')
+        _, self.hypothesis_output_states = bi_rnn(self.hypotheses,
+                                                  self.rnn_size,
+                                                  'hypothesis_bi_rnn',
+                                                  self.p_keep_rnn)
         self.hypothesis_out = tf.concat([state.c for state in self.hypothesis_output_states], axis=1)
         self.rnn_output = tf.concat([self.premise_out, self.hypothesis_out],
                                     axis=1,
                                     name='concatenated_sentences')
         return self.rnn_output  # batch_size x (4 * hidden_size)
+
+    @define_scope('feedforward')
+    def _logits(self):
+        self.hidden_output_1 = tf.contrib.layers.fully_connected(self.rnn_output,
+                                                                 self.ff_size,
+                                                                 tf.tanh)
+        self.hidden_1_dropped = tf.nn.dropout(self.hidden_output_1,
+                                              self.p_keep_ff)
+        self.hidden_output_2 = tf.contrib.layers.fully_connected(self.hidden_1_dropped,
+                                                                 self.ff_size,
+                                                                 tf.tanh)
+        self.hidden_2_dropped = tf.nn.dropout(self.hidden_output_2,
+                                              self.p_keep_ff)
+        self.hidden_output_3 = tf.contrib.layers.fully_connected(self.hidden_2_dropped,
+                                                                 self.ff_size,
+                                                                 tf.tanh)
+        self.hidden_3_dropped = tf.nn.dropout(self.hidden_output_3,
+                                              self.p_keep_ff)
+        self.logits = tf.contrib.layers.fully_connected(inputs=self.hidden_3_dropped,
+                                                        num_outputs=3,
+                                                        activation_fn=None)
+        return self.logits
+
+    @define_scope
+    def loss(self):
+        penalty_term = sum([tf.nn.l2_loss(w) for w in self._weights()])
+        return tf.reduce_sum(tf.nn.softmax_cross_entropy_with_logits(labels=self.y,
+                                                                     logits=self.logits,
+                                                                     name='loss')) \
+               + (self.lamda * penalty_term)
 
 
 if __name__ == '__main__':

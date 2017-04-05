@@ -34,9 +34,12 @@ class Model:
     def __init__(self, config):
         self.word_embed_length = config.word_embed_length
         self.learning_rate = config.learning_rate
+        self.lamda = config.lamda
         self.time_steps = config.time_steps
         self.grad_norm = config.grad_norm
         self.hidden_size = config.hidden_size
+        self.rnn_size = config.rnn_size
+        self.ff_size = config.ff_size
         self.p_keep_input = config.p_keep_input
         self.p_keep_rnn = config.p_keep_rnn
         self.p_keep_ff = config.p_keep_ff
@@ -87,7 +90,9 @@ class Model:
     @define_scope
     def optimize(self):
         optimizer = tf.train.AdamOptimizer(self.learning_rate)
-        weights = [v for v in tf.get_collection(tf.GraphKeys.TRAINABLE_VARIABLES) if v.name.endswith('weights:0')]
-        grads_and_vars = optimizer.compute_gradients(self.loss, weights)
+        grads_and_vars = optimizer.compute_gradients(self.loss, self._weights)
         clipped_grads_and_vars = clip_gradients(grads_and_vars)
         return optimizer.apply_gradients(clipped_grads_and_vars)
+
+    def _weights(self):
+        return [v for v in tf.get_collection(tf.GraphKeys.TRAINABLE_VARIABLES) if v.name.endswith('weights:0')]
