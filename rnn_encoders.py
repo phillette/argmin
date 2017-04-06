@@ -196,18 +196,20 @@ class BiRNNBowman(Model):
     def __init__(self, config):
         Model.__init__(self, config)
         self.name = 'bi_rnn_bowman'
+        self._birnns
+        pass
 
     @define_scope('bi_rnns')
     def _bi_rnns(self):
-        _, self.premise_output_states = bi_rnn(self.premises,
-                                               self.rnn_size,
+        _, self.premise_output_states = bi_rnn(self.X.premises,
+                                               self.config.rnn_size,
                                                'premise_bi_rnn',
-                                               self.p_keep_rnn)
+                                               self._p_drop(self.config.p_keep_rnn))
         self.premise_out = tf.concat([state.c for state in self.premise_output_states], axis=1)
-        _, self.hypothesis_output_states = bi_rnn(self.hypotheses,
-                                                  self.rnn_size,
+        _, self.hypothesis_output_states = bi_rnn(self.X.hypotheses,
+                                                  self.config.rnn_size,
                                                   'hypothesis_bi_rnn',
-                                                  self.p_keep_rnn)
+                                                  self._p_drop(self.config.p_keep_rnn))
         self.hypothesis_out = tf.concat([state.c for state in self.hypothesis_output_states], axis=1)
         self.rnn_output = tf.concat([self.premise_out, self.hypothesis_out],
                                     axis=1,
@@ -215,11 +217,12 @@ class BiRNNBowman(Model):
         return self.rnn_output  # batch_size x (4 * rnn_size)
 
     @define_scope('feedforward')
-    def _logits(self):
+    def logits(self):
         self.dropped_input = tf.nn.dropout(self.rnn_output,
-                                           self.p_keep_input)
-        self.hidden_output_1 = tf.contrib.layers.fully_connected(self.rnn_output,
-                                                                 self.ff_size,
+                                           self._p_drop(self.config.p_keep_input))
+
+        self.hidden_output_1 = tf.contrib.layers.fully_connected(self.dropped_input,
+                                                                 self.config.ff_size,
                                                                  tf.tanh)
         self.hidden_1_dropped = tf.nn.dropout(self.hidden_output_1,
                                               self.p_keep_ff)
@@ -229,10 +232,10 @@ class BiRNNBowman(Model):
         self.hidden_output_3 = tf.contrib.layers.fully_connected(self.hidden_output_2,
                                                                  self.ff_size,
                                                                  tf.tanh)
-        self.logits = tf.contrib.layers.fully_connected(inputs=self.hidden_output_3,
+        self._logits = tf.contrib.layers.fully_connected(inputs=self.hidden_output_3,
                                                         num_outputs=3,
                                                         activation_fn=None)
-        return self.logits
+        return self._logits
 
     @define_scope
     def loss(self):

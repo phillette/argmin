@@ -4,6 +4,43 @@ from tf_decorators import define_scope
 from util import clip_gradients
 
 
+class X:
+    def __init__(self, premises, hypotheses):
+        self.premises = premises
+        self.hypotheses = hypotheses
+
+
+def augment_factor(probability, in_training):
+    if in_training:
+        return 1.0
+    else:
+        return probability
+
+
+def data_placeholders(time_steps, word_embed_size):
+    premises = tf.placeholder(tf.float64,
+                              [None,
+                               time_steps,
+                               word_embed_size],
+                              name='premises')
+    hypotheses = tf.placeholder(tf.float64,
+                                [None,
+                                 time_steps,
+                                 word_embed_size],
+                                name='hypotheses')
+    Y = tf.placeholder(tf.float64,
+                       [None, 3],
+                       name='y')
+    return X(premises, hypotheses), Y
+
+
+def p_drop(probability, in_training):
+    if in_training:
+        return probability
+    else:
+        return 1.0
+
+
 def fully_connected_with_dropout(inputs, num_outputs, activation_fn, p_keep):
     fully_connected = tf.contrib.layers.fully_connected(inputs, num_outputs, activation_fn)
     dropped_out = tf.nn.dropout(fully_connected, p_keep)
@@ -12,7 +49,7 @@ def fully_connected_with_dropout(inputs, num_outputs, activation_fn, p_keep):
 
 class Config:
     def __init__(self,
-                 word_embed_length=300,
+                 word_embed_size=300,
                  learning_rate=1e-3,
                  time_steps=LONGEST_SENTENCE_SNLI,
                  grad_clip_norm=5.0,
@@ -23,7 +60,7 @@ class Config:
                  p_keep_input=0.8,
                  p_keep_rnn=0.5,
                  p_keep_ff=0.5):
-        self.word_embed_length = word_embed_length
+        self.word_embed_size = word_embed_size
         self.learning_rate = learning_rate
         self.time_steps = time_steps
         self.grad_clip_norm = grad_clip_norm
@@ -38,27 +75,22 @@ class Config:
 
 class Model:
     def __init__(self, config):
-        self.word_embed_length = config.word_embed_length
-        self.learning_rate = config.learning_rate
-        self.lamda = config.lamda
-        self.time_steps = config.time_steps
-        self.grad_clip_norm = config.grad_clip_norm
-        self.hidden_size = config.hidden_size
-        self.rnn_size = config.rnn_size
-        self.ff_size = config.ff_size
-        self.p_keep_input = config.p_keep_input
-        self.p_keep_rnn = config.p_keep_rnn
-        self.p_keep_ff = config.p_keep_ff
+        self.config = config
         self.global_step = tf.Variable(0,
                                        dtype=tf.int32,
                                        trainable=False,
                                        name='global_step')
+        self.in_training = False
         self._data
-        self.logits
-        self.loss
-        self.optimize
-        self.accuracy_train
-        self.accuracy
+
+    def _augment_factor(self, probability):
+        return augment_factor(probability, self.in_training)
+
+    def _p_drop(self, probability):
+        return p_drop(probability, self.in_training)
+
+    def _augment_weights(self, scope):
+        pass
 
     @define_scope()
     def accuracy_train(self):
@@ -72,20 +104,9 @@ class Model:
 
     @define_scope('data')
     def _data(self):
-        self.premises = tf.placeholder(tf.float64,
-                                       [None,
-                                        self.time_steps,
-                                        self.word_embed_length],
-                                       name='premises')
-        self.hypotheses = tf.placeholder(tf.float64,
-                                         [None,
-                                          self.time_steps,
-                                          self.word_embed_length],
-                                         name='hypotheses')
-        self.y = tf.placeholder(tf.float64,
-                                [None, 3],
-                                name='y')
-        return self.premises, self.hypotheses, self.y
+        self.X, self.Y = data_placeholders(self.config.time_steps,
+                                           self.config.word_embed_size)
+        return self.X, self.Y
 
     @define_scope
     def loss(self):
