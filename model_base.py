@@ -81,45 +81,34 @@ class Model:
                                        trainable=False,
                                        name='global_step')
         self.in_training = False
-        self._data
+        self.data
 
-    def _augment_factor(self, probability):
-        return augment_factor(probability, self.in_training)
-
-    def _p_drop(self, probability):
-        return p_drop(probability, self.in_training)
-
-    def _augment_weights(self, scope):
-        pass
-
-    @define_scope()
-    def accuracy_train(self):
-        return self.accuracy
-
-    @define_scope()
+    @define_scope
     def accuracy(self):
-        correct_predictions = tf.equal(tf.argmax(self.logits, 1), tf.argmax(self.y, 1))
+        logits = self.logits_train if self.in_training else self.logits_test
+        correct_predictions = tf.equal(tf.argmax(logits, 1), tf.argmax(self.Y, 1))
         accuracy = tf.reduce_mean(tf.cast(correct_predictions, tf.float64))
         return accuracy
 
-    @define_scope('data')
-    def _data(self):
+    @define_scope
+    def data(self):
         self.X, self.Y = data_placeholders(self.config.time_steps,
                                            self.config.word_embed_size)
         return self.X, self.Y
 
     @define_scope
-    def loss(self):
-        return tf.reduce_sum(tf.nn.softmax_cross_entropy_with_logits(labels=self.y,
-                                                                     logits=self.logits,
-                                                                     name='loss'))
-
-    @define_scope
     def optimize(self):
-        optimizer = tf.train.AdamOptimizer(self.learning_rate)
-        grads_and_vars = optimizer.compute_gradients(self.loss, self._weights)
+        optimizer = tf.train.AdamOptimizer(self.config.learning_rate)
+        grads_and_vars = optimizer.compute_gradients(self.loss, self._all_weights())
         clipped_grads_and_vars = clip_gradients(grads_and_vars)
         return optimizer.apply_gradients(clipped_grads_and_vars)
 
-    def _weights(self):
+    def _weights(self, scope):
+        vars = tf.global_variables()
+        weights_name = '%s/weights:0' % scope
+        if weights_name not in vars:
+            raise Exception('Could not find weights with name %s' % weights_name)
+        return next(v for v in vars if v.name == weights_name)
+
+    def _all_weights(self):
         return [v for v in tf.get_collection(tf.GraphKeys.TRAINABLE_VARIABLES) if v.name.endswith('weights:0')]
