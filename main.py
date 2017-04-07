@@ -17,7 +17,7 @@ if __name__ == '__main__':
     transfer_to_carstens = False
     with tf.Session() as sess:
         sess.run(tf.global_variables_initializer())
-        train(model, 'snli', 'dev', 20, sess, load_ckpt=True, save_ckpt=True, transfer=False)
+        train(model, 'snli', 'dev', 5, sess, load_ckpt=True, save_ckpt=True, transfer=False)
         accuracy(model, 'snli', 'dev', sess)
         accuracy(model, 'snli', 'test', sess)
         if transfer_to_carstens:

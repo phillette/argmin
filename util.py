@@ -27,9 +27,9 @@ def dropout_vector(keep_prob, shape):
 
 
 def feed_dict(model, batch):
-    return {model.premises: batch.premises,
-            model.hypotheses: batch.hypotheses,
-            model.y: batch.labels}
+    return {model.X.premises: batch.premises,
+            model.X.hypotheses: batch.hypotheses,
+            model.Y: batch.labels}
 
 
 def feed_dict2(model, batch):

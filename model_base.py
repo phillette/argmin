@@ -106,7 +106,7 @@ class Model:
     def _weights(self, scope):
         vars = tf.global_variables()
         weights_name = '%s/weights:0' % scope
-        if weights_name not in vars:
+        if weights_name not in [v.name for v in vars]:
             raise Exception('Could not find weights with name %s' % weights_name)
         return next(v for v in vars if v.name == weights_name)
 

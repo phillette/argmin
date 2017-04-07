@@ -19,7 +19,7 @@ def train(model, db, collection, num_epochs, sess, load_ckpt=True, save_ckpt=Tru
         iteration = model.global_step.eval()
         while iteration < (starting_point + NUM_ITERS[db][collection]):
             batch = next(batch_gen)
-            batch_loss, batch_accuracy, _ = sess.run([model.loss, model.accuracy_train, model.optimize],
+            batch_loss, batch_accuracy, _ = sess.run([model.loss, model.accuracy, model.optimize],
                                                      feed_dict(model, batch))
             average_loss += batch_loss
             average_accuracy += batch_accuracy

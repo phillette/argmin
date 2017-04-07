@@ -244,10 +244,14 @@ class BiRNNBowman(Model):
 
     @define_scope
     def logits_test(self):
-        encoding_weights_factored = tf.multiply(self.config.p_keep_input, self._weights('hidden_output_1'))
+        encoding_weights_factored = tf.multiply(tf.cast(self.config.p_keep_input,
+                                                        tf.float64),
+                                                self._weights('logits_train/hidden_output_1'))
         self.z1_test = tf.matmul(self.rnn_output, encoding_weights_factored)
         self.a1_test = tf.tanh(self.z1_test)
-        h1_weights_factored = tf.multiply(self.config.p_keep_ff, self._weights('h2'))
+        h1_weights_factored = tf.multiply(tf.cast(self.config.p_keep_ff,
+                                                  tf.float64)
+                                          , self._weights('logits_train/h2'))
         self.z2_test = tf.matmul(self.a1_test, h1_weights_factored)
         self.a2_test = tf.tanh(self.z2_test)
         self.a3_test = tf.contrib.layers.fully_connected(self.a2_test,
