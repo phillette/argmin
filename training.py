@@ -10,6 +10,7 @@ def train(model, db, collection, num_epochs, sess, load_ckpt=True, save_ckpt=Tru
     saver = tf.train.Saver()
     if load_ckpt:
         load_checkpoint(model, saver, sess, transfer)
+    model.in_training = True
     for epoch in range(num_epochs):
         print('Epoch %s' % (epoch + 1))
         batch_gen = get_batch_gen(db, collection)
@@ -32,6 +33,7 @@ def train(model, db, collection, num_epochs, sess, load_ckpt=True, save_ckpt=Tru
             iteration += 1
     if write_graph:
         writer.close()
+    model.in_training = False
 
 
 def train2(model, batch_gen_wrapper, num_epochs, sess,

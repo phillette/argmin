@@ -4,6 +4,8 @@ from tf_decorators import define_scope
 from batching import LONGEST_SENTENCE_SNLI, NUM_LABELS, get_batch_gen
 from util import clip_gradients, length, feed_dict
 from model_base import Model, fully_connected_with_dropout, Config
+from prediction import accuracy
+import numpy as np
 
 
 def bi_rnn(sentences, hidden_size, scope, p_keep=0.8):
@@ -196,7 +198,7 @@ class BiRNNBowman(Model):
     def __init__(self, config):
         Model.__init__(self, config)
         self.name = 'bi_rnn_bowman'
-        self.bi_rnns
+        self.bi_rnn_output
         self.logits_train
         self.logits_test
         self.loss
@@ -204,80 +206,78 @@ class BiRNNBowman(Model):
         self.accuracy
 
     @define_scope
-    def bi_rnns(self):
-        _, self.premise_output_states = bi_rnn(self.X.premises,
-                                               self.config.rnn_size,
-                                               'premise_bi_rnn',
-                                               1.0)  # no dropout in Bowman's model
-        self.premise_out = tf.concat([state.c for state in self.premise_output_states], axis=1)
-        _, self.hypothesis_output_states = bi_rnn(self.X.hypotheses,
-                                                  self.config.rnn_size,
-                                                  'hypothesis_bi_rnn',
-                                                  1.0)  # no dropout in Bowman's model
-        self.hypothesis_out = tf.concat([state.c for state in self.hypothesis_output_states], axis=1)
-        self.rnn_output = tf.concat([self.premise_out, self.hypothesis_out],
-                                    axis=1,
-                                    name='concatenated_sentences')
-        return self.rnn_output  # batch_size x (4 * rnn_size)
+    def bi_rnn_output(self):
+        _, premise_output_states = bi_rnn(self.X.premises,
+                                          self.config.rnn_size,
+                                          'premise_bi_rnn',
+                                          1.0)  # no dropout in Bowman's model
+        premise_out = tf.concat([state.c for state in premise_output_states], axis=1)
+        _, hypothesis_output_states = bi_rnn(self.X.hypotheses,
+                                             self.config.rnn_size,
+                                             'hypothesis_bi_rnn',
+                                             1.0)  # no dropout in Bowman's model
+        hypothesis_out = tf.concat([state.c for state in hypothesis_output_states], axis=1)
+        rnn_output = tf.concat([premise_out, hypothesis_out],
+                               axis=1,
+                               name='concatenated_sentences')
+        return rnn_output  # batch_size x (4 * rnn_size)
 
     @define_scope
     def logits_train(self):
-        self.dropped_input = tf.nn.dropout(self.rnn_output,
-                                           self.config.p_keep_input)
-        self.encoding_a1 = tf.contrib.layers.fully_connected(self.dropped_input,
-                                                             self.config.ff_size,
-                                                             tf.tanh,
-                                                             scope='hidden_output_1')
-        self.encoding_output_train = tf.nn.dropout(self.encoding_a1,
-                                                   self.config.p_keep_ff)
-        self.train_a2 = tf.contrib.layers.fully_connected(self.encoding_output_train,
-                                                          self.config.ff_size,
-                                                          tf.tanh,
-                                                          scope='h2')
-        self.train_a3 = tf.contrib.layers.fully_connected(self.train_a2,
-                                                          self.config.ff_size,
-                                                          tf.tanh)
-        self._logits_train = tf.contrib.layers.fully_connected(inputs=self.train_a3,
-                                                               num_outputs=3,
-                                                               activation_fn=None)
-        return self._logits_train
+        input_dropped = tf.nn.dropout(self.bi_rnn_output,
+                                      self.config.p_keep_input)
+        a1 = tf.contrib.layers.fully_connected(input_dropped,
+                                               self.config.ff_size,
+                                               tf.tanh,
+                                               scope='hidden_output_1')
+        a1_dropped = tf.nn.dropout(a1, self.config.p_keep_ff)
+        a2 = tf.contrib.layers.fully_connected(a1_dropped,
+                                               self.config.ff_size,
+                                               tf.tanh,
+                                               scope='h2')
+        a3 = tf.contrib.layers.fully_connected(a2,
+                                               self.config.ff_size,
+                                               tf.tanh)
+        _logits_train = tf.contrib.layers.fully_connected(a3, 3, None)
+        return _logits_train
 
     @define_scope
     def logits_test(self):
         encoding_weights_factored = tf.multiply(tf.cast(self.config.p_keep_input,
                                                         tf.float64),
                                                 self._weights('logits_train/hidden_output_1'))
-        self.z1_test = tf.matmul(self.rnn_output, encoding_weights_factored)
-        self.a1_test = tf.tanh(self.z1_test)
-        h1_weights_factored = tf.multiply(tf.cast(self.config.p_keep_ff,
-                                                  tf.float64)
-                                          , self._weights('logits_train/h2'))
-        self.z2_test = tf.matmul(self.a1_test, h1_weights_factored)
-        self.a2_test = tf.tanh(self.z2_test)
-        self.a3_test = tf.contrib.layers.fully_connected(self.a2_test,
-                                                         self.config.ff_size,
-                                                         tf.tanh)
-        self._logits_test = tf.contrib.layers.fully_connected(self.a3_test,
-                                                              3,
-                                                              None)
-        return self._logits_test
+        z1 = tf.matmul(self.bi_rnn_output, encoding_weights_factored)
+        a1 = tf.tanh(z1)
+        W1_factored = tf.multiply(tf.cast(self.config.p_keep_ff, tf.float64),
+                                          self._weights('logits_train/h2'))
+        z2 = tf.matmul(a1, W1_factored)
+        a2 = tf.tanh(z2)
+        a3 = tf.contrib.layers.fully_connected(a2,
+                                               self.config.ff_size,
+                                               tf.tanh)
+        _logits_test = tf.contrib.layers.fully_connected(a3, 3, None)
+        return _logits_test
 
     @define_scope
     def loss(self):
-        penalty_term = sum([tf.nn.l2_loss(w) for w in self._all_weights()])
-        return tf.reduce_sum(tf.nn.softmax_cross_entropy_with_logits(labels=self.Y,
-                                                                     logits=self.logits_train,
-                                                                     name='loss')) \
-               + (self.config.lamda * penalty_term)
+        cross_entropy = tf.reduce_sum(tf.nn.softmax_cross_entropy_with_logits(labels=self.Y,
+                                                                              logits=self.logits_train,
+                                                                              name='softmax_cross_entropy'))
+        penalty_term = tf.multiply(tf.cast(self.config.lamda, tf.float64),
+                                   sum([tf.nn.l2_loss(w) for w in self._all_weights()]),
+                                   name='penalty_term')
+        return tf.add(cross_entropy, penalty_term, name='loss')
 
 
 if __name__ == '__main__':
-    db = 'snli'
-    collection = 'dev'
-    batch_gen = get_batch_gen(db, collection)
-    learning_rate = 1e-3
-    config = Config(learning_rate=learning_rate)
-    model = LSTMEncoder(config)
+    model = BiRNNBowman(Config(learning_rate=1e-3,
+                               p_keep_rnn=1.0,
+                               p_keep_input=0.8,
+                               p_keep_ff=0.5,
+                               grad_clip_norm=5.0,
+                               lamda=0.0))
     with tf.Session() as sess:
         sess.run(tf.global_variables_initializer())
-        # whatever else
+        model.in_training = False
+        accuracy(model, 'snli', 'dev', sess)
+        accuracy(model, 'snli', 'test', sess)

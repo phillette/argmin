@@ -9,15 +9,18 @@ from model_base import Config
 
 
 if __name__ == '__main__':
-    config = Config(learning_rate=3e-3,
-                    p_keep_rnn=0.5,
+    config = Config(learning_rate=1e-3,
+                    p_keep_rnn=1.0,
+                    p_keep_input=0.8,
                     p_keep_ff=0.5,
-                    grad_clip_norm=5.0)
+                    grad_clip_norm=5.0,
+                    lamda=0.0)
     model = BiRNNBowman(config)
     transfer_to_carstens = False
     with tf.Session() as sess:
         sess.run(tf.global_variables_initializer())
-        train(model, 'snli', 'dev', 5, sess, load_ckpt=True, save_ckpt=True, transfer=False)
+        train(model, 'snli', 'dev', 20, sess, load_ckpt=True, save_ckpt=True, transfer=False)
+        #accuracy(model, 'snli', 'train', sess)
         accuracy(model, 'snli', 'dev', sess)
         accuracy(model, 'snli', 'test', sess)
         if transfer_to_carstens:

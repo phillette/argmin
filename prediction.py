@@ -1,8 +1,8 @@
 import os
 from batching import get_batch_gen, NUM_ITERS, ENCODING_TO_LABEL, BATCH_SIZE
-from rnn_encoders import *
 import numpy as np
 from util import load_checkpoint, feed_dict, feed_dict2
+import tensorflow as tf
 
 
 def accuracy(model, db, collection, sess):
@@ -52,9 +52,3 @@ def predict(model, premise, hypothesis):
         probabilities = sess.run(model.predict, {model.premises: premise,
                                                  model.hypotheses: hypothesis})  # shouldn't need y (?)
         return Prediction(np.argmax(probabilities, 1)[0], np.max(probabilities))
-
-
-if __name__ == '__main__':
-    collection = 'dev'
-    model = BiRNN(BATCH_SIZE[collection])
-    accuracy(model, collection)

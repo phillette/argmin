@@ -13,7 +13,7 @@ def ckpt_path(model_name, transfer=False):
     if transfer:
         return os.path.dirname('checkpoints/%s/transfer/%s' % (model_name, model_name))
     else:
-        return os.path.dirname('checkpoints/%s/%s/' % (model_name, model_name))
+        return os.path.dirname('checkpoints/%s/' % model_name)
 
 
 def clip_gradients(grads_and_vars, norm=3.0, axes=0):
@@ -52,6 +52,8 @@ def load_checkpoint(model, saver, sess, transfer=False):
     ckpt = tf.train.get_checkpoint_state(ckpt_path(model.name, transfer))
     if ckpt and ckpt.model_checkpoint_path:
         saver.restore(sess, ckpt.model_checkpoint_path + '.ckpt')
+    else:
+        raise Exception('Checkpoint not found, not loaded.')
 
 
 def log_graph_path(model_name):
@@ -59,4 +61,5 @@ def log_graph_path(model_name):
 
 
 def save_checkpoint(model, saver, sess, iteration, transfer=False):
-    saver.save(sess, ckpt_path(model.name, transfer), iteration)
+    path = ckpt_path(model.name, transfer) + '/%s' % model.name
+    saver.save(sess, path, iteration)
