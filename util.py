@@ -60,6 +60,15 @@ def log_graph_path(model_name):
     return os.path.dirname('graphs/%s' % model_name)
 
 
+def roll_batch(x, old_dims):
+    return tf.reshape(x, old_dims)
+
+
+def unroll_batch(x):
+    dims = tf.shape(x)
+    return tf.reshape(x, [dims[0] * dims[1], dims[2]])
+
+
 def save_checkpoint(model, saver, sess, iteration, transfer=False):
     path = ckpt_path(model.name, transfer) + '/%s' % model.name
     saver.save(sess, path, iteration)
