@@ -85,10 +85,15 @@ class Model:
 
     @define_scope
     def accuracy(self):
-        logits = self.logits_train if self.in_training else self.logits_test
-        correct_predictions = tf.equal(tf.argmax(logits, 1), tf.argmax(self.Y, 1))
-        accuracy = tf.reduce_mean(tf.cast(correct_predictions, tf.float64))
-        return accuracy
+        return tf.reduce_mean(tf.cast(self.correct_predictions, tf.float64))
+
+    @define_scope
+    def confidences(self):
+        return tf.reduce_max(self.logits, axis=1)
+
+    @define_scope
+    def correct_predictions(self):
+        return tf.equal(self.predicted_labels, tf.argmax(self.Y, axis=1))
 
     @define_scope
     def data(self):
@@ -102,6 +107,10 @@ class Model:
         grads_and_vars = optimizer.compute_gradients(self.loss, self._all_weights())
         clipped_grads_and_vars = clip_gradients(grads_and_vars)
         return optimizer.apply_gradients(clipped_grads_and_vars)
+
+    @define_scope
+    def predicted_labels(self):
+        return tf.argmax(self.logits, axis=1)
 
     def _weights(self, scope):
         vars = tf.global_variables()

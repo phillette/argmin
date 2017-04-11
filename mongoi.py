@@ -4,6 +4,15 @@ import _pickle as cPickle
 import numpy as np
 
 
+def get_db(db_name):
+    return SNLIDb() if db_name == 'snli' else CarstensDb()
+
+
+def get_repository(db, collection):
+    db = get_db(db)
+    return db.repository(collection)
+
+
 def array_to_string(array):
     """
     Converts a numpy array to a binarized string so it can be saved in MongoDB.
@@ -122,6 +131,14 @@ class Repository:
         :return: a dictionary representing the object, if found - else None
         """
         return self.collection.find_one({attr: value})
+
+    def get(self, id):
+        """
+        Get a document by _id.
+        :param id: the mongo _id.
+        :return: a doc if found, else None.
+        """
+        return self.collection.find({'_id': id})
 
     def insert_one(self, document):
         """

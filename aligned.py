@@ -3,6 +3,8 @@ from model_base import Model, fully_connected_with_dropout, Config
 from tf_decorators import define_scope
 from util import roll_batch, unroll_batch, feed_dict
 from batching import get_batch_gen
+from prediction import evaluate
+from rnn_encoders import bi_rnn
 
 
 class Alignment(Model):
@@ -20,6 +22,9 @@ class Alignment(Model):
         self.loss
         self.optimize
         self.accuracy
+        self.predicted_labels
+        self.confidences
+        self.correct_predictions
 
     @define_scope
     def align(self):
@@ -120,6 +125,26 @@ class Alignment(Model):
         return accuracy
 
 
+class BiRNNAlignment(Alignment):
+    def __init__(self, config, alignment_size):
+        Alignment.__init__(self, config, alignment_size)
+        self.name = 'bi_rnn_alignment'
+
+    @define_scope('bi_rnns')
+    def _bi_rnns(self):
+        _, self.premise_output_states = bi_rnn(self.X.premises,
+                                               self.config.rnn_size,
+                                               'premise_bi_rnn',
+                                               self.config.p_keep_rnn)
+        self.premise_out = tf.concat([state.c for state in self.premise_output_states], axis=1)
+        _, self.hypothesis_output_states = bi_rnn(self.X.hypotheses,
+                                                  self.config.rnn_size,
+                                                  'hypothesis_bi_rnn',
+                                                  self.config.p_keep_rnn)
+        self.hypothesis_out = tf.concat([state.c for state in self.hypothesis_output_states], axis=1)
+        # need to figure out how to get what I want from the above
+
+
 if __name__ == '__main__':
     config = Config(learning_rate=1e-3,
                     p_keep_rnn=1.0,
@@ -130,6 +155,5 @@ if __name__ == '__main__':
     model = Alignment(config, 100)
     with tf.Session() as sess:
         sess.run(tf.global_variables_initializer())
-        batch_gen = get_batch_gen('snli', 'dev')
-        batch = next(batch_gen)
-        print(sess.run(model.compare, feed_dict(model, batch))[0].shape)
+        results = evaluate(model, 'snli', 'test', sess)
+        print(results.head())

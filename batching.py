@@ -71,7 +71,8 @@ def add_third_dimensions(batch):
 
 
 class Batch:
-    def __init__(self, premises, hypotheses, labels):
+    def __init__(self, ids, premises, hypotheses, labels):
+        self.ids = ids
         self.premises = premises
         self.hypotheses = hypotheses
         self.labels = labels
@@ -107,18 +108,21 @@ def get_batch_gen(db, collection, type='gen'):
     else:
         raise Exception('Unexpected generator type: %s' % type)
     while True:
+        ids = []
         premises = []
         hypotheses = []
         labels = []
         for _ in range(BATCH_SIZE[db][collection]):
             doc = gen.next()
+            id = doc['_id']
             premise = string_to_array(doc['premise'])
             hypothesis = string_to_array(doc['hypothesis'])
             label = encode(doc['gold_label'])
+            ids.append(id)
             premises.append(premise)
             hypotheses.append(hypothesis)
             labels.append(label)
-        batch = Batch(premises, hypotheses, labels)
+        batch = Batch(ids, premises, hypotheses, labels)
         pad_out_sentences(batch)
         add_third_dimensions(batch)
         yield batch

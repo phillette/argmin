@@ -21,7 +21,7 @@ def train(model, db, collection, num_epochs, sess, load_ckpt=True, save_ckpt=Tru
         while iteration < (starting_point + NUM_ITERS[db][collection]):
             batch = next(batch_gen)
             batch_loss, batch_accuracy, _ = sess.run([model.loss, model.accuracy, model.optimize],
-                                                     feed_dict(model, batch))
+                                                        feed_dict(model, batch))
             average_loss += batch_loss
             average_accuracy += batch_accuracy
             if (iteration + 1) % REPORT_EVERY[db][collection] == 0:
@@ -29,7 +29,7 @@ def train(model, db, collection, num_epochs, sess, load_ckpt=True, save_ckpt=Tru
                                                                              average_loss / (iteration + 1),
                                                                              average_accuracy / (iteration + 1)))
                 if save_ckpt:
-                    save_checkpoint(model, saver, sess, iteration, transfer)
+                    save_checkpoint(model, saver, sess, transfer)
             iteration += 1
     if write_graph:
         writer.close()
