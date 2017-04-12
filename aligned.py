@@ -143,6 +143,7 @@ class BiRNNAlignment(Alignment):
                                                   self.config.p_keep_rnn)
         self.hypothesis_out = tf.concat([state.c for state in self.hypothesis_output_states], axis=1)
         # need to figure out how to get what I want from the above
+        # the first thing returned from bi_rnn is what I want...[batch_size, max_time, output_size]
 
 
 if __name__ == '__main__':

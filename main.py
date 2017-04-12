@@ -41,7 +41,7 @@ def aligned():
     transfer_to_carstens = False
     with tf.Session() as sess:
         sess.run(tf.global_variables_initializer())
-        train(model, 'snli', 'train', 5, sess, load_ckpt=True, save_ckpt=True, transfer=False)
+        train(model, 'snli', 'train', 10, sess, load_ckpt=True, save_ckpt=True, transfer=False)
         accuracy(model, 'snli', 'train', sess)
         accuracy(model, 'snli', 'dev', sess)
         accuracy(model, 'snli', 'test', sess)
