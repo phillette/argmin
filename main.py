@@ -9,6 +9,11 @@ from aligned import Alignment
 # $ TF_CPP_MIN_LOG_LEVEL=1 python main.py
 
 
+def bi_rnn():
+    model = BiRNN(learning_rate=1e-3)
+    return model
+
+
 def bi_rnn_bowman():
     config = Config(learning_rate=1e-3,
                     p_keep_rnn=1.0,
@@ -17,17 +22,7 @@ def bi_rnn_bowman():
                     grad_clip_norm=5.0,
                     lamda=0.0)
     model = BiRNNBowman(config)
-    transfer_to_carstens = False
-    with tf.Session() as sess:
-        sess.run(tf.global_variables_initializer())
-        train(model, 'snli', 'dev', 20, sess, load_ckpt=True, save_ckpt=True, transfer=False)
-        # accuracy(model, 'snli', 'train', sess)
-        accuracy(model, 'snli', 'dev', sess)
-        accuracy(model, 'snli', 'test', sess)
-        if transfer_to_carstens:
-            model.learning_rate = 3e-5
-            train(model, 'carstens', 'train', 20, sess, load_ckpt=False, save_ckpt=True, transfer=True)
-            accuracy(model, 'carstens', 'test', sess)
+    return model
 
 
 def aligned():
@@ -38,21 +33,23 @@ def aligned():
                     grad_clip_norm=5.0,
                     lamda=0.0)
     model = Alignment(config, 100)
-    transfer_to_carstens = False
-    with tf.Session() as sess:
-        sess.run(tf.global_variables_initializer())
-        train(model, 'snli', 'train', 10, sess, load_ckpt=True, save_ckpt=True, transfer=False)
-        accuracy(model, 'snli', 'train', sess)
-        accuracy(model, 'snli', 'dev', sess)
-        accuracy(model, 'snli', 'test', sess)
-        if transfer_to_carstens:
-            model.learning_rate = 3e-5
-            train(model, 'carstens', 'train', 20, sess, load_ckpt=False, save_ckpt=True, transfer=True)
-            accuracy(model, 'carstens', 'test', sess)
+    return model
 
 
 if __name__ == '__main__':
-    aligned()
+    model = aligned()
+    transfer_to_carstens = True
+    with tf.Session() as sess:
+        sess.run(tf.global_variables_initializer())
+        #train(model, 'carstens', 'train', 10, sess, load_ckpt=True, save_ckpt=True, transfer=False)
+        #accuracy(model, 'snli', 'train', sess)
+        #accuracy(model, 'snli', 'dev', sess)
+        #accuracy(model, 'snli', 'test', sess)
+        if transfer_to_carstens:
+            model.learning_rate = 1e-6
+            #train(model, 'carstens', 'train', 20, sess, load_ckpt=True, save_ckpt=True, transfer=True)
+            accuracy(model, 'carstens', 'train', sess, transfer=True)
+            accuracy(model, 'carstens', 'test', sess, transfer=True)
 
 
 # 54.9306144334 (dev for sure, maybe also test)

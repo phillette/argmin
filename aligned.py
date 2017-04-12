@@ -1,9 +1,7 @@
 import tensorflow as tf
-from model_base import Model, fully_connected_with_dropout, Config
+from model_base import Model, fully_connected_with_dropout
 from tf_decorators import define_scope
-from util import roll_batch, unroll_batch, feed_dict
-from batching import get_batch_gen
-from prediction import evaluate
+from util import roll_batch, unroll_batch
 from rnn_encoders import bi_rnn
 
 
@@ -144,17 +142,3 @@ class BiRNNAlignment(Alignment):
         self.hypothesis_out = tf.concat([state.c for state in self.hypothesis_output_states], axis=1)
         # need to figure out how to get what I want from the above
         # the first thing returned from bi_rnn is what I want...[batch_size, max_time, output_size]
-
-
-if __name__ == '__main__':
-    config = Config(learning_rate=1e-3,
-                    p_keep_rnn=1.0,
-                    p_keep_input=0.8,
-                    p_keep_ff=0.5,
-                    grad_clip_norm=5.0,
-                    lamda=0.0)
-    model = Alignment(config, 100)
-    with tf.Session() as sess:
-        sess.run(tf.global_variables_initializer())
-        results = evaluate(model, 'snli', 'test', sess)
-        print(results.head())

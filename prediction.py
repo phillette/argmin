@@ -6,6 +6,8 @@ import tensorflow as tf
 import itertools
 from mongoi import get_repository
 import pandas as pd
+from aligned import Alignment
+from model_base import Config
 
 
 def accuracy(model, db, collection, sess, transfer=False):
@@ -33,19 +35,19 @@ def accuracy2(model, batch_gen, num_iters, sess):
     print('Accuracy: %s' % (average_accuracy / num_iters))
 
 
-def evaluate(model, db, collection, sess, transfer=False):
+def evaluate(model, sess, db='snli', collection='test', transfer=False):
     batch_gen = get_batch_gen(db, collection)
     num_iters = NUM_ITERS[db][collection]
     load_checkpoint(model, tf.train.Saver(), sess, transfer)
-    results = ResultExaminer(db, collection)
+    re = ResultExaminer(db, collection)
     for iter in range(num_iters):
         batch = next(batch_gen)
         predicted_labels, confidences, correct_predictions = sess.run([model.predicted_labels,
                                                                        model.confidences,
                                                                        model.correct_predictions],
                                                                       feed_dict(model, batch))
-        results.new_batch_results(batch.ids, predicted_labels, confidences, correct_predictions)
-    return results
+        re.new_batch_results(batch.ids, predicted_labels, confidences, correct_predictions)
+    return re
 
 
 class Prediction:
@@ -131,3 +133,16 @@ class ResultExaminer:
 
     def new_batch_results(self, ids, predicted_labels, confidences, correct_predictions):
         self.results.iloc[ids] = [predicted_labels, confidences, correct_predictions]
+
+
+if __name__ == '__main__':
+    config = Config(learning_rate=1e-4,
+                    p_keep_rnn=1.0,
+                    p_keep_input=1.0,
+                    p_keep_ff=1.0,
+                    grad_clip_norm=5.0,
+                    lamda=0.0)
+    model = Alignment(config, 100)
+    with tf.Session() as sess:
+        sess.run(tf.global_variables_initializer())
+        re = evaluate(model, sess)

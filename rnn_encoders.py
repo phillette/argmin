@@ -4,7 +4,6 @@ from tf_decorators import define_scope
 from batching import LONGEST_SENTENCE_SNLI, NUM_LABELS, get_batch_gen
 from util import clip_gradients, length, feed_dict
 from model_base import Model, fully_connected_with_dropout, Config
-from prediction import accuracy
 import numpy as np
 
 
@@ -90,7 +89,7 @@ class BiRNN:
     Carstens = 0.46 (not fully trained but best average accuracy of a batch before gradients explode)
     """
     def __init__(self, word_embed_length=300, learning_rate=0.001, rnn_size=100, ff_size=200,
-                 p_keep_rnn=0.8, p_keep_ff=0.5, grad_clip_norm=5.0):
+                 p_keep_rnn=0.5, p_keep_ff=0.5, grad_clip_norm=5.0):
         self.name = 'bi_rnn'
         self.word_embed_length = word_embed_length
         self.learning_rate = learning_rate
@@ -267,17 +266,3 @@ class BiRNNBowman(Model):
                                    sum([tf.nn.l2_loss(w) for w in self._all_weights()]),
                                    name='penalty_term')
         return tf.add(cross_entropy, penalty_term, name='loss')
-
-
-if __name__ == '__main__':
-    model = BiRNNBowman(Config(learning_rate=1e-3,
-                               p_keep_rnn=1.0,
-                               p_keep_input=0.8,
-                               p_keep_ff=0.5,
-                               grad_clip_norm=5.0,
-                               lamda=0.0))
-    with tf.Session() as sess:
-        sess.run(tf.global_variables_initializer())
-        model.in_training = False
-        accuracy(model, 'snli', 'dev', sess)
-        accuracy(model, 'snli', 'test', sess)
