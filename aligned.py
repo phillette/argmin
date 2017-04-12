@@ -9,10 +9,13 @@ class Alignment(Model):
     """
     Alignment model without RNN.
     """
-    def __init__(self, config, alignment_size):
+    def __init__(self, config, encoding_size, alignment_size):
         Model.__init__(self, config)
         self.name = 'alignment'
+        self.encoding_size = encoding_size
         self.alignment_size = alignment_size
+        self.premises_encoding
+        self.hypotheses_encoding
         self.align
         self.compare
         self.aggregate
@@ -25,54 +28,63 @@ class Alignment(Model):
         self.correct_predictions
 
     @define_scope
+    def premises_encoding(self):
+        return self.X.premises
+
+    @define_scope
+    def hypotheses_encoding(self):
+        return self.X.hypotheses
+
+    @define_scope
     def align(self):
-        W_F = tf.Variable(initial_value=tf.random_uniform(shape=[self.config.word_embed_size,
+        premises = self.premises_encoding
+        hypotheses = self.hypotheses_encoding
+        premises_shape = tf.shape(premises)
+        hypotheses_shape = tf.shape(hypotheses)
+        W_F = tf.Variable(initial_value=tf.random_uniform(shape=[self.encoding_size,
                                                                  self.alignment_size],
                                                           minval=-1.0,
                                                           maxval=1.0,
                                                           dtype=tf.float64),
                           name='W_F')
-        premises_shape = tf.shape(self.X.premises)
-        hypotheses_shape = tf.shape(self.X.hypotheses)
-        premises_unrolled = unroll_batch(self.X.premises)                     # [batch_size * max_length_p, embed_size]
-        hypotheses_unrolled = unroll_batch(self.X.hypotheses)                 # [batch_size * max_length_h, embed_size]
-        F_p = tf.tanh(tf.matmul(premises_unrolled, W_F), name='F_p')          # [batch_size * max_length_p, align_size]
-        F_h = tf.tanh(tf.matmul(hypotheses_unrolled, W_F), name='F_h')        # [batch_size * max_length_h, align_size]
+        premises_unrolled = unroll_batch(premises)                         # [batch_size * max_length_p, encoding_size]
+        hypotheses_unrolled = unroll_batch(hypotheses)                     # [batch_size * max_length_h, encoding_size]
+        F_p = tf.tanh(tf.matmul(premises_unrolled, W_F), name='F_p')       # [batch_size * max_length_p, align_size]
+        F_h = tf.tanh(tf.matmul(hypotheses_unrolled, W_F), name='F_h')     # [batch_size * max_length_h, align_size]
         F_p_rolled = roll_batch(F_p, [premises_shape[0],
                                       premises_shape[1],
-                                      self.alignment_size])                   # [batch_size, max_length_p, align_size]
+                                      self.alignment_size])                # [batch_size, max_length_p, align_size]
         F_h_rolled = roll_batch(F_h, [hypotheses_shape[0],
                                       hypotheses_shape[1],
-                                      self.alignment_size])                   # [batch_size, max_length_h, align_size]
+                                      self.alignment_size])                # [batch_size, max_length_h, align_size]
         eijs = tf.matmul(F_p_rolled,
                          tf.transpose(F_h_rolled,
                                       perm=[0, 2, 1]),
-                         name='eijs')                                         # [batch_size, max_length_p, max_length_h]
-        eijs_softmaxed = tf.nn.softmax(eijs)                                  # [batch_size, max_length_p, max_length_h]
-        betas = tf.matmul(eijs_softmaxed,
-                          self.X.hypotheses)                                  # [batch_size, max_length_p, embed_size]
+                         name='eijs')                                      # [batch_size, max_length_p, max_length_h]
+        eijs_softmaxed = tf.nn.softmax(eijs)                               # [batch_size, max_length_p, max_length_h]
+        betas = tf.matmul(eijs_softmaxed, hypotheses)                      # [batch_size, max_length_p, align_size]
         alphas = tf.matmul(tf.transpose(eijs_softmaxed,
                                         perm=[0, 2, 1]),
-                           self.X.premises)                                   # [batch_size, max_length_h, embed_size]
+                           premises)                                       # [batch_size, max_length_h, align_size]
         return betas, alphas
 
     @define_scope
     def compare(self):
         betas, alphas = self.align
-        W_G = tf.Variable(initial_value=tf.random_uniform(shape=[2 * self.config.word_embed_size,
+        W_G = tf.Variable(initial_value=tf.random_uniform(shape=[2 * self.encoding_size + self.alignment_size,
                                                                  self.config.ff_size],
                                                           minval=-1.0,
                                                           maxval=1.0,
                                                           dtype=tf.float64),
-                          name='W_F')
-        V1_in = tf.concat([self.X.premises, betas], axis=2)                  # [batch_size, max_length, 2 * embed_size]
-        V2_in = tf.concat([self.X.hypotheses, alphas], axis=2)               # [batch_size, max_length, 2 * embed_size]
-        V1_in_dropped = tf.nn.dropout(V1_in, self.config.p_keep_input)       # [batch_size, max_length, 2 * embed_size]
-        V2_in_dropped = tf.nn.dropout(V2_in, self.config.p_keep_input)       # [batch_size, max_length, 2 * embed_size]
-        V1_in_unrolled = unroll_batch(V1_in_dropped)                         # [batch_size * max_length, 2 * embed_size]
-        V2_in_unrolled = unroll_batch(V2_in_dropped)                         # [batch_size * max_length, 2 * embed_size]
-        V1_unrolled = tf.tanh(tf.matmul(V1_in_unrolled, W_G))                # [batch_size * max_length, ff_size]
-        V2_unrolled = tf.tanh(tf.matmul(V2_in_unrolled, W_G))                # [batch_size * max_length, ff_size]
+                          name='W_G')
+        V1_in = tf.concat([self.X.premises, betas], axis=2)               # [batch_size, max_length, 2 * encoding_size]
+        V2_in = tf.concat([self.X.hypotheses, alphas], axis=2)            # [batch_size, max_length, 2 * encoding_size]
+        V1_in_dropped = tf.nn.dropout(V1_in, self.config.p_keep_input)    # [batch_size, max_length, 2 * encoding_size]
+        V2_in_dropped = tf.nn.dropout(V2_in, self.config.p_keep_input)    # [batch_size, max_length, 2 * encoding_size]
+        V1_in_unrolled = unroll_batch(V1_in_dropped)                      # [batch_size * max_length, 2 * encoding_size]
+        V2_in_unrolled = unroll_batch(V2_in_dropped)                      # [batch_size * max_length, 2 * encoding_size]
+        V1_unrolled = tf.tanh(tf.matmul(V1_in_unrolled, W_G))             # [batch_size * max_length, ff_size]
+        V2_unrolled = tf.tanh(tf.matmul(V2_in_unrolled, W_G))             # [batch_size * max_length, ff_size]
         premises_shape = tf.shape(self.X.premises)
         hypotheses_shape = tf.shape(self.X.hypotheses)
         V1 = roll_batch(V1_unrolled, [premises_shape[0],
@@ -124,21 +136,24 @@ class Alignment(Model):
 
 
 class BiRNNAlignment(Alignment):
-    def __init__(self, config, alignment_size):
-        Alignment.__init__(self, config, alignment_size)
+    def __init__(self, config, encoding_size, alignment_size):
+        Alignment.__init__(self, config, encoding_size, alignment_size)
         self.name = 'bi_rnn_alignment'
 
-    @define_scope('bi_rnns')
-    def _bi_rnns(self):
-        _, self.premise_output_states = bi_rnn(self.X.premises,
-                                               self.config.rnn_size,
-                                               'premise_bi_rnn',
-                                               self.config.p_keep_rnn)
-        self.premise_out = tf.concat([state.c for state in self.premise_output_states], axis=1)
-        _, self.hypothesis_output_states = bi_rnn(self.X.hypotheses,
-                                                  self.config.rnn_size,
-                                                  'hypothesis_bi_rnn',
-                                                  self.config.p_keep_rnn)
-        self.hypothesis_out = tf.concat([state.c for state in self.hypothesis_output_states], axis=1)
-        # need to figure out how to get what I want from the above
-        # the first thing returned from bi_rnn is what I want...[batch_size, max_time, output_size]
+    @define_scope
+    def premises_encoding(self):
+        _premises_encoding = bi_rnn(self.X.premises,
+                                    self.config.rnn_size,
+                                    'premise_bi_rnn',
+                                    self.config.p_keep_rnn)               # [batch_size, max_length, rnn_size]
+        concatenated_encoding = tf.concat(_premises_encoding[0], 2)
+        return concatenated_encoding                                      # [batch_size, max_length, 2 * rnn_size]
+
+    @define_scope
+    def hypotheses_encoding(self):
+        _hypotheses_encodings = bi_rnn(self.X.hypotheses,
+                                       self.config.rnn_size,
+                                       'hypothesis_bi_rnn',
+                                       self.config.p_keep_rnn)            # [batch_size, max_length, rnn_size]
+        concatenated_encoding = tf.concat(_hypotheses_encodings[0], 2)
+        return concatenated_encoding                                      # [batch_size, max_length, 2 * rnn_size]
