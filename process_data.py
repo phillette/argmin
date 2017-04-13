@@ -105,37 +105,100 @@ def test_doc():
     return sents, matrices
 
 
-def no_gold_labels():
+def _get_missing_gold_label_ids(db, collection):
+    ids = []
+    query = db.repository(collection).find({'gold_label': '-'})
+    for doc in query:
+        ids.append(doc['_id'])
+    return ids
+
+
+def _get_no_gold_labels():
+    """
+    Counts of no gold labels as follows.
+    train: 785 / 550,012 = 1.4%
+    dev:   158 / 10,000  = 1.6%
+    test:  176 / 10,000  = 1.8%
+    """
     db = SNLIDb()
-    query_train = db.train.find({'gold_label': '-'})
-    train_ids = []
-    for doc in query_train:
-        train_ids.append(doc['_id'])
+    train_ids = _get_missing_gold_label_ids(db, 'train')
+    dev_ids = _get_missing_gold_label_ids(db, 'dev')
+    test_ids = _get_missing_gold_label_ids(db, 'test')
     save_pickle(train_ids, 'train_no_gold_label_ids.pkl')
-    return train_ids
+    save_pickle(dev_ids, 'dev_no_gold_label_ids.pkl')
+    save_pickle(test_ids, 'test_no_gold_label_ids.pkl')
+    return train_ids, dev_ids, test_ids
 
 
-def has_missing_vector(doc, zero_vector):
-    for word_vector in string_to_array(doc['premise']).tolist():
-        return np.array_equal(word_vector, zero_vector)
+def no_gold_labels():
+    train_ids = load_pickle('train_no_gold_label_ids.pkl')
+    dev_ids = load_pickle('dev_no_gold_label_ids.pkl')
+    test_ids = load_pickle('test_no_gold_label_ids.pkl')
+    return {'train': train_ids, 'dev': dev_ids, 'test': test_ids}
 
 
-def missing_word_vectors():
+def _missing_word_vectors_per_collection(db, collection, nlp, zero_vector):
+    ids = []
+    words = {}
+    sentences = {}
+    for doc in db.repository(collection).find_all():
+        premise_missing, premise_zeros = _missing_word_vectors_per_sentence(doc, 'premise', nlp, zero_vector)
+        hypothesis_missing, hypothesis_zeros = _missing_word_vectors_per_sentence(doc, 'hypothesis', nlp, zero_vector)
+        if premise_missing or hypothesis_missing:
+            ids.append(doc['_id'])
+        if premise_missing:
+            for word in premise_zeros:
+                words[doc['_id']] = word
+                sentences[doc['_id']] = doc['sentence1']
+        if hypothesis_missing:
+            for word in hypothesis_zeros:
+                words[doc['_id']] = word
+                sentences[doc['_id']] = doc['sentence2']
+    return ids, words, sentences
+
+
+def _missing_word_vectors_per_sentence(doc, array_attr, nlp, zero_vector):
+    text_attr = 'sentence1' if array_attr == 'premise' else 'sentence2'
+    spacy_doc = nlp(doc[text_attr])
+    words = string_to_array(doc[array_attr]).tolist()
+    zeros = []
+    for i in range(len(words)):
+        if np.array_equal(words[i], zero_vector):
+            zeros.append(spacy_doc[i])
+    return len(zeros) > 0, zeros
+
+
+def _get_missing_word_vectors():
     nlp = spacy.load('en')
     zero_vector = np.zeros((300,), dtype='float')
     db = SNLIDb()
-    doc_ids = []
-    for doc in db.train.find_all():
-        if has_missing_vector(doc, zero_vector):
-            doc_ids.append(doc['_id'])
-    for doc in db.dev.find_all():
-        if has_missing_vector(doc, zero_vector):
-            doc_ids.append(doc['_id'])
-    for doc in db.test.find_all():
-        if has_missing_vector(doc, zero_vector):
-            doc_ids.append(doc['_id'])
-    doc_ids = np.array(doc_ids)
-    np.save('missing_word_vector_doc_ids.npy', doc_ids)
+    train_ids, train_words, train_sents = _missing_word_vectors_per_collection(db, 'train', nlp, zero_vector)
+    dev_ids, dev_words, dev_sents = _missing_word_vectors_per_collection(db, 'dev', nlp, zero_vector)
+    test_ids, test_words, test_sents = _missing_word_vectors_per_collection(db, 'test', nlp, zero_vector)
+    missing_vectors = {
+        'train': {
+            'ids': train_ids,
+            'words': train_words,
+            'sents': train_sents
+        },
+        'dev': {
+            'ids': dev_ids,
+            'words': dev_words,
+            'sents': dev_sents
+        },
+        'test': {
+            'ids': test_ids,
+            'words': test_words,
+            'sents': test_sents
+        }
+    }
+    save_pickle(missing_vectors, 'missing_vectors.pkl')
+    return missing_vectors
+
+
+def missing_word_vectors():
+    missing_vectors = load_pickle('missing_vectors.pkl')
+    return missing_vectors
 
 
 # IDEA: look at inter-annotator DISAGREEMENT and remove those observations
@@ -182,4 +245,5 @@ def carstens_train_test_split():
 
 
 if __name__ == '__main__':
-    no_gold_labels()
+    _get_no_gold_labels()
+    _get_missing_word_vectors()
