@@ -37,7 +37,7 @@ def aligned():
 
 
 def bi_rnn_aligned():
-    config = Config(learning_rate=1e-4,
+    config = Config(learning_rate=1e-3,
                     rnn_size=100,
                     p_keep_rnn=1.0,
                     p_keep_input=1.0,
@@ -48,7 +48,7 @@ def bi_rnn_aligned():
     return model
 
 
-def _train(model):
+def _train(model, transfer_to_carstens):
     with tf.Session() as sess:
         sess.run(tf.global_variables_initializer())
         train(model, 'snli', 'dev', 10, sess, load_ckpt=False, save_ckpt=True, transfer=False)
@@ -64,7 +64,7 @@ def _train(model):
 if __name__ == '__main__':
     model = bi_rnn_aligned()
     transfer_to_carstens = False
-    _train(model)
+    _train(model, transfer_to_carstens)
 
 
 # 54.9306144334 (dev for sure, maybe also test)
