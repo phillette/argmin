@@ -1,6 +1,7 @@
 import tensorflow as tf
 import os
 import pickle
+import functools
 
 
 def add_bias(tensor, dtype=tf.float64, axis=1):
@@ -25,6 +26,11 @@ def dropout_vector(keep_prob, shape):
     return tf.where(condition=tf.random_uniform(shape, 0.0, 1.0, tf.float64) > 1 - keep_prob,
                     x=tf.ones(shape, tf.float64),
                     y=tf.zeros(shape, tf.float64))
+
+
+def factors(n):
+    return set(functools.reduce(list.__add__,
+                ([i, n//i] for i in range(1, int(n**0.5) + 1) if n % i == 0)))
 
 
 def feed_dict(model, batch):

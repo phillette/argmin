@@ -37,7 +37,7 @@ def aligned():
 
 
 def bi_rnn_aligned():
-    config = Config(learning_rate=1e-4,
+    config = Config(learning_rate=1e-2,
                     rnn_size=100,
                     p_keep_rnn=0.5,
                     p_keep_input=0.8,

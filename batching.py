@@ -2,6 +2,14 @@ from mongoi import CarstensDb, SNLIDb, string_to_array
 import numpy as np
 
 
+"""
+Thinking it is best to remove the no gold labels observations:
+* train: 550,012 - 785 = 549,227.  This is divisible by 217 2531 times.
+* dev:    10,000 - 158 =   9,842.  This is divisible by 259   38 times.
+* test:   10,000 - 176 =   9,824.  This is divisible by 307   32 times.
+"""
+
+
 BATCH_SIZE = {
     'snli': {'train': 68,
              'dev': 50,
@@ -190,7 +198,56 @@ class RandomizedGeneratorFromGen:
         raise Exception(info)
 
 
+class RandomGenerator:
+    """
+    This is the new one that takes account of no gold labels.
+    """
+    def __init__(self, db='snli', collection='train'):
+        self._db_name = db
+        self._collection = collection
+        self._batch_size = BATCH_SIZE[db][collection]
+        self._buffer_factor = BUFFER_FACTORS[db][collection]
+        self._db = CarstensDb() if db == 'carstens' else SNLIDb()
+        self._gen = self._db.repository(self._collection).find_all()
+        self._i_yielded = 0
+        self._i_buffered = 0
+        self._buffered = []
+        self._fill_buffer()
+
+    def _fill_buffer(self):
+        for i in range(self._batch_size * self._buffer_factor):
+            if self._gen.alive:
+                self._buffered.append(next(self._gen))
+                self._i_buffered += 1
+            else:
+                break  # don't waste time iterating further if we're at the end
+
+    def next(self):
+        if len(self._buffered) == 0:
+            self._raise_exception()
+        sample = np.random.choice(self._buffered, size=1)[0]
+        self._buffered.remove(sample)
+        if len(self._buffered) == 0:
+            if self._gen.alive:
+                self._fill_buffer()
+        self._i_yielded += 1
+        return sample
+
+    def _raise_exception(self):
+        info = 'Attempted to fetch but buffer is empty.  State: ' \
+               '%s yielded; %s buffered.' % (self._i_yielded, self._i_buffered)
+        info += '\ndb: %s; collection: %s' % (self._db_name, self._collection)
+        raise Exception(info)
+
+
 class RandomizedGeneratorFromIDs:
+    """
+    I don't think I'd end up using this just based on the performance.
+    I haven't tested it, but theoretically it looks too slow.
+    Moving over a large enough window (buffer size)
+    and selecting randomly from within there has got to be good enough
+    to eliminate any patterns in the way the data is presented to the network.
+    """
     def __init__(self, db, collection):
         self._collection = collection
         self._batch_size = BATCH_SIZE[db][collection]
