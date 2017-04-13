@@ -1,5 +1,6 @@
 import tensorflow as tf
 import os
+import pickle
 
 
 def add_bias(tensor, dtype=tf.float64, axis=1):
@@ -57,12 +58,23 @@ def load_checkpoint(model, saver, sess, transfer=False):
         raise Exception('Checkpoint "%s" not found' % path)
 
 
+def load_pickle(file_name):
+    with open(file_name, 'rb') as file:
+        obj = pickle.load(file)
+        return obj
+
+
 def log_graph_path(model_name):
     return os.path.dirname('graphs/%s' % model_name)
 
 
 def roll_batch(x, old_dims):
     return tf.reshape(x, old_dims)
+
+
+def save_pickle(obj, file_name):
+    with open(file_name, 'wb') as file:
+        pickle.dump(obj, file)
 
 
 def unroll_batch(x):

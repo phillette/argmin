@@ -4,6 +4,7 @@ import numpy as np
 import itertools
 import pandas as pd
 from batching import pad_sentence
+from util import save_pickle, load_pickle
 
 
 """
@@ -104,18 +105,14 @@ def test_doc():
     return sents, matrices
 
 
-def count_no_gold_labels(collection):
+def no_gold_labels():
     db = SNLIDb()
-    train_all = db.repository(collection).find_all()
-    count = 0
-    all = 0
-    for doc in train_all:
-        if doc['gold_label'] == '-':
-            count += 1
-        all += 1
-    print('Count = %s' % count)
-    print('Percentage = %s' % (count / all))
-    # train: 785, 0.0014
+    query_train = db.train.find({'gold_label': '-'})
+    train_ids = []
+    for doc in query_train:
+        train_ids.append(doc['_id'])
+    save_pickle(train_ids, 'train_no_gold_label_ids.pkl')
+    return train_ids
 
 
 def has_missing_vector(doc, zero_vector):
@@ -139,19 +136,6 @@ def missing_word_vectors():
             doc_ids.append(doc['_id'])
     doc_ids = np.array(doc_ids)
     np.save('missing_word_vector_doc_ids.npy', doc_ids)
-
-
-def no_gold_labels():
-    db = SNLIDb()
-    doc_ids = []
-    for doc in db.train.find({'gold_label': '-'}):
-        doc_ids.append(doc['_id'])
-    for doc in db.train.find({'gold_label': '-'}):
-        doc_ids.append(doc['_id'])
-    for doc in db.train.find({'gold_label': '-'}):
-        doc_ids.append(doc['_id'])
-    doc_ids = np.array(doc_ids)
-    np.save('no_gold_label_doc_ids.npy', doc_ids)
 
 
 # IDEA: look at inter-annotator DISAGREEMENT and remove those observations
@@ -198,4 +182,4 @@ def carstens_train_test_split():
 
 
 if __name__ == '__main__':
-    fix_snli_ids()
+    no_gold_labels()
