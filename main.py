@@ -37,11 +37,11 @@ def aligned():
 
 
 def bi_rnn_aligned():
-    config = Config(learning_rate=1e-3,
+    config = Config(learning_rate=3e-3,
                     rnn_size=100,
-                    p_keep_rnn=1.0,
-                    p_keep_input=1.0,
-                    p_keep_ff=1.0,
+                    p_keep_rnn=0.5,
+                    p_keep_input=0.8,
+                    p_keep_ff=0.5,
                     grad_clip_norm=5.0,
                     lamda=0.0)
     model = BiRNNAlignment(config, 2 * config.rnn_size, 100)
@@ -51,8 +51,8 @@ def bi_rnn_aligned():
 def _train(model, transfer_to_carstens):
     with tf.Session() as sess:
         sess.run(tf.global_variables_initializer())
-        train(model, 'snli', 'dev', 10, sess, load_ckpt=False, save_ckpt=True, transfer=False)
-        #accuracy(model, 'snli', 'train', sess)
+        train(model, 'snli', 'train', 30, sess, load_ckpt=False, save_ckpt=True, transfer=False)
+        accuracy(model, 'snli', 'train', sess)
         accuracy(model, 'snli', 'dev', sess)
         accuracy(model, 'snli', 'test', sess)
         if transfer_to_carstens:
