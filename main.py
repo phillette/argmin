@@ -40,7 +40,7 @@ def aligned():
     # 1e-5 stuck at 56
     # RELU
     #
-    config = Config(learning_rate=1e-5,
+    config = Config(learning_rate=1e-4,
                     p_keep_input=1.0,
                     p_keep_ff=1.0,
                     grad_clip_norm=5.0,
