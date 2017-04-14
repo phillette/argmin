@@ -1,5 +1,5 @@
 import tensorflow as tf
-from batching import get_batch_gen, NUM_ITERS, REPORT_EVERY
+from batching import get_batch_gen, NUM_ITERS, REPORT_EVERY, BATCH_SIZE
 from util import feed_dict, feed_dict2, load_checkpoint, save_checkpoint, log_graph_path
 
 

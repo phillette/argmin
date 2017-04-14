@@ -198,7 +198,9 @@ class Alignment(Model):
         premises_shape = tf.shape(premises)
         hypotheses_shape = tf.shape(hypotheses)
         premises_unrolled = unroll_batch(premises)                         # [batch_size * max_length_p, encoding_size]
+        premises_unrolled.set_shape([None, self.encoding_size])
         hypotheses_unrolled = unroll_batch(hypotheses)                     # [batch_size * max_length_h, encoding_size]
+        hypotheses_unrolled.set_shape([None, self.encoding_size])
         #z_F_p = tf.add(tf.matmul(premises_unrolled,
         #                         self.W_F),
         #               self.b_F)
@@ -207,12 +209,14 @@ class Alignment(Model):
         #               self.b_F)
         #F_p = self.activation(z_F_p)                                       # [batch_size * max_length_p, align_size]
         #F_h = self.activation(z_F_h)                                       # [batch_size * max_length_h, align_size]
-        F_p = tf.contrib.layers.fully_connected(premises_unrolled,
-                                                self.alignment_size,
-                                                self.activation)
-        F_h = tf.contrib.layers.fully_connected(hypotheses_unrolled,
-                                                self.alignment_size,
-                                                self.activation)
+        F_p = fully_connected_with_dropout(inputs=premises_unrolled,
+                                           num_outputs=self.alignment_size,
+                                           activation_fn=self.activation,
+                                           p_keep=self.config.p_keep_ff)
+        F_h = fully_connected_with_dropout(inputs=hypotheses_unrolled,
+                                           num_outputs=self.alignment_size,
+                                           activation_fn=self.activation,
+                                           p_keep=self.config.p_keep_ff)
         F_p_rolled = roll_batch(F_p, [premises_shape[0],
                                       premises_shape[1],
                                       self.alignment_size])                # [batch_size, max_length_p, align_size]
@@ -238,7 +242,9 @@ class Alignment(Model):
         V1_in_dropped = tf.nn.dropout(V1_in, self.config.p_keep_input)    # [batch_size, max_length, 2 * encoding_size]
         V2_in_dropped = tf.nn.dropout(V2_in, self.config.p_keep_input)    # [batch_size, max_length, 2 * encoding_size]
         V1_in_unrolled = unroll_batch(V1_in_dropped)                      # [batch_size * max_length, 2 * encoding_size]
+        V1_in_unrolled.set_shape([None, 2 * self.encoding_size])
         V2_in_unrolled = unroll_batch(V2_in_dropped)                      # [batch_size * max_length, 2 * encoding_size]
+        V2_in_unrolled.set_shape([None, 2 * self.encoding_size])
         #z_G_v1 = tf.add(tf.matmul(V1_in_unrolled,
         #                          self.W_G),
         #                self.b_G)
@@ -247,14 +253,14 @@ class Alignment(Model):
         #                self.b_G)
         #V1_unrolled = self.activation(z_G_v1)                             # [batch_size * max_length, ff_size]
         #V2_unrolled = self.activation(z_G_v2)                             # [batch_size * max_length, ff_size]
-        V1_unrolled = tf.contrib.layers.fully_connected(V1_in_unrolled,
-                                                        self.config.ff_size,
-                                                        self.activation,
-                                                        'V1_unrolled')
-        V2_unrolled = tf.contrib.layers.fully_connected(V2_in_unrolled,
-                                                        self.config.ff_size,
-                                                        self.activation,
-                                                        'V2_unrolled')
+        V1_unrolled = fully_connected_with_dropout(inputs=V1_in_unrolled,
+                                                   num_outputs=self.config.ff_size,
+                                                   activation_fn=self.activation,
+                                                   p_keep=self.config.p_keep_ff)
+        V2_unrolled = fully_connected_with_dropout(inputs=V2_in_unrolled,
+                                                   num_outputs=self.config.ff_size,
+                                                   activation_fn=self.activation,
+                                                   p_keep=self.config.p_keep_ff)
         premises_shape = tf.shape(self.X.premises)
         hypotheses_shape = tf.shape(self.X.hypotheses)
         V1 = roll_batch(V1_unrolled, [premises_shape[0],

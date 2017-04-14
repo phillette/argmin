@@ -1,5 +1,5 @@
 import os
-from batching import get_batch_gen, NUM_ITERS, ENCODING_TO_LABEL, COLLECTION_SIZE
+from batching import get_batch_gen, NUM_ITERS, ENCODING_TO_LABEL, COLLECTION_SIZE, BATCH_SIZE
 import numpy as np
 from util import load_checkpoint, feed_dict, feed_dict2
 import tensorflow as tf

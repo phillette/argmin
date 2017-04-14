@@ -85,7 +85,8 @@ def save_pickle(obj, file_name):
 
 def unroll_batch(x):
     dims = tf.shape(x)
-    return tf.reshape(x, [dims[0] * dims[1], dims[2]])
+    unrolled = tf.reshape(x, [dims[0] * dims[1], dims[2]])
+    return unrolled
 
 
 def save_checkpoint(model, saver, sess, transfer=False):

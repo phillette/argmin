@@ -98,6 +98,7 @@ def _train(model, transfer_to_carstens):
             accuracy(model, 'carstens', 'train', sess, transfer=True)
             accuracy(model, 'carstens', 'test', sess, transfer=True)
 
+
 if __name__ == '__main__':
     model = aligned()
     transfer_to_carstens = False
