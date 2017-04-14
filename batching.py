@@ -1,6 +1,6 @@
 from mongoi import CarstensDb, SNLIDb, string_to_array, get_repository
 import numpy as np
-from process_data import no_gold_label_ids
+from util import load_pickle
 
 
 """
@@ -242,6 +242,17 @@ ALL_GOLD_BATCH_SIZE = {
         'test': 3
     }
 }
+
+
+def no_gold_label_ids(collection):
+    if collection == 'train':
+        return load_pickle('train_no_gold_label_ids.pkl')
+    elif collection == 'dev':
+        return load_pickle('dev_no_gold_label_ids.pkl')
+    elif collection == 'test':
+        return load_pickle('test_no_gold_label_ids.pkl')
+    else:
+        raise Exception('Unexpected collection: %s' % collection)
 
 
 class RandomGenerator:
