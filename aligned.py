@@ -150,17 +150,22 @@ class Alignment(Model):
 
     @define_scope
     def biases(self):
-        self.b_F = tf.Variable(initial_value=tf.random_uniform(shape=[1, self.alignment_size],
-                                                               minval=-0.1,
-                                                               maxval=0.1,
-                                                               dtype=tf.float64),
-                               name='biases_F')
+        self.b_F_p = tf.Variable(initial_value=tf.random_uniform(shape=[1, self.alignment_size],
+                                                                 minval=-0.1,
+                                                                 maxval=0.1,
+                                                                 dtype=tf.float64),
+                                 name='biases_F_p')
+        self.b_F_h = tf.Variable(initial_value=tf.random_uniform(shape=[1, self.alignment_size],
+                                                                 minval=-0.1,
+                                                                 maxval=0.1,
+                                                                 dtype=tf.float64),
+                                 name='biases_F_h')
         self.b_G = tf.Variable(initial_value=tf.random_uniform(shape=[1, self.config.ff_size],
                                                                minval=-0.1,
                                                                maxval=0.1,
                                                                dtype=tf.float64),
                                name='biases_G')
-        return self.b_F, self.b_G
+        return self.b_F_p, self.b_F_h, self.b_G
 
     @define_scope
     def parameters(self):
@@ -194,14 +199,22 @@ class Alignment(Model):
         hypotheses_shape = tf.shape(hypotheses)
         premises_unrolled = unroll_batch(premises)                         # [batch_size * max_length_p, encoding_size]
         hypotheses_unrolled = unroll_batch(hypotheses)                     # [batch_size * max_length_h, encoding_size]
-        z_F_p = tf.add(tf.matmul(premises_unrolled,
-                                 self.W_F),
-                       self.b_F)
-        z_F_h = tf.add(tf.matmul(hypotheses_unrolled,
-                                 self.W_F),
-                       self.b_F)
-        F_p = self.activation(z_F_p)                                       # [batch_size * max_length_p, align_size]
-        F_h = self.activation(z_F_h)                                       # [batch_size * max_length_h, align_size]
+        #z_F_p = tf.add(tf.matmul(premises_unrolled,
+        #                         self.W_F),
+        #               self.b_F)
+        #z_F_h = tf.add(tf.matmul(hypotheses_unrolled,
+        #                         self.W_F),
+        #               self.b_F)
+        #F_p = self.activation(z_F_p)                                       # [batch_size * max_length_p, align_size]
+        #F_h = self.activation(z_F_h)                                       # [batch_size * max_length_h, align_size]
+        F_p = tf.contrib.layers.fully_connected(premises_unrolled,
+                                                self.alignment_size,
+                                                self.activation,
+                                                name='F_p')
+        F_h = tf.contrib.layers.fully_connected(hypotheses_unrolled,
+                                                self.alignment_size,
+                                                self.activation,
+                                                name='F_h')
         F_p_rolled = roll_batch(F_p, [premises_shape[0],
                                       premises_shape[1],
                                       self.alignment_size])                # [batch_size, max_length_p, align_size]
@@ -228,14 +241,22 @@ class Alignment(Model):
         V2_in_dropped = tf.nn.dropout(V2_in, self.config.p_keep_input)    # [batch_size, max_length, 2 * encoding_size]
         V1_in_unrolled = unroll_batch(V1_in_dropped)                      # [batch_size * max_length, 2 * encoding_size]
         V2_in_unrolled = unroll_batch(V2_in_dropped)                      # [batch_size * max_length, 2 * encoding_size]
-        z_G_v1 = tf.add(tf.matmul(V1_in_unrolled,
-                                  self.W_G),
-                        self.b_G)
-        z_G_v2 = tf.add(tf.matmul(V2_in_unrolled,
-                                  self.W_G),
-                        self.b_G)
-        V1_unrolled = self.activation(z_G_v1)                             # [batch_size * max_length, ff_size]
-        V2_unrolled = self.activation(z_G_v2)                             # [batch_size * max_length, ff_size]
+        #z_G_v1 = tf.add(tf.matmul(V1_in_unrolled,
+        #                          self.W_G),
+        #                self.b_G)
+        #z_G_v2 = tf.add(tf.matmul(V2_in_unrolled,
+        #                          self.W_G),
+        #                self.b_G)
+        #V1_unrolled = self.activation(z_G_v1)                             # [batch_size * max_length, ff_size]
+        #V2_unrolled = self.activation(z_G_v2)                             # [batch_size * max_length, ff_size]
+        V1_unrolled = tf.contrib.layers.fully_connected(V1_in_unrolled,
+                                                        self.config.ff_size,
+                                                        self.activation,
+                                                        'V1_unrolled')
+        V2_unrolled = tf.contrib.layers.fully_connected(V2_in_unrolled,
+                                                        self.config.ff_size,
+                                                        self.activation,
+                                                        'V2_unrolled')
         premises_shape = tf.shape(self.X.premises)
         hypotheses_shape = tf.shape(self.X.hypotheses)
         V1 = roll_batch(V1_unrolled, [premises_shape[0],
