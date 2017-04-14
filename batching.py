@@ -1,5 +1,6 @@
-from mongoi import CarstensDb, SNLIDb, string_to_array
+from mongoi import CarstensDb, SNLIDb, string_to_array, get_repository
 import numpy as np
+from process_data import no_gold_label_ids
 
 
 """
@@ -198,44 +199,88 @@ class RandomizedGeneratorFromGen:
         raise Exception(info)
 
 
+"""
+Thinking it is best to remove the no gold labels observations:
+* train: 550,012 - 785 = 549,227.  This is divisible by 217 2531 times.
+* dev:    10,000 - 158 =   9,842.  This is divisible by 259   38 times.
+* test:   10,000 - 176 =   9,824.  This is divisible by 307   32 times.
+"""
+
+ALL_GOLD_NUM_ITERS = {
+    'snli': {
+        'train': 2531,
+        'dev': 38,
+        'test': 32
+    },
+    'carstens': {
+        'all': 1,
+        'train': 2,
+        'test': 3
+    }
+}
+ALL_GOLD_COLLECTION_SIZE = {
+    'snli': {
+        'train': 550012,
+        'dev': 9842,
+        'test': 9824
+    },
+    'carstens': {
+        'all': 1,
+        'train': 2,
+        'test': 3
+    }
+}
+ALL_GOLD_BATCH_SIZE = {
+    'snli': {
+        'train': 217,
+        'dev': 259,
+        'test': 307
+    },
+    'carstens': {
+        'all': 1,
+        'train': 2,
+        'test': 3
+    }
+}
+
+
 class RandomGenerator:
     """
     This is the new one that takes account of no gold labels.
     """
-    def __init__(self, db='snli', collection='train'):
-        self._db_name = db
+    def __init__(self, db_name='snli', collection='train', buffer_size=2000):
+        self._db_name = db_name
         self._collection = collection
-        self._batch_size = BATCH_SIZE[db][collection]
-        self._buffer_factor = BUFFER_FACTORS[db][collection]
-        self._db = CarstensDb() if db == 'carstens' else SNLIDb()
-        self._gen = self._db.repository(self._collection).find_all()
+        self._repository = get_repository(db_name, collection)
+        self._gen = self._repository.find_all()
+        self._buffer_size = buffer_size
         self._i_yielded = 0
-        self._i_buffered = 0
-        self._buffered = []
+        self._buffer = []
         self._fill_buffer()
+        self._no_gold_label_ids = no_gold_label_ids(collection)
 
-    def _fill_buffer(self):
-        for i in range(self._batch_size * self._buffer_factor):
+    def _fill_buffer(self):  # I wish I could do this async!!!
+        while len(self._buffer) < self._buffer_size:
             if self._gen.alive:
-                self._buffered.append(next(self._gen))
-                self._i_buffered += 1
+                next_doc = next(self._gen)
+                if next_doc['_id'] not in self._no_gold_label_ids:
+                    self._buffer.append(next(self._gen))
             else:
                 break  # don't waste time iterating further if we're at the end
 
     def next(self):
-        if len(self._buffered) == 0:
+        if len(self._buffer) == 0:
             self._raise_exception()
-        sample = np.random.choice(self._buffered, size=1)[0]
-        self._buffered.remove(sample)
-        if len(self._buffered) == 0:
-            if self._gen.alive:
-                self._fill_buffer()
+        sample = np.random.choice(self._buffer, size=1)[0]
+        self._buffer.remove(sample)
+        if len(self._buffer) < self._buffer_size / 2 and self._gen.alive:
+            self._fill_buffer()
         self._i_yielded += 1
         return sample
 
     def _raise_exception(self):
         info = 'Attempted to fetch but buffer is empty.  State: ' \
-               '%s yielded; %s buffered.' % (self._i_yielded, self._i_buffered)
+               '%s yielded; %s buffered.' % (self._i_yielded, len(self._buffer))
         info += '\ndb: %s; collection: %s' % (self._db_name, self._collection)
         raise Exception(info)
 

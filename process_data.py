@@ -130,11 +130,15 @@ def _get_no_gold_labels():
     return train_ids, dev_ids, test_ids
 
 
-def no_gold_labels():
-    train_ids = load_pickle('train_no_gold_label_ids.pkl')
-    dev_ids = load_pickle('dev_no_gold_label_ids.pkl')
-    test_ids = load_pickle('test_no_gold_label_ids.pkl')
-    return {'train': train_ids, 'dev': dev_ids, 'test': test_ids}
+def no_gold_label_ids(collection):
+    if collection == 'train':
+        return load_pickle('train_no_gold_label_ids.pkl')
+    elif collection == 'dev':
+        return load_pickle('dev_no_gold_label_ids.pkl')
+    elif collection == 'test':
+        return load_pickle('test_no_gold_label_ids.pkl')
+    else:
+        raise Exception('Unexpected collection: %s' % collection)
 
 
 def _missing_word_vectors_per_collection(db, collection, nlp, zero_vector):
@@ -246,4 +250,3 @@ def carstens_train_test_split():
 
 if __name__ == '__main__':
     _get_no_gold_labels()
-    _get_missing_word_vectors()

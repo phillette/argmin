@@ -11,6 +11,7 @@ def train(model, db, collection, num_epochs, sess, load_ckpt=True, save_ckpt=Tru
     if load_ckpt:
         load_checkpoint(model, saver, sess, transfer)
     model.in_training = True
+    start_reported = False
     for epoch in range(num_epochs):
         print('Epoch %s' % (epoch + 1))
         batch_gen = get_batch_gen(db, collection)
@@ -22,6 +23,9 @@ def train(model, db, collection, num_epochs, sess, load_ckpt=True, save_ckpt=Tru
             batch = next(batch_gen)
             batch_loss, batch_accuracy, _ = sess.run([model.loss, model.accuracy, model.optimize],
                                                         feed_dict(model, batch))
+            if not start_reported:
+                print('Starting condition: loss = %s; accuracy = %s' % (batch_loss, batch_accuracy))
+                start_reported = True
             average_loss += batch_loss
             average_accuracy += batch_accuracy
             if (iteration + 1) % REPORT_EVERY[db][collection] == 0:
