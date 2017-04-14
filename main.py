@@ -26,7 +26,7 @@ def bi_rnn_bowman():
 
 
 def aligned():
-    config = Config(learning_rate=1e-4,
+    config = Config(learning_rate=1e-3,
                     p_keep_rnn=1.0,
                     p_keep_input=1.0,
                     p_keep_ff=1.0,
@@ -37,11 +37,35 @@ def aligned():
 
 
 def bi_rnn_aligned():
-    config = Config(learning_rate=1e-2,
+    """
+    Dev results (for quickness)
+    ***
+    KPRNN  1.0
+    KPINP  0.8
+    KPFFN  0.5
+    GCLIP  5.0
+    LAMDA  0.0
+    LRATE       1e-2  3e-3  1e-3  9e-4  1e-4  1e-5
+    STUCK       *61   *56   *55   *55   *57   *75
+    ***
+    KPRNN  0.8
+    KPINP  0.8
+    KPFFN  0.8
+    GCLIP  5.0
+    LAMDA  0.0
+    LRATE       1e-3  1e-4
+    STUCK       *55
+    ***
+    No regularization
+    1e-2: stuck @ 59
+    1e-3: I seem to remember no love either
+    1e-5: ???
+    """
+    config = Config(learning_rate=1e-4,
                     rnn_size=100,
-                    p_keep_rnn=0.5,
-                    p_keep_input=0.8,
-                    p_keep_ff=0.5,
+                    p_keep_rnn=1.0,
+                    p_keep_input=1.0,
+                    p_keep_ff=1.0,
                     grad_clip_norm=5.0,
                     lamda=0.0)
     model = BiRNNAlignment(config, 2 * config.rnn_size, 100)
@@ -51,7 +75,7 @@ def bi_rnn_aligned():
 def _train(model, transfer_to_carstens):
     with tf.Session() as sess:
         sess.run(tf.global_variables_initializer())
-        train(model, 'snli', 'dev', 30, sess, load_ckpt=False, save_ckpt=True, transfer=False)
+        train(model, 'snli', 'train', 30, sess, load_ckpt=False, save_ckpt=True, transfer=False)
         accuracy(model, 'snli', 'train', sess)
         accuracy(model, 'snli', 'dev', sess)
         accuracy(model, 'snli', 'test', sess)
@@ -62,7 +86,7 @@ def _train(model, transfer_to_carstens):
             accuracy(model, 'carstens', 'test', sess, transfer=True)
 
 if __name__ == '__main__':
-    model = bi_rnn_aligned()
+    model = aligned()
     transfer_to_carstens = False
     _train(model, transfer_to_carstens)
 

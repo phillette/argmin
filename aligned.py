@@ -14,6 +14,8 @@ class Alignment(Model):
         self.name = 'alignment'
         self.encoding_size = encoding_size
         self.alignment_size = alignment_size
+        self.parameters
+        self.biases
         self.premises_encoding
         self.hypotheses_encoding
         self.align
@@ -26,6 +28,36 @@ class Alignment(Model):
         self.predicted_labels
         self.confidences
         self.correct_predictions
+
+    @define_scope
+    def biases(self):
+        self.b_F = tf.Variable(initial_value=tf.random_uniform(shape=[1, self.alignment_size],
+                                                               minval=-1.0,
+                                                               maxval=1.0,
+                                                               dtype=tf.float64),
+                               name='biases_F')
+        self.b_G = tf.Variable(initial_value=tf.random_uniform(shape=[1, self.config.ff_size],
+                                                               minval=-1.0,
+                                                               maxval=1.0,
+                                                               dtype=tf.float64),
+                               name='biases_G')
+        return self.b_F, self.b_G
+
+    @define_scope
+    def parameters(self):
+        self.W_F = tf.Variable(initial_value=tf.random_uniform(shape=[self.encoding_size,
+                                                                      self.alignment_size],
+                                                               minval=-1.0,
+                                                               maxval=1.0,
+                                                               dtype=tf.float64),
+                               name='Weights_F')
+        self.W_G = tf.Variable(initial_value=tf.random_uniform(shape=[2 * self.encoding_size,
+                                                                      self.config.ff_size],
+                                                               minval=-1.0,
+                                                               maxval=1.0,
+                                                               dtype=tf.float64),
+                               name='Weights_G')
+        return self.W_F, self.W_G
 
     @define_scope
     def premises_encoding(self):
@@ -41,16 +73,18 @@ class Alignment(Model):
         hypotheses = self.hypotheses_encoding
         premises_shape = tf.shape(premises)
         hypotheses_shape = tf.shape(hypotheses)
-        W_F = tf.Variable(initial_value=tf.random_uniform(shape=[self.encoding_size + 1,
-                                                                 self.alignment_size],
-                                                          minval=-1.0,
-                                                          maxval=1.0,
-                                                          dtype=tf.float64),
-                          name='W_F')
         premises_unrolled = unroll_batch(premises)                         # [batch_size * max_length_p, encoding_size]
         hypotheses_unrolled = unroll_batch(hypotheses)                     # [batch_size * max_length_h, encoding_size]
-        F_p = tf.tanh(tf.matmul(add_bias(premises_unrolled), W_F), name='F_p')       # [batch_size * max_length_p, align_size]
-        F_h = tf.tanh(tf.matmul(add_bias(hypotheses_unrolled), W_F), name='F_h')     # [batch_size * max_length_h, align_size]
+        z_F_p = tf.add(tf.matmul(premises_unrolled,
+                                 self.W_F),
+                       self.b_F)
+        z_F_h = tf.add(tf.matmul(hypotheses_unrolled,
+                                 self.W_F),
+                       self.b_F)
+        F_p = tf.tanh(tf.matmul(premises_unrolled,
+                                 self.W_F)       )                                        # [batch_size * max_length_p, align_size]
+        F_h = tf.tanh(tf.matmul(hypotheses_unrolled,
+                                 self.W_F)        )                                       # [batch_size * max_length_h, align_size]
         F_p_rolled = roll_batch(F_p, [premises_shape[0],
                                       premises_shape[1],
                                       self.alignment_size])                # [batch_size, max_length_p, align_size]
@@ -71,20 +105,22 @@ class Alignment(Model):
     @define_scope
     def compare(self):
         betas, alphas = self.align
-        W_G = tf.Variable(initial_value=tf.random_uniform(shape=[2 * self.encoding_size + self.alignment_size + 1,
-                                                                 self.config.ff_size],
-                                                          minval=-1.0,
-                                                          maxval=1.0,
-                                                          dtype=tf.float64),
-                          name='W_G')
         V1_in = tf.concat([self.X.premises, betas], axis=2)               # [batch_size, max_length, 2 * encoding_size]
         V2_in = tf.concat([self.X.hypotheses, alphas], axis=2)            # [batch_size, max_length, 2 * encoding_size]
         V1_in_dropped = tf.nn.dropout(V1_in, self.config.p_keep_input)    # [batch_size, max_length, 2 * encoding_size]
         V2_in_dropped = tf.nn.dropout(V2_in, self.config.p_keep_input)    # [batch_size, max_length, 2 * encoding_size]
         V1_in_unrolled = unroll_batch(V1_in_dropped)                      # [batch_size * max_length, 2 * encoding_size]
         V2_in_unrolled = unroll_batch(V2_in_dropped)                      # [batch_size * max_length, 2 * encoding_size]
-        V1_unrolled = tf.tanh(tf.matmul(add_bias(V1_in_unrolled), W_G))             # [batch_size * max_length, ff_size]
-        V2_unrolled = tf.tanh(tf.matmul(add_bias(V2_in_unrolled), W_G))             # [batch_size * max_length, ff_size]
+        z_G_v1 = tf.add(tf.matmul(V1_in_unrolled,
+                                  self.W_G),
+                        self.b_G)
+        z_G_v2 = tf.add(tf.matmul(V2_in_unrolled,
+                                  self.W_G),
+                        self.b_G)
+        V1_unrolled = tf.tanh(tf.matmul(V1_in_unrolled,
+                                  self.W_G))                                     # [batch_size * max_length, ff_size]
+        V2_unrolled = tf.tanh(tf.matmul(V2_in_unrolled,
+                                  self.W_G)     )                                # [batch_size * max_length, ff_size]
         premises_shape = tf.shape(self.X.premises)
         hypotheses_shape = tf.shape(self.X.hypotheses)
         V1 = roll_batch(V1_unrolled, [premises_shape[0],
@@ -139,6 +175,22 @@ class BiRNNAlignment(Alignment):
     def __init__(self, config, encoding_size, alignment_size):
         Alignment.__init__(self, config, encoding_size, alignment_size)
         self.name = 'bi_rnn_alignment'
+
+    @define_scope
+    def parameters(self):
+        self.W_F = tf.Variable(initial_value=tf.random_uniform(shape=[self.encoding_size,
+                                                                      self.alignment_size],
+                                                               minval=-1.0,
+                                                               maxval=1.0,
+                                                               dtype=tf.float64),
+                               name='W_F')
+        self.W_G = tf.Variable(initial_value=tf.random_uniform(shape=[2 * self.encoding_size + self.alignment_size,
+                                                                      self.config.ff_size],
+                                                               minval=-1.0,
+                                                               maxval=1.0,
+                                                               dtype=tf.float64),
+                               name='W_G')
+        return self.W_F, self.W_G
 
     @define_scope
     def premises_encoding(self):
