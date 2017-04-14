@@ -209,12 +209,10 @@ class Alignment(Model):
         #F_h = self.activation(z_F_h)                                       # [batch_size * max_length_h, align_size]
         F_p = tf.contrib.layers.fully_connected(premises_unrolled,
                                                 self.alignment_size,
-                                                self.activation,
-                                                name='F_p')
+                                                self.activation)
         F_h = tf.contrib.layers.fully_connected(hypotheses_unrolled,
                                                 self.alignment_size,
-                                                self.activation,
-                                                name='F_h')
+                                                self.activation)
         F_p_rolled = roll_batch(F_p, [premises_shape[0],
                                       premises_shape[1],
                                       self.alignment_size])                # [batch_size, max_length_p, align_size]
