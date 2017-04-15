@@ -41,8 +41,8 @@ def aligned():
     # RELU
     #
     config = Config(learning_rate=1e-4,
-                    p_keep_input=1.0,
-                    p_keep_ff=1.0,
+                    p_keep_input=0.95,
+                    p_keep_ff=0.9,
                     grad_clip_norm=5.0,
                     lamda=0.0)
     model = Alignment(config, 300, 100, activation=tf.nn.relu)
@@ -103,6 +103,13 @@ if __name__ == '__main__':
     model = aligned()
     transfer_to_carstens = True
     _train(model, transfer_to_carstens)
+
+
+"""
+p_keep_input; p_keep-ff
+NO REG. - train: 89; dev: 67
+0.95; 0.9 - train: ; dev:
+"""
 
 
 # 54.9306144334 (dev for sure, maybe also test)
