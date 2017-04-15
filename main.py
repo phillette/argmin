@@ -41,8 +41,8 @@ def aligned():
     # RELU
     #
     config = Config(learning_rate=1e-4,
-                    p_keep_input=0.95,
-                    p_keep_ff=0.9,
+                    p_keep_input=0.9,
+                    p_keep_ff=0.8,
                     grad_clip_norm=5.0,
                     lamda=0.0)
     model = Alignment(config, 300, 100, activation=tf.nn.relu)
@@ -108,7 +108,8 @@ if __name__ == '__main__':
 """
 p_keep_input; p_keep-ff
 NO REG. - train: 89; dev: 67
-0.95; 0.9 - train: ; dev:
+0.95; 0.9 - train: 82; dev: 71 | 78; 46
+0.9; 0.8 -
 """
 
 
