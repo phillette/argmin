@@ -88,7 +88,7 @@ def bi_rnn_aligned():
 def _train(model, transfer_to_carstens):
     with tf.Session() as sess:
         sess.run(tf.global_variables_initializer())
-        train(model, 'snli', 'train', 30, sess, load_ckpt=False, save_ckpt=True, transfer=False)
+        train(model, 'snli', 'train', 10, sess, load_ckpt=True, save_ckpt=True, transfer=False)
         accuracy(model, 'snli', 'train', sess)
         accuracy(model, 'snli', 'dev', sess)
         accuracy(model, 'snli', 'test', sess)
@@ -108,7 +108,7 @@ if __name__ == '__main__':
 """
 p_keep_input; p_keep-ff
 NO REG. - train: 89; dev: 67
-0.95; 0.9 - train: 82; dev: 71 | 78; 46
+0.95; 0.9 - train: 82; dev: 71 | 78; 46  * but had it really converged???
 0.9; 0.8 -
 """
 
