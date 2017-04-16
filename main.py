@@ -40,7 +40,7 @@ def aligned():
     # 1e-5 stuck at 56
     # RELU
     #
-    config = Config(learning_rate=1e-4,
+    config = Config(learning_rate=1e-3,
                     p_keep_input=0.9,
                     p_keep_ff=0.8,
                     grad_clip_norm=5.0,
@@ -88,7 +88,7 @@ def bi_rnn_aligned():
 def _train(model, transfer_to_carstens):
     with tf.Session() as sess:
         sess.run(tf.global_variables_initializer())
-        train(model, 'snli', 'train', 40, sess, load_ckpt=False, save_ckpt=True, transfer=False)
+        train(model, 'snli', 'train', 20, sess, load_ckpt=False, save_ckpt=True, transfer=False)
         accuracy(model, 'snli', 'train', sess)
         accuracy(model, 'snli', 'dev', sess)
         accuracy(model, 'snli', 'test', sess)
@@ -107,7 +107,7 @@ if __name__ == '__main__':
 
 """
 p_keep_input; p_keep-ff
-NO REG. - train: 89; dev: 67
+NO REG. - train: 89; dev: 67  *20 epochs @ 1e-4
 0.95; 0.9 - train: 82; dev: 71 | 78; 46  * but had it really converged???
 0.9; 0.8 -
 """
