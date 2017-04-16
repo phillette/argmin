@@ -88,12 +88,12 @@ def bi_rnn_aligned():
 def _train(model, transfer_to_carstens):
     with tf.Session() as sess:
         sess.run(tf.global_variables_initializer())
-        train(model, 'snli', 'train', 10, sess, load_ckpt=True, save_ckpt=True, transfer=False)
+        train(model, 'snli', 'train', 40, sess, load_ckpt=False, save_ckpt=True, transfer=False)
         accuracy(model, 'snli', 'train', sess)
         accuracy(model, 'snli', 'dev', sess)
         accuracy(model, 'snli', 'test', sess)
         if transfer_to_carstens:
-            model.learning_rate = 1e-7
+            model.learning_rate = 1e-8
             train(model, 'carstens', 'train', 20, sess, load_ckpt=False, save_ckpt=True, transfer=True)
             accuracy(model, 'carstens', 'train', sess, transfer=True)
             accuracy(model, 'carstens', 'test', sess, transfer=True)
