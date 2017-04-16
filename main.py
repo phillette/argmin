@@ -40,7 +40,7 @@ def aligned():
     # 1e-5 stuck at 56
     # RELU
     #
-    config = Config(learning_rate=1e-3,
+    config = Config(learning_rate=1e-6,
                     p_keep_input=0.9,
                     p_keep_ff=0.8,
                     grad_clip_norm=5.0,
@@ -88,13 +88,13 @@ def bi_rnn_aligned():
 def _train(model, transfer_to_carstens):
     with tf.Session() as sess:
         sess.run(tf.global_variables_initializer())
-        train(model, 'snli', 'train', 20, sess, load_ckpt=False, save_ckpt=True, transfer=False)
+        train(model, 'snli', 'train', 20, sess, load_ckpt=True, save_ckpt=True, transfer=False)
         accuracy(model, 'snli', 'train', sess)
         accuracy(model, 'snli', 'dev', sess)
         accuracy(model, 'snli', 'test', sess)
         if transfer_to_carstens:
             model.learning_rate = 1e-8
-            train(model, 'carstens', 'train', 20, sess, load_ckpt=False, save_ckpt=True, transfer=True)
+            train(model, 'carstens', 'train', 30, sess, load_ckpt=False, save_ckpt=True, transfer=True)
             accuracy(model, 'carstens', 'train', sess, transfer=True)
             accuracy(model, 'carstens', 'test', sess, transfer=True)
 
