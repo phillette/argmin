@@ -40,9 +40,9 @@ def aligned():
     # 1e-5 stuck at 56
     # RELU
     #
-    config = Config(learning_rate=1e-3,
-                    p_keep_input=0.9,
-                    p_keep_ff=0.8,
+    config = Config(learning_rate=1e-2,
+                    p_keep_input=0.85,
+                    p_keep_ff=0.7,
                     grad_clip_norm=5.0,
                     lamda=0.0)
     model = Alignment(config, 300, 100, activation=tf.nn.relu)
@@ -109,7 +109,8 @@ if __name__ == '__main__':
 p_keep_input; p_keep-ff
 NO REG. - train: 89; dev: 67  *20 epochs @ 1e-4
 0.95; 0.9 - train: 82; dev: 71 | 78; 46  * but had it really converged???
-0.9; 0.8 - 1e-3, 50 epochs, reached about 26 loss, still converging: 85 and 70
+0.9; 0.8 - 1e-3, 100 epochs, reached about 26 loss, still converging: 88 and 69
+0.85; 0.7 -
 """
 
 
