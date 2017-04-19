@@ -110,6 +110,7 @@ def encode(label):
 
 
 def get_batch_gen(db, collection, type='gen'):
+    #gen = RandomGenerator(db, collection)
     if type == 'gen':
         gen = RandomizedGeneratorFromGen(db, collection)
     elif type == 'id':
@@ -259,7 +260,7 @@ class RandomGenerator:
     """
     This is the new one that takes account of no gold labels.
     """
-    def __init__(self, db_name='snli', collection='train', buffer_size=2000):
+    def __init__(self, db_name='snli', collection='train', buffer_size=100):
         self._db_name = db_name
         self._collection = collection
         self._repository = get_repository(db_name, collection)
@@ -267,8 +268,8 @@ class RandomGenerator:
         self._buffer_size = buffer_size
         self._i_yielded = 0
         self._buffer = []
-        self._fill_buffer()
         self._no_gold_label_ids = no_gold_label_ids(collection)
+        self._fill_buffer()
 
     def _fill_buffer(self):  # I wish I could do this async!!!
         while len(self._buffer) < self._buffer_size:

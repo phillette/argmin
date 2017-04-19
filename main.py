@@ -40,9 +40,9 @@ def aligned():
     # 1e-5 stuck at 56
     # RELU
     #
-    config = Config(learning_rate=1e-2,
-                    p_keep_input=0.85,
-                    p_keep_ff=0.7,
+    config = Config(learning_rate=1e-3,
+                    p_keep_input=0.8,
+                    p_keep_ff=0.5,
                     grad_clip_norm=5.0,
                     lamda=0.0)
     model = Alignment(config, 300, 100, activation=tf.nn.relu)
@@ -74,27 +74,27 @@ def bi_rnn_aligned():
     1e-3: I seem to remember no love either
     1e-5: ???
     """
-    config = Config(learning_rate=1e-4,
+    config = Config(learning_rate=1e-3,
                     rnn_size=100,
                     p_keep_rnn=1.0,
                     p_keep_input=1.0,
                     p_keep_ff=1.0,
                     grad_clip_norm=5.0,
                     lamda=0.0)
-    model = BiRNNAlignment(config, 2 * config.rnn_size, 100)
+    model = BiRNNAlignment(config, encoding_size=2 * config.rnn_size, alignment_size=300)
     return model
 
 
 def _train(model, transfer_to_carstens):
     with tf.Session() as sess:
         sess.run(tf.global_variables_initializer())
-        train(model, 'snli', 'train', 50, sess, load_ckpt=True, save_ckpt=True, transfer=False)
+        train(model, 'snli', 'train', 50, sess, load_ckpt=False, save_ckpt=True, transfer=False)
         accuracy(model, 'snli', 'train', sess)
         accuracy(model, 'snli', 'dev', sess)
         accuracy(model, 'snli', 'test', sess)
         if transfer_to_carstens:
-            model.learning_rate = 1e-8
-            train(model, 'carstens', 'train', 50, sess, load_ckpt=False, save_ckpt=True, transfer=True)
+            model.learning_rate = 1e-10
+            train(model, 'carstens', 'train', 50, sess, load_ckpt=True, save_ckpt=False, transfer=True)
             accuracy(model, 'carstens', 'train', sess, transfer=True)
             accuracy(model, 'carstens', 'test', sess, transfer=True)
 
@@ -110,7 +110,7 @@ p_keep_input; p_keep-ff
 NO REG. - train: 89; dev: 67  *20 epochs @ 1e-4
 0.95; 0.9 - train: 82; dev: 71 | 78; 46  * but had it really converged???
 0.9; 0.8 - 1e-3, 100 epochs, reached about 26 loss, still converging: 88 and 69
-0.85; 0.7 -
+0.85; 0.7 - 1e-3, 50 epochs, 35 loss, roughly converged it SEEMED, 80 and 70
 """
 
 
