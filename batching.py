@@ -184,11 +184,10 @@ class RandomGenerator:
                 next_doc = next(self._gen)
                 self._db_yielded += 1
                 if next_doc['_id'] not in self._no_gold_label_ids:
-                    self._buffer.append(next(self._gen))
+                    self._buffer.append(next_doc)
                 else:
                     self._passed_over += 1
             else:
-                print('gen dead')
                 break  # don't waste time iterating further if we're at the end
 
     def next(self):
@@ -231,3 +230,14 @@ class RandomizedGeneratorFromIDs:
                                   size=1)[0]
         self._ids.remove(new_id)
         return self._db.repository(self._collection).find('_id', new_id)  # will this be slow?
+
+
+if __name__ == '__main__':
+    db = 'snli'
+    collection = 'dev'
+    gen = get_batch_gen(db, collection)
+    for i in range(NUM_ITERS[db][collection]):
+        try:
+            doc = next(gen)
+        except:
+            raise Exception('%s' % i)
