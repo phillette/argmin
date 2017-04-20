@@ -147,7 +147,7 @@ class Alignment(Model):
         self.predicted_labels
         self.confidences
         self.correct_predictions
-        self.__summaries
+        self.summaries
 
     @define_scope
     def biases(self):
@@ -301,7 +301,7 @@ class Alignment(Model):
                                                                               logits=self.logits,
                                                                               name='softmax_cross_entropy'))
         penalty_term = tf.multiply(tf.cast(self.config.lamda, tf.float64),
-                                   sum([tf.nn.l2_loss(w) for w in self.__all_weights()]),
+                                   sum([tf.nn.l2_loss(w) for w in self._all_weights()]),
                                    name='penalty_term')
         return tf.add(cross_entropy, penalty_term, name='loss')
 

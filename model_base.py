@@ -104,7 +104,7 @@ class Model:
     @define_scope
     def optimize(self):
         optimizer = tf.train.AdamOptimizer(self.config.learning_rate)
-        grads_and_vars = optimizer.compute_gradients(self.loss, self.__all_weights())
+        grads_and_vars = optimizer.compute_gradients(self.loss, self._all_weights())
         clipped_grads_and_vars = clip_gradients(grads_and_vars)
         return optimizer.apply_gradients(clipped_grads_and_vars)
 
@@ -113,14 +113,13 @@ class Model:
         return tf.argmax(self.logits, axis=1)
 
     @define_scope
-    def __summaries(self):
+    def summaries(self):
         tf.summary.scalar('loss', self.loss)
         tf.summary.scalar('accuracy', self.accuracy)
         tf.summary.histogram('histogram_loss', self.loss)
-        self.summary = tf.summary.merge_all()
-        return self.summary
+        return tf.summary.merge_all()
 
-    def __weights(self, scope):
+    def _weights(self, scope):
         vars = tf.global_variables()
         weights_name = '%s/weights:0' % scope
         if weights_name not in [v.name for v in vars]:

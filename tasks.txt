@@ -3,10 +3,12 @@ Data Cleaning / Prep:
 * Determine missing word vectors
 * Train missing word vectors
 * Place embedding matrix at the front of the network and tune as part of training
-* Get the no_gold_label RandomGenerator working (currently a memory error)
-* Compare the speeds of my various generators and find the right one
 
 Training Process:
 * Create separate checkpoint files based on config settings automatically
-* Save histories of loss / accuracy
 * Add an option to look at accuracy on dev / train after each epoch and record that history
+* As Parikh et al do, look at (prepending?) a NULL token to each sentence
+    - Do this as a controlled experiment and note the difference in performance
+
+Models:
+* Look at an increased capacity

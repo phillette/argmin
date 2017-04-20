@@ -238,4 +238,4 @@ def carstens_train_test_split():
 
 
 if __name__ == '__main__':
-    _get_no_gold_labels()
+    _get_missing_word_vectors()

@@ -1,5 +1,5 @@
 import tensorflow as tf
-from batching import get_batch_gen, NUM_ITERS, REPORT_EVERY, BATCH_SIZE
+from batching import get_batch_gen, NUM_ITERS, REPORT_EVERY, BATCH_SIZE, ALL_GOLD_NUM_ITERS, ALL_GOLD_REPORT_EVERY
 from util import feed_dict, feed_dict2, load_checkpoint, save_checkpoint, log_graph_path
 
 
@@ -12,32 +12,32 @@ def train(model, db, collection, num_epochs, sess, load_ckpt=True, save_ckpt=Tru
         load_checkpoint(model, saver, sess, transfer)
     model.in_training = True
     start_reported = False
+    average_loss = 0.0
+    average_accuracy = 0.0
     for epoch in range(num_epochs):
-        print('Epoch %s' % (epoch + 1))
+        global_step_starting_iter = model.global_step.eval()
+        print('Epoch %s (global_step: %s)' % (epoch + 1, global_step_starting_iter))
         batch_gen = get_batch_gen(db, collection)
-        average_loss = 0
-        average_accuracy = 0.0
-        starting_point = model.global_step.eval()
-        while model.global_step < starting_point + NUM_ITERS[db][collection]:
+        while model.global_step.eval() < global_step_starting_iter + ALL_GOLD_NUM_ITERS[db][collection]:
             batch = next(batch_gen)
             batch_loss, batch_accuracy, _, summary = sess.run([model.loss,
                                                                model.accuracy,
                                                                model.optimize,
-                                                               model.summary],
+                                                               model.summaries],
                                                               feed_dict(model, batch))
             if not start_reported:
                 print('Starting condition: loss = %s; accuracy = %s' % (batch_loss, batch_accuracy))
                 start_reported = True
             average_loss += batch_loss
             average_accuracy += batch_accuracy
-            writer.add_summary(summary, global_step=model.global_step)
-            if (model.global_step + 1) % REPORT_EVERY[db][collection] == 0:
-                print('Step %s: average loss = %s; average accuracy = %s' % (model.global_step + 1,
-                                                                             average_loss / (model.global_step + 1),
-                                                                             average_accuracy / (model.global_step + 1)))
+            writer.add_summary(summary, global_step=model.global_step.eval())
+            model.global_step += 1
+            if (model.global_step.eval()) % ALL_GOLD_REPORT_EVERY[db][collection] == 0:
+                print('Step %s: average loss = %s; average accuracy = %s' % (model.global_step.eval(),
+                                                                             average_loss / (model.global_step.eval()),
+                                                                             average_accuracy / (model.global_step.eval())))
                 if save_ckpt:
                     save_checkpoint(model, saver, sess, transfer)
-            model.global_step += 1
     if write_graph:
         writer.close()
     model.in_training = False

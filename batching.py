@@ -109,14 +109,8 @@ def encode(label):
     return encoding
 
 
-def get_batch_gen(db, collection, type='gen'):
-    #gen = RandomGenerator(db, collection)
-    if type == 'gen':
-        gen = RandomizedGeneratorFromGen(db, collection)
-    elif type == 'id':
-        gen = RandomizedGeneratorFromIDs(db, collection)
-    else:
-        raise Exception('Unexpected generator type: %s' % type)
+def get_batch_gen(db, collection):
+    gen = RandomGenerator(db, collection)
     while True:
         ids = []
         premises = []
@@ -212,11 +206,6 @@ ALL_GOLD_NUM_ITERS = {
         'train': 2531,
         'dev': 38,
         'test': 32
-    },
-    'carstens': {
-        'all': 1,
-        'train': 2,
-        'test': 3
     }
 }
 ALL_GOLD_COLLECTION_SIZE = {
@@ -224,11 +213,6 @@ ALL_GOLD_COLLECTION_SIZE = {
         'train': 550012,
         'dev': 9842,
         'test': 9824
-    },
-    'carstens': {
-        'all': 1,
-        'train': 2,
-        'test': 3
     }
 }
 ALL_GOLD_BATCH_SIZE = {
@@ -236,11 +220,13 @@ ALL_GOLD_BATCH_SIZE = {
         'train': 217,
         'dev': 259,
         'test': 307
-    },
-    'carstens': {
-        'all': 1,
-        'train': 2,
-        'test': 3
+    }
+}
+ALL_GOLD_REPORT_EVERY = {
+    'snli': {
+        'train': 250,
+        'dev': 5,
+        'test': 6
     }
 }
 
@@ -266,18 +252,24 @@ class RandomGenerator:
         self._repository = get_repository(db_name, collection)
         self._gen = self._repository.find_all()
         self._buffer_size = buffer_size
+        self._db_yielded = 0
         self._i_yielded = 0
         self._buffer = []
         self._no_gold_label_ids = no_gold_label_ids(collection)
+        self._passed_over = 0
         self._fill_buffer()
 
     def _fill_buffer(self):  # I wish I could do this async!
         while len(self._buffer) < self._buffer_size:
             if self._gen.alive:
                 next_doc = next(self._gen)
+                self._db_yielded += 1
                 if next_doc['_id'] not in self._no_gold_label_ids:
                     self._buffer.append(next(self._gen))
+                else:
+                    self._passed_over += 1
             else:
+                print('gen dead')
                 break  # don't waste time iterating further if we're at the end
 
     def next(self):
@@ -285,15 +277,19 @@ class RandomGenerator:
             self._raise_exception()
         sample = np.random.choice(self._buffer, size=1)[0]
         self._buffer.remove(sample)
-        if len(self._buffer) == 0 and self._gen.alive:
+        if len(self._buffer) == 0:
             self._fill_buffer()
         self._i_yielded += 1
         return sample
 
     def _raise_exception(self):
-        info = 'Attempted to fetch but buffer is empty.  State: ' \
-               '%s yielded; %s buffered.' % (self._i_yielded, len(self._buffer))
-        info += '\ndb: %s; collection: %s' % (self._db_name, self._collection)
+        info = 'Attempted to fetch but buffer is empty.'
+        info += '\nState: %s yielded; %s buffered; %s passed over; %s db yielded.' % (self._i_yielded,
+                                                                                      len(self._buffer),
+                                                                                      self._passed_over,
+                                                                                      self._db_yielded)
+        info += '\ndb: %s; collection: %s' % (self._db_name,
+                                              self._collection)
         raise Exception(info)
 
 
