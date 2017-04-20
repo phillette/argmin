@@ -4,6 +4,12 @@ import _pickle as cPickle
 import numpy as np
 
 
+COLLECTIONS = {
+    'snli': ['train', 'dev', 'test'],
+    'carstens': ['all', 'train', 'test']
+}
+
+
 def get_db(db_name):
     return SNLIDb() if db_name == 'snli' else CarstensDb()
 

@@ -244,11 +244,11 @@ class BiRNNBowman(Model):
     def logits_test(self):
         encoding_weights_factored = tf.multiply(tf.cast(self.config.p_keep_input,
                                                         tf.float64),
-                                                self._weights('logits_train/hidden_output_1'))
+                                                self.__weights('logits_train/hidden_output_1'))
         z1 = tf.matmul(self.bi_rnn_output, encoding_weights_factored)
         a1 = tf.tanh(z1)
         W1_factored = tf.multiply(tf.cast(self.config.p_keep_ff, tf.float64),
-                                          self._weights('logits_train/h2'))
+                                          self.__weights('logits_train/h2'))
         z2 = tf.matmul(a1, W1_factored)
         a2 = tf.tanh(z2)
         a3 = tf.contrib.layers.fully_connected(a2,
@@ -263,6 +263,6 @@ class BiRNNBowman(Model):
                                                                               logits=self.logits_train,
                                                                               name='softmax_cross_entropy'))
         penalty_term = tf.multiply(tf.cast(self.config.lamda, tf.float64),
-                                   sum([tf.nn.l2_loss(w) for w in self._all_weights()]),
+                                   sum([tf.nn.l2_loss(w) for w in self.__all_weights()]),
                                    name='penalty_term')
         return tf.add(cross_entropy, penalty_term, name='loss')

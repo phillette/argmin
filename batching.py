@@ -271,7 +271,7 @@ class RandomGenerator:
         self._no_gold_label_ids = no_gold_label_ids(collection)
         self._fill_buffer()
 
-    def _fill_buffer(self):  # I wish I could do this async!!!
+    def _fill_buffer(self):  # I wish I could do this async!
         while len(self._buffer) < self._buffer_size:
             if self._gen.alive:
                 next_doc = next(self._gen)
@@ -285,7 +285,7 @@ class RandomGenerator:
             self._raise_exception()
         sample = np.random.choice(self._buffer, size=1)[0]
         self._buffer.remove(sample)
-        if len(self._buffer) < self._buffer_size / 2 and self._gen.alive:
+        if len(self._buffer) == 0 and self._gen.alive:
             self._fill_buffer()
         self._i_yielded += 1
         return sample
