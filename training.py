@@ -18,23 +18,26 @@ def train(model, db, collection, num_epochs, sess, load_ckpt=True, save_ckpt=Tru
         average_loss = 0
         average_accuracy = 0.0
         starting_point = model.global_step.eval()
-        iteration = model.global_step.eval()
-        while iteration < (starting_point + NUM_ITERS[db][collection]):
+        while model.global_step < starting_point + NUM_ITERS[db][collection]:
             batch = next(batch_gen)
-            batch_loss, batch_accuracy, _ = sess.run([model.loss, model.accuracy, model.optimize],
-                                                        feed_dict(model, batch))
+            batch_loss, batch_accuracy, _, summary = sess.run([model.loss,
+                                                               model.accuracy,
+                                                               model.optimize,
+                                                               model.summary],
+                                                              feed_dict(model, batch))
             if not start_reported:
                 print('Starting condition: loss = %s; accuracy = %s' % (batch_loss, batch_accuracy))
                 start_reported = True
             average_loss += batch_loss
             average_accuracy += batch_accuracy
-            if (iteration + 1) % REPORT_EVERY[db][collection] == 0:
-                print('Step %s: average loss = %s; average accuracy = %s' % (iteration + 1,
-                                                                             average_loss / (iteration + 1),
-                                                                             average_accuracy / (iteration + 1)))
+            writer.add_summary(summary, global_step=model.global_step)
+            if (model.global_step + 1) % REPORT_EVERY[db][collection] == 0:
+                print('Step %s: average loss = %s; average accuracy = %s' % (model.global_step + 1,
+                                                                             average_loss / (model.global_step + 1),
+                                                                             average_accuracy / (model.global_step + 1)))
                 if save_ckpt:
                     save_checkpoint(model, saver, sess, transfer)
-            iteration += 1
+            model.global_step += 1
     if write_graph:
         writer.close()
     model.in_training = False

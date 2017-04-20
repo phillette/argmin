@@ -71,7 +71,7 @@ def load_pickle(file_name):
 
 
 def log_graph_path(model_name):
-    return os.path.dirname('graphs/%s' % model_name)
+    return os.path.dirname('graphs/%s/%s' % (model_name, model_name))
 
 
 def roll_batch(x, old_dims):
