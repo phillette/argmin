@@ -1,6 +1,7 @@
 from mongoi import CarstensDb, SNLIDb, string_to_array, get_repository
 import numpy as np
 from util import load_pickle
+from stats import *
 
 
 """
@@ -11,66 +12,7 @@ Thinking it is best to remove the no gold labels observations:
 """
 
 
-BATCH_SIZE = {
-    'snli': {'train': 68,
-             'dev': 50,
-             'test': 50},
-    'carstens': {'all': 101,
-                 'train': 100,
-                 'test': 558}
-}
-BUFFER_FACTORS = {
-    'snli': {'train': 4,
-             'dev': 4,
-             'test': 4},
-    'carstens': {'all': 4,
-                 'train': 35,
-                 'test': 1}
-}
-COLLECTION_SIZE = {
-    'snli': {'train': 55012,
-             'dev': 10000,
-             'test': 10000},
-    'carstens': {'all': 4058,
-                 'train': 3500,
-                 'test': 558}
-}
-ENCODING_TO_LABEL = {0: 'neutral',
-                     1: 'entailment',
-                     2: 'contradiction'}
-LABEL_TO_ENCODING = {'neutral': 0,
-                     'entailment': 1,
-                     'contradiction': 2,
-                     '-': 0}  # this is an issue
-LONGEST_SENTENCE_SNLI = 402
-MISSING_WORD_VECTOR_COUNTS = {  # don't double count with no gold labels!
-    'train': 0,
-    'dev': 0,
-    'test': 0
-}
-NO_GOLD_LABEL_COUNTS = {
-    'train': 0,
-    'dev': 0,
-    'test': 0
-}
-NUM_ITERS = {
-    'snli': {'train': 809,
-             'dev': 200,
-             'test': 200},
-    'carstens': {'all': 40,
-                 'train': 35,
-                 'test': 1}
-}
-NUM_LABELS = 3
-REPORT_EVERY = {
-    'snli': {'train': 101,
-             'dev': 20,
-             'test': 20},
-    'carstens': {'all': 4,
-                 'train': 5,
-                 'test': 1
-                 }
-}
+NULL_VECTOR = load_pickle('NULL_glove_vector.pkl')
 
 
 def add_third_dimensions(batch):
@@ -121,6 +63,8 @@ def get_batch_gen(db, collection):
             id = doc['_id']
             premise = string_to_array(doc['premise'])
             hypothesis = string_to_array(doc['hypothesis'])
+            premise = prepend_null(premise)        # comment this out to go back to normal
+            hypothesis = prepend_null(hypothesis)  # comment this out to go back to normal
             label = encode(doc['gold_label'])
             ids.append(id)
             premises.append(premise)
@@ -153,6 +97,10 @@ def pad_sentence(sentence, desired_length):
                                              word_embed_dim))],
                                   axis=0)
     return sentence
+
+
+def prepend_null(sentence_matrix):
+    return np.vstack([NULL_VECTOR, sentence_matrix])
 
 
 class RandomizedGeneratorFromGen:
@@ -200,35 +148,6 @@ Thinking it is best to remove the no gold labels observations:
 * dev:    10,000 - 158 =   9,842.  This is divisible by 259   38 times.
 * test:   10,000 - 176 =   9,824.  This is divisible by 307   32 times.
 """
-
-ALL_GOLD_NUM_ITERS = {
-    'snli': {
-        'train': 2531,
-        'dev': 38,
-        'test': 32
-    }
-}
-ALL_GOLD_COLLECTION_SIZE = {
-    'snli': {
-        'train': 550012,
-        'dev': 9842,
-        'test': 9824
-    }
-}
-ALL_GOLD_BATCH_SIZE = {
-    'snli': {
-        'train': 217,
-        'dev': 259,
-        'test': 307
-    }
-}
-ALL_GOLD_REPORT_EVERY = {
-    'snli': {
-        'train': 250,
-        'dev': 5,
-        'test': 6
-    }
-}
 
 
 def no_gold_label_ids(collection):

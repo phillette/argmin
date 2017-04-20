@@ -1,5 +1,5 @@
 import os
-from batching import get_batch_gen, NUM_ITERS, ENCODING_TO_LABEL, COLLECTION_SIZE, BATCH_SIZE
+from batching import get_batch_gen
 import numpy as np
 from util import load_checkpoint, feed_dict, feed_dict2
 import tensorflow as tf
@@ -8,6 +8,7 @@ from mongoi import get_repository
 import pandas as pd
 from aligned import Alignment
 from model_base import Config
+from stats import *
 
 
 def accuracy(model, db, collection, sess, transfer=False):
