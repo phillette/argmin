@@ -1,7 +1,7 @@
 import tensorflow as tf
 from batching import get_batch_gen
 from stats import *
-from util import feed_dict, feed_dict2, load_checkpoint, save_checkpoint, log_graph_path
+from util import feed_dict, load_checkpoint, save_checkpoint, log_graph_path
 
 
 def train(model, db, collection, num_epochs, sess, load_ckpt=True, save_ckpt=True, transfer=False):

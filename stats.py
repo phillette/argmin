@@ -13,9 +13,9 @@ LONGEST_SENTENCE_SNLI = 403  # 402, but we have prepended NULL to everything now
 # Stats for batching and training
 BATCH_SIZE = {
     'snli': {
-        'train': 217,
-        'dev': 259,
-        'test': 307
+        'train': 76,
+        'dev': 74,
+        'test': 32
     },
     'carstens': {
         'all': 101,
@@ -37,9 +37,9 @@ COLLECTION_SIZE = {
 }
 NUM_ITERS = {
     'snli': {
-        'train': 2531,
-        'dev': 38,
-        'test': 32
+        'train': 7237,
+        'dev': 133,
+        'test': 307
     },
     'carstens': {
         'all': 40,
@@ -49,9 +49,9 @@ NUM_ITERS = {
 }
 REPORT_EVERY = {
     'snli': {
-        'train': 250,
-        'dev': 5,
-        'test': 6
+        'train': 450,
+        'dev': 10,
+        'test': 50
     },
     'carstens': {
         'all': 4,
