@@ -20,11 +20,10 @@ def train(model, db, collection, num_epochs, sess, load_ckpt=True, save_ckpt=Tru
         batch_gen = get_batch_gen(db, collection)
         while model.global_step.eval() < global_step_starting_iter + NUM_ITERS[db][collection]:
             batch = next(batch_gen)
-            batch_loss, batch_accuracy, _, summary = sess.run([model.loss,
-                                                               model.accuracy,
-                                                               model.optimize,
-                                                               model.summaries],
-                                                              feed_dict(model, batch))
+            batch_loss, batch_accuracy, _ = sess.run([model.loss,
+                                                      model.accuracy,
+                                                      model.optimize],
+                                                     feed_dict(model, batch))
             if not start_reported:
                 print('Starting condition: loss = %s; accuracy = %s' % (batch_loss, batch_accuracy))
                 start_reported = True
