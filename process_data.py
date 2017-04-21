@@ -157,7 +157,7 @@ def _missing_word_vectors_per_sentence(doc, array_attr, nlp, zero_vector):
     zeros = []
     for i in range(len(words)):
         if np.array_equal(words[i], zero_vector):
-            zeros.append(spacy_doc[i])
+            zeros.append(spacy_doc[i].text)
     return len(zeros) > 0, zeros
 
 
