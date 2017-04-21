@@ -25,3 +25,11 @@ New DataSet:
 
 Reproducability:
 * Control randomization in experiments by setting random seed
+
+Parkih:
+- Project embeddings to 200d and dually train
+- OOV words hased to one of 100 random vectors, then projected
+- 2 layers with 200 neurons
+- batch size 4
+- dropout rate 0.2
+- LR = 0.05
