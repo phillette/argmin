@@ -1,6 +1,6 @@
 import tensorflow as tf
 from batching import LONGEST_SENTENCE_SNLI
-from tf_decorators import define_scope
+from decorators import define_scope
 from util import clip_gradients
 
 
@@ -128,3 +128,15 @@ class Model:
 
     def _all_weights(self):
         return [v for v in tf.get_collection(tf.GraphKeys.TRAINABLE_VARIABLES) if v.name.endswith('weights:0')]
+
+
+if __name__ == '__main__':
+    a = tf.placeholder(tf.float32, [None, 3, 3])
+    import numpy as np
+    _a = np.random.rand(2, 3, 3)
+    fd = {a: _a}
+    size = tf.shape(a)[0]
+    op = tf.square(size)
+    with tf.Session() as sess:
+        sess.run(tf.global_variables_initializer())
+        print(sess.run(op, fd))

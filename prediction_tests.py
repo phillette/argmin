@@ -3,7 +3,7 @@ import numpy as np
 from prediction import *
 import tensorflow as tf
 from model_base import Model
-from tf_decorators import define_scope
+from decorators import define_scope
 
 
 class EvaluateTests(unittest.TestCase):

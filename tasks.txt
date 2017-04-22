@@ -2,14 +2,11 @@ Data Cleaning / Prep:
 * Generate vocab dictionary
 * Determine missing word vectors
 * Train missing word vectors
-* Place embedding matrix at the front of the network and tune as part of training
 
 Training Process:
 * Create separate checkpoint files based on config settings automatically
 * Add an option to look at accuracy on dev / train after each epoch and record that history
     - visualizing on TB may also be great
-* As Parikh et al do, look at (prepending?) a NULL token to each sentence
-    - Do this as a controlled experiment and note the difference in performance
 * Broader algorithm to assist training, saving results, visualizing, etc
 
 Models:
@@ -17,19 +14,12 @@ Models:
     - no gold labels removed
     - no word vectors removed
     - prepending null token
-* Look at an increased capacity Alignment Model
-* Look at tuning the word embeddings at the front end of the network
 
 New DataSet:
 * Download the new data set, process it, get it in there, build the infrastructure to be able to use it
 
-Reproducability:
-* Control randomization in experiments by setting random seed
-
 Parkih:
-- Project embeddings to 200d and dually train
-- OOV words hased to one of 100 random vectors, then projected
+- OOV words hashed to one of 100 random vectors, then projected
 - 2 layers with 200 neurons
-- batch size 4
 - dropout rate 0.2
 - LR = 0.05

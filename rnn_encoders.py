@@ -1,6 +1,6 @@
 import tensorflow as tf
 from tensorflow.contrib import rnn
-from tf_decorators import define_scope
+from decorators import define_scope
 from batching import LONGEST_SENTENCE_SNLI, NUM_LABELS, get_batch_gen
 from util import clip_gradients, length, feed_dict
 from model_base import Model, fully_connected_with_dropout, Config

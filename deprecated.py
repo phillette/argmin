@@ -1,5 +1,5 @@
 import tensorflow as tf
-from tf_decorators import define_scope
+from decorators import define_scope
 from util import dropout_vector, add_bias, clip_gradients
 
 

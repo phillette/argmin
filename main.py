@@ -3,7 +3,7 @@ from training import train
 from prediction import accuracy
 import tensorflow as tf
 from model_base import Config
-from aligned import Alignment, AlignmentOld, BiRNNAlignment
+import aligned
 
 
 # $ TF_CPP_MIN_LOG_LEVEL=1 python main.py
@@ -25,7 +25,7 @@ def bi_rnn_bowman():
     return model
 
 
-def aligned():
+def alignment():
     # UNREGULARIZED
     # 1e-4 sees successful training for no regularization (5.0 clip) [tanh version]
     # relu version: 1e-3 no good; 1e-4 seems slow; 6e-4 not as good as 1e-4; 3e-4 stuck at 53
@@ -45,7 +45,16 @@ def aligned():
                     p_keep_ff=0.7,
                     grad_clip_norm=5.0,
                     lamda=0.0)
-    model = Alignment(config, 300, 100, activation=tf.nn.relu)
+    model = aligned.Alignment(config, 300, 100, activation=tf.nn.relu)
+    return model
+
+
+def alignment_parikh():
+    config = Config(learning_rate=1e-2,
+                    p_keep_ff=0.8,
+                    grad_clip_norm=5.0,
+                    lamda=0.0)
+    model = aligned.AlignmentParikh(config)
     return model
 
 
@@ -81,14 +90,14 @@ def bi_rnn_aligned():
                     p_keep_ff=1.0,
                     grad_clip_norm=5.0,
                     lamda=0.0)
-    model = BiRNNAlignment(config, encoding_size=2 * config.rnn_size, alignment_size=300)
+    model = aligned.BiRNNAlignment(config, encoding_size=2 * config.rnn_size, alignment_size=300)
     return model
 
 
 def _train(model, transfer_to_carstens):
     with tf.Session() as sess:
         sess.run(tf.global_variables_initializer())
-        train(model, 'snli', 'dev', 100, sess, load_ckpt=False, save_ckpt=False, transfer=False)
+        train(model, 'snli', 'dev', 40, sess, load_ckpt=False, save_ckpt=True, transfer=False)
         #accuracy(model, 'snli', 'train', sess)
         accuracy(model, 'snli', 'dev', sess)
         accuracy(model, 'snli', 'test', sess)
@@ -100,7 +109,7 @@ def _train(model, transfer_to_carstens):
 
 
 if __name__ == '__main__':
-    model = aligned()
+    model = alignment_parikh()
     transfer_to_carstens = False
     _train(model, transfer_to_carstens)
 

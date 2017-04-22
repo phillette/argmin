@@ -29,8 +29,8 @@ def train(model, db, collection, num_epochs, sess, load_ckpt=True, save_ckpt=Tru
                 start_reported = True
             average_loss += batch_loss
             average_accuracy += batch_accuracy
-            if summarise:
-                writer.add_summary(summary, global_step=model.global_step.eval())
+            #if summarise:
+                #writer.add_summary(summary, global_step=model.global_step.eval())
             model.global_step += 1
             if (model.global_step.eval()) % REPORT_EVERY[db][collection] == 0:
                 print('Step %s: loss = %s; accuracy = %s' % (model.global_step.eval(),

@@ -3,7 +3,7 @@ import numpy as np
 from batching import BatchGenWrapper, Batch2
 from util import *
 from prediction import accuracy2
-from tf_decorators import define_scope
+from decorators import define_scope
 
 
 M = 5000              # total number of observations
