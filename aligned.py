@@ -377,7 +377,7 @@ class AlignmentParikh(model_base.Model):
         self.correct_predictions
         self.accuracy
         self.confidences
-        self.summaries
+        #self.summaries
 
     @decorators.define_scope
     def premises_encoding(self):

@@ -2,12 +2,12 @@ import tensorflow as tf
 from batching import get_batch_gen
 from stats import *
 from util import feed_dict, load_checkpoint, save_checkpoint, log_graph_path
-from pympler import muppy
-from pympler import summary
+from pympler import tracker
 
 
 def train(model, db, collection, num_epochs, sess, load_ckpt=True, save_ckpt=True, transfer=False, summarise=False):
     # make sure sess.run(tf.global_variables_initializer() has already been run)
+    tr = tracker.SummaryTracker()
     writer = tf.summary.FileWriter(log_graph_path(model.name), sess.graph)
     saver = tf.train.Saver()
     if load_ckpt:
@@ -22,7 +22,7 @@ def train(model, db, collection, num_epochs, sess, load_ckpt=True, save_ckpt=Tru
         batch_gen = get_batch_gen(db, collection)
         while model.global_step.eval() < global_step_starting_iter + NUM_ITERS[db][collection]:
             batch = next(batch_gen)
-            summary.print_(summary.summarize(muppy.get_objects()))
+            tr.print_diff()
             batch_loss, batch_accuracy, _ = sess.run([model.loss,
                                                       model.accuracy,
                                                       model.optimize],

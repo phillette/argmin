@@ -50,10 +50,11 @@ def alignment():
 
 
 def alignment_parikh():
-    config = Config(learning_rate=1e-2,
+    config = Config(learning_rate=1e-3,
                     p_keep_ff=0.8,
                     grad_clip_norm=5.0,
-                    lamda=0.0)
+                    lamda=0.0,
+                    ff_size=200)
     model = aligned.AlignmentParikh(config)
     return model
 
