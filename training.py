@@ -47,6 +47,7 @@ import objgraph
 
 def train(model, db, collection, num_epochs, sess, load_ckpt=True, save_ckpt=True, transfer=False, summarise=False):
     # make sure sess.run(tf.global_variables_initializer() has already been run)
+    tr = tracker.SummaryTracker()
     writer = tf.summary.FileWriter(log_graph_path(model.name), sess.graph)
     saver = tf.train.Saver()
     if load_ckpt:
