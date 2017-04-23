@@ -109,7 +109,7 @@ def _train(model, transfer_to_carstens):
 
 
 if __name__ == '__main__':
-    model = alignment_parikh()
+    model = bi_rnn()
     transfer_to_carstens = False
     _train(model, transfer_to_carstens)
 

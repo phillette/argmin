@@ -13,6 +13,7 @@ Thinking it is best to remove the no gold labels observations:
 
 
 NULL_VECTOR = load_pickle('NULL_glove_vector.pkl')
+NO_GOLD_LABEL_IDS = load_pickle('no_gold_label_ids.pkl')
 
 
 def add_third_dimensions(batch):
@@ -150,17 +151,6 @@ Thinking it is best to remove the no gold labels observations:
 """
 
 
-def no_gold_label_ids(collection):
-    if collection == 'train':
-        return load_pickle('train_no_gold_label_ids.pkl')
-    elif collection == 'dev':
-        return load_pickle('dev_no_gold_label_ids.pkl')
-    elif collection == 'test':
-        return load_pickle('test_no_gold_label_ids.pkl')
-    else:
-        raise Exception('Unexpected collection: %s' % collection)
-
-
 class RandomGenerator:
     """
     This is the new one that takes account of no gold labels.
@@ -174,7 +164,6 @@ class RandomGenerator:
         self._db_yielded = 0
         self._i_yielded = 0
         self._buffer = []
-        self._no_gold_label_ids = no_gold_label_ids(collection)
         self._passed_over = 0
         self._fill_buffer()
 
@@ -183,7 +172,7 @@ class RandomGenerator:
             if self._gen.alive:
                 next_doc = next(self._gen)
                 self._db_yielded += 1
-                if next_doc['_id'] not in self._no_gold_label_ids:
+                if next_doc['_id'] not in NO_GOLD_LABEL_IDS[self._collection]:
                     self._buffer.append(next_doc)
                 else:
                     self._passed_over += 1
