@@ -316,46 +316,6 @@ class Alignment(model_base.Model):
         return accuracy
 
 
-class BiRNNAlignment(Alignment):
-    def __init__(self, config, encoding_size, alignment_size):
-        Alignment.__init__(self, config, encoding_size, alignment_size)
-        self.name = 'bi_rnn_alignment'
-
-    @decorators.define_scope
-    def parameters(self):
-        self.W_F = tf.Variable(initial_value=tf.random_uniform(shape=[self.encoding_size,
-                                                                      self.alignment_size],
-                                                               minval=-1.0,
-                                                               maxval=1.0,
-                                                               dtype=tf.float64),
-                               name='W_F')
-        self.W_G = tf.Variable(initial_value=tf.random_uniform(shape=[2 * self.encoding_size + self.alignment_size,
-                                                                      self.config.ff_size],
-                                                               minval=-1.0,
-                                                               maxval=1.0,
-                                                               dtype=tf.float64),
-                               name='W_G')
-        return self.W_F, self.W_G
-
-    @decorators.define_scope
-    def premises_encoding(self):
-        _premises_encoding = rnn_encoders.bi_rnn(self.X.premises,
-                                                 self.config.rnn_size,
-                                                 'premise_bi_rnn',
-                                                 self.config.p_keep_rnn)            # [batch_size, max_length, rnn_size]
-        concatenated_encoding = tf.concat(_premises_encoding[0], 2)
-        return concatenated_encoding                                            # [batch_size, max_length, 2 * rnn_size]
-
-    @decorators.define_scope
-    def hypotheses_encoding(self):
-        _hypotheses_encodings = rnn_encoders.bi_rnn(self.X.hypotheses,
-                                                    self.config.rnn_size,
-                                                    'hypothesis_bi_rnn',
-                                                    self.config.p_keep_rnn)         # [batch_size, max_length, rnn_size]
-        concatenated_encoding = tf.concat(_hypotheses_encodings[0], 2)
-        return concatenated_encoding                                            # [batch_size, max_length, 2 * rnn_size]
-
-
 class AlignmentParikh(model_base.Model):
     def __init__(self, config, encoding_size=300, alignment_size=200, projection_size=200, activation=tf.nn.relu):
         model_base.Model.__init__(self, config)
@@ -377,7 +337,7 @@ class AlignmentParikh(model_base.Model):
         self.correct_predictions
         self.accuracy
         self.confidences
-        #self.summaries
+        self.summary
 
     @decorators.define_scope
     def premises_encoding(self):
@@ -460,3 +420,27 @@ class AlignmentParikh(model_base.Model):
                                    sum([tf.nn.l2_loss(w) for w in self._all_weights()]),
                                    name='penalty_term')
         return tf.add(cross_entropy, penalty_term, name='loss')
+
+
+class BiRNNAlignment(AlignmentParikh):
+    def __init__(self, config, encoding_size=300, alignment_size=200, projection_size=200, activation=tf.nn.relu):
+        AlignmentParikh.__init__(self, config, encoding_size, alignment_size, projection_size, activation)
+        self.name = 'bi_rnn_alignment'
+
+    @decorators.define_scope
+    def premises_encoding(self):
+        _premises_encoding = rnn_encoders.bi_rnn(self.X.premises,
+                                                 self.config.word_embed_size,
+                                                 'premise_bi_rnn',
+                                                 self.config.p_keep_ff)            # [batch_size, max_length, rnn_size]
+        concatenated_encoding = tf.concat(_premises_encoding[0], 2)
+        return concatenated_encoding                                            # [batch_size, max_length, 2 * rnn_size]
+
+    @decorators.define_scope
+    def hypotheses_encoding(self):
+        _hypotheses_encodings = rnn_encoders.bi_rnn(self.X.hypotheses,
+                                                    self.config.word_embed_size,
+                                                    'hypothesis_bi_rnn',
+                                                    self.config.p_keep_ff)         # [batch_size, max_length, rnn_size]
+        concatenated_encoding = tf.concat(_hypotheses_encodings[0], 2)
+        return concatenated_encoding                                            # [batch_size, max_length, 2 * rnn_size]

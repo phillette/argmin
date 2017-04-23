@@ -51,9 +51,9 @@ def factors(n):
 
 
 def feed_dict(model, batch):
-    return {model.premises: batch.premises,
-            model.hypotheses: batch.hypotheses,
-            model.y: batch.labels}
+    return {model.X.premises: batch.premises,
+            model.X.hypotheses: batch.hypotheses,
+            model.Y: batch.labels}
 
 
 def feed_dict2(model, batch):
@@ -95,9 +95,9 @@ def roll_batch(x, old_dims):
     return tf.reshape(x, old_dims)
 
 
-def save_checkpoint(model, saver, sess, transfer=False):
+def save_checkpoint(model, saver, sess, global_step, transfer=False):
     path = ckpt_path(model.name, transfer)
-    saver.save(sess, path, global_step=model.global_step)
+    saver.save(sess, path, global_step=global_step)
 
 
 def save_pickle(obj, file_name):

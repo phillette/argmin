@@ -112,12 +112,12 @@ class Model:
     def predicted_labels(self):
         return tf.argmax(self.logits, axis=1)
 
-    #@define_scope
-    #def summaries(self):
-    #    tf.summary.scalar('loss', self.loss)
-    #    tf.summary.scalar('accuracy', self.accuracy)
-    #    tf.summary.histogram('histogram_loss', self.loss)
-    #    return tf.summary.merge_all()
+    @define_scope
+    def summary(self):
+        tf.summary.scalar('loss', self.loss)
+        tf.summary.scalar('accuracy', self.accuracy)
+        tf.summary.histogram('histogram_loss', self.loss)
+        return tf.summary.merge_all()
 
     def _weights(self, scope):
         vars = tf.global_variables()

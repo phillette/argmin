@@ -50,6 +50,7 @@ def alignment():
 
 
 def alignment_parikh():
+    """ Dev 40ep @ 1e-3: forgot, but roughly 60 at a guess"""
     config = Config(learning_rate=1e-3,
                     p_keep_ff=0.8,
                     grad_clip_norm=5.0,
@@ -59,46 +60,20 @@ def alignment_parikh():
     return model
 
 
-def bi_rnn_aligned():
-    """
-    Dev results (for quickness)
-    ***
-    KPRNN  1.0
-    KPINP  0.8
-    KPFFN  0.5
-    GCLIP  5.0
-    LAMDA  0.0
-    LRATE       1e-2  3e-3  1e-3  9e-4  1e-4  1e-5
-    STUCK       *61   *56   *55   *55   *57   *75
-    ***
-    KPRNN  0.8
-    KPINP  0.8
-    KPFFN  0.8
-    GCLIP  5.0
-    LAMDA  0.0
-    LRATE       1e-3  1e-4
-    STUCK       *55
-    ***
-    No regularization
-    1e-2: stuck @ 59
-    1e-3: I seem to remember no love either
-    1e-5: ???
-    """
+def alignment_bi_rnn():
     config = Config(learning_rate=1e-3,
-                    rnn_size=100,
-                    p_keep_rnn=1.0,
-                    p_keep_input=1.0,
-                    p_keep_ff=1.0,
+                    p_keep_ff=0.8,
                     grad_clip_norm=5.0,
-                    lamda=0.0)
-    model = aligned.BiRNNAlignment(config, encoding_size=2 * config.rnn_size, alignment_size=300)
+                    lamda=0.0,
+                    ff_size=200)
+    model = aligned.BiRNNAlignment(config)
     return model
 
 
 def _train(model, transfer_to_carstens):
     with tf.Session() as sess:
         sess.run(tf.global_variables_initializer())
-        train(model, 'snli', 'dev', 40, sess, load_ckpt=False, save_ckpt=True, transfer=False)
+        train(model, 'snli', 'dev', 40, sess, load_ckpt=False, save_ckpt=False, transfer=False)
         #accuracy(model, 'snli', 'train', sess)
         accuracy(model, 'snli', 'dev', sess)
         accuracy(model, 'snli', 'test', sess)
@@ -110,7 +85,7 @@ def _train(model, transfer_to_carstens):
 
 
 if __name__ == '__main__':
-    model = bi_rnn()
+    model = alignment_bi_rnn()
     transfer_to_carstens = False
     _train(model, transfer_to_carstens)
 

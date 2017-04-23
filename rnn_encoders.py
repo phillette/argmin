@@ -7,12 +7,12 @@ from model_base import Model, fully_connected_with_dropout, Config
 import numpy as np
 
 
-def bi_rnn(sentences, hidden_size, scope, p_keep=0.8):
+def bi_rnn(sentences, hidden_size, scope, p_keep=0.8, cell=rnn.BasicLSTMCell):
     sequence_length = length(sentences)
-    forward_cell = rnn.BasicLSTMCell(hidden_size, forget_bias=1.0)
+    forward_cell = cell(hidden_size, forget_bias=1.0)
     forward_cell = tf.contrib.rnn.DropoutWrapper(cell=forward_cell,
                                                  output_keep_prob=p_keep)
-    backward_cell = rnn.BasicLSTMCell(hidden_size, forget_bias=1.0)
+    backward_cell = cell(hidden_size, forget_bias=1.0)
     backward_cell = tf.contrib.rnn.DropoutWrapper(cell=backward_cell,
                                                   output_keep_prob=p_keep)
     output, output_states = tf.nn.bidirectional_dynamic_rnn(cell_fw=forward_cell,
