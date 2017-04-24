@@ -60,17 +60,18 @@ def get_batch_gen(db, collection):
         hypotheses = []
         labels = []
         for _ in range(BATCH_SIZE[db][collection]):
-            doc = gen.next()
-            id = doc['_id']
-            premise = string_to_array(doc['premise'])
-            hypothesis = string_to_array(doc['hypothesis'])
-            premise = prepend_null(premise)        # comment this out to go back to normal
-            hypothesis = prepend_null(hypothesis)  # comment this out to go back to normal
-            label = encode(doc['gold_label'])
-            ids.append(id)
-            premises.append(premise)
-            hypotheses.append(hypothesis)
-            labels.append(label)
+            if gen.alive():  # if there are no more records, don't try and find one
+                doc = gen.next()
+                id = doc['_id']
+                premise = string_to_array(doc['premise'])
+                hypothesis = string_to_array(doc['hypothesis'])
+                premise = prepend_null(premise)        # comment this out to go back to normal
+                hypothesis = prepend_null(hypothesis)  # comment this out to go back to normal
+                label = encode(doc['gold_label'])
+                ids.append(id)
+                premises.append(premise)
+                hypotheses.append(hypothesis)
+                labels.append(label)
         batch = Batch(ids, premises, hypotheses, labels)
         pad_out_sentences(batch)
         add_third_dimensions(batch)
@@ -178,6 +179,9 @@ class RandomGenerator:
                     self._passed_over += 1
             else:
                 break  # don't waste time iterating further if we're at the end
+
+    def alive(self):
+        return self._gen.alive() or len(self._buffer) > 0
 
     def next(self):
         if len(self._buffer) == 0:

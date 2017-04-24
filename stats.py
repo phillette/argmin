@@ -14,7 +14,7 @@ LONGEST_SENTENCE_SNLI = 403  # 402, but we have prepended NULL to everything now
 BATCH_SIZE = {
     'snli': {
         'train': 4,
-        'dev': 7,
+        'dev': 4,
         'test': 4
     },
     'carstens': {
@@ -37,7 +37,7 @@ COLLECTION_SIZE = {
 }
 NUM_ITERS = {
     'snli': {
-        'train': 137503,
+        'train': 137342,
         'dev': 1406,
         'test': 2456
     },
@@ -49,9 +49,9 @@ NUM_ITERS = {
 }
 REPORT_EVERY = {
     'snli': {
-        'train': 6875,
+        'train': 5000,
         'dev': 100,
-        'test': 200
+        'test': 100
     },
     'carstens': {
         'all': 4,

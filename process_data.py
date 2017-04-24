@@ -237,5 +237,26 @@ def carstens_train_test_split():
         db.test.insert_one(doc)
 
 
+def process_oov():
+    mv = load_pickle('missing_vectors.pkl')
+    oov = {}  # word: id
+    id = 0
+    all_words = mv['train']['words'].values() \
+                + mv['dev']['words'].values() \
+                + mv['test']['words'].values()
+    for word in all_words:
+        if word not in oov.keys():
+            oov[word] = id
+            id += 1
+    save_pickle(oov, 'oov_ids.pkl')
+    oov_count = len(list(oov.keys()))
+    vectors = {}  # id, vector
+    for _, id in oov.items():
+        vector = np.random.rand(1, 300)
+        vectors[id] = vector
+    save_pickle(vectors, 'oov_vectors.pkl')
+    # fuck, the real problem is to know in which position to insert the random vector.
+
+
 if __name__ == '__main__':
     _get_missing_word_vectors()
