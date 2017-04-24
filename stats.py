@@ -25,7 +25,7 @@ BATCH_SIZE = {
 }
 COLLECTION_SIZE = {
     'snli': {
-        'train': 550012,
+        'train': 549367,
         'dev': 9842,
         'test': 9824
     },
