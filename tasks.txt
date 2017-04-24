@@ -23,3 +23,7 @@ Parkih:
 - 2 layers with 200 neurons
 - dropout rate 0.2
 - LR = 0.05
+
+*** Got to bring computation time down
+- get_batch limian de code can be moved into Mongo - pre-process Mofo
+- Got to find a way to deal with variable lengths, timesteps...

@@ -11,12 +11,13 @@ from model_base import Config
 from stats import *
 
 
-def accuracy(model, db, collection, sess, transfer=False):
+def accuracy(model, db, collection, sess, load_ckpt=True, transfer=False):
     # make sure sess.run(tf.global_variables_initializer()) has already been called
     batch_gen = get_batch_gen(db, collection)
     num_iters = NUM_ITERS[db][collection]
     saver = tf.train.Saver()
-    load_checkpoint(model, saver, sess, transfer)
+    if load_ckpt:
+        load_checkpoint(model, saver, sess, transfer)
     average_accuracy = 0
     for iter in range(num_iters):
         batch = next(batch_gen)

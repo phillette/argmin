@@ -50,8 +50,12 @@ def alignment():
 
 
 def alignment_parikh():
-    """ Dev 40ep @ 1e-3: forgot, but roughly 60 at a guess"""
-    config = Config(learning_rate=1e-3,
+    """ Dev 40ep @ 1e-3: forgot, but roughly 60 at a guess
+    70acc 8e-4, ep45(restarted)
+    75acc 5e-4, ep45(no restart)
+    70ish with extrapolation 1e-4, ep45(no restart)
+    """
+    config = Config(learning_rate=5e-4,
                     p_keep_ff=0.8,
                     grad_clip_norm=5.0,
                     lamda=0.0,
@@ -61,7 +65,7 @@ def alignment_parikh():
 
 
 def alignment_bi_rnn():
-    config = Config(learning_rate=1e-3,
+    config = Config(learning_rate=5e-2,
                     p_keep_ff=0.8,
                     grad_clip_norm=5.0,
                     lamda=0.0,
@@ -73,19 +77,19 @@ def alignment_bi_rnn():
 def _train(model, transfer_to_carstens):
     with tf.Session() as sess:
         sess.run(tf.global_variables_initializer())
-        train(model, 'snli', 'dev', 40, sess, load_ckpt=False, save_ckpt=False, transfer=False)
-        #accuracy(model, 'snli', 'train', sess)
-        accuracy(model, 'snli', 'dev', sess)
-        accuracy(model, 'snli', 'test', sess)
+        train(model, 'snli', 'train', 20, sess, load_ckpt=False, save_ckpt=True, transfer=False)
+        accuracy(model, 'snli', 'train', sess, load_ckpt=False)
+        accuracy(model, 'snli', 'dev', sess, load_ckpt=False)
+        accuracy(model, 'snli', 'test', sess, load_ckpt=False)
         if transfer_to_carstens:
             model.learning_rate = 1e-10
-            train(model, 'carstens', 'train', 100, sess, load_ckpt=True, save_ckpt=False, transfer=True)
-            accuracy(model, 'carstens', 'train', sess, transfer=True)
-            accuracy(model, 'carstens', 'test', sess, transfer=True)
+            train(model, 'carstens', 'train', 100, sess, load_ckpt=False, save_ckpt=False, transfer=True, summarise=False)
+            accuracy(model, 'carstens', 'train', sess, load_ckpt=False, transfer=True)
+            accuracy(model, 'carstens', 'test', sess, load_ckpt=False, transfer=True)
 
 
 if __name__ == '__main__':
-    model = alignment_bi_rnn()
+    model = alignment_parikh()
     transfer_to_carstens = False
     _train(model, transfer_to_carstens)
 
