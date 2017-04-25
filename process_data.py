@@ -1,10 +1,10 @@
-from mongoi import SNLIDb, array_to_string, string_to_array, CarstensDb
+import mongoi
 import spacy
 import numpy as np
 import itertools
 import pandas as pd
 from batching import pad_sentence
-from util import save_pickle, load_pickle
+import util
 
 
 """
@@ -22,7 +22,7 @@ def change_doc_id(doc, new_id, repository):
 
 
 def fix_snli_ids():
-    db = SNLIDb()
+    db = mongoi.SNLIDb()
     id = 0
     all_train = db.train.find_all()
     all_dev = db.dev.find_all()
@@ -48,19 +48,19 @@ def sentence_matrix(sentence, nlp):
 
 
 def matrices_into_mongo(nlp, collection):
-    db = SNLIDb()
+    db = mongoi.SNLIDb()
     index = 0
     for doc in db.repository(collection).find_all():
         index += 1
         premise = sentence_matrix(doc['sentence1'], nlp)
         hypothesis = sentence_matrix(doc['sentence2'], nlp)
-        db.repository(collection).update_one(doc['_id'], {'premise': array_to_string(premise),
-                                                          'hypothesis': array_to_string(hypothesis)})
+        db.repository(collection).update_one(doc['_id'], {'premise': mongoi.array_to_string(premise),
+                                                          'hypothesis': mongoi.array_to_string(hypothesis)})
         print(index)
 
 
 def find_max_length():
-    db = SNLIDb()
+    db = mongoi.SNLIDb()
     max_length = 0
     dev_gen = db.dev.find_all()
     test_gen = db.test.find_all()
@@ -120,13 +120,13 @@ def _get_no_gold_labels():
     dev:   158 / 10,000  = 1.6%
     test:  176 / 10,000  = 1.8%
     """
-    db = SNLIDb()
+    db = mongoi.SNLIDb()
     train_ids = _get_missing_gold_label_ids(db, 'train')
     dev_ids = _get_missing_gold_label_ids(db, 'dev')
     test_ids = _get_missing_gold_label_ids(db, 'test')
-    save_pickle(train_ids, 'train_no_gold_label_ids.pkl')
-    save_pickle(dev_ids, 'dev_no_gold_label_ids.pkl')
-    save_pickle(test_ids, 'test_no_gold_label_ids.pkl')
+    util.save_pickle(train_ids, 'train_no_gold_label_ids.pkl')
+    util.save_pickle(dev_ids, 'dev_no_gold_label_ids.pkl')
+    util.save_pickle(test_ids, 'test_no_gold_label_ids.pkl')
     return train_ids, dev_ids, test_ids
 
 
@@ -153,7 +153,7 @@ def _missing_word_vectors_per_collection(db, collection, nlp, zero_vector):
 def _missing_word_vectors_per_sentence(doc, array_attr, nlp, zero_vector):
     text_attr = 'sentence1' if array_attr == 'premise' else 'sentence2'
     spacy_doc = nlp(doc[text_attr])
-    words = string_to_array(doc[array_attr]).tolist()
+    words = mongoi.string_to_array(doc[array_attr]).tolist()
     zeros = []
     for i in range(len(words)):
         if np.array_equal(words[i], zero_vector):
@@ -164,7 +164,7 @@ def _missing_word_vectors_per_sentence(doc, array_attr, nlp, zero_vector):
 def _get_missing_word_vectors():
     nlp = spacy.load('en')
     zero_vector = np.zeros((300,), dtype='float')
-    db = SNLIDb()
+    db = mongoi.SNLIDb()
     train_ids, train_words, train_sents = _missing_word_vectors_per_collection(db, 'train', nlp, zero_vector)
     dev_ids, dev_words, dev_sents = _missing_word_vectors_per_collection(db, 'dev', nlp, zero_vector)
     test_ids, test_words, test_sents = _missing_word_vectors_per_collection(db, 'test', nlp, zero_vector)
@@ -185,12 +185,12 @@ def _get_missing_word_vectors():
             'sents': test_sents
         }
     }
-    save_pickle(missing_vectors, 'missing_vectors.pkl')
+    util.save_pickle(missing_vectors, 'missing_vectors.pkl')
     return missing_vectors
 
 
 def missing_word_vectors():
-    missing_vectors = load_pickle('missing_vectors.pkl')
+    missing_vectors = util.load_pickle('missing_vectors.pkl')
     return missing_vectors
 
 
@@ -206,7 +206,7 @@ def carstens_into_mongo(file_path='/home/hanshan/carstens.csv'):
         's': 'entailment',
         'a': 'contradiction'
     }
-    db = CarstensDb()
+    db = mongoi.CarstensDb()
     nlp = spacy.load('en')
     id = 0
     for x in X.iterrows():
@@ -217,14 +217,14 @@ def carstens_into_mongo(file_path='/home/hanshan/carstens.csv'):
             'sentence2': x[1][4],
             'gold_label': label[x[1][5]]
         }
-        doc['premise'] = array_to_string(sentence_matrix(doc['sentence1'], nlp))
-        doc['hypothesis'] = array_to_string(sentence_matrix(doc['sentence2'], nlp))
+        doc['premise'] = mongoi.array_to_string(sentence_matrix(doc['sentence1'], nlp))
+        doc['hypothesis'] = mongoi.array_to_string(sentence_matrix(doc['sentence2'], nlp))
         db.all.insert_one(doc)
     raise Exception('Could do the train and test split here, too')
 
 
 def carstens_train_test_split():
-    db = CarstensDb()
+    db = mongoi.CarstensDb()
     id = 0
     all = db.all.find_all()
     while id < 3500:
@@ -237,26 +237,54 @@ def carstens_train_test_split():
         db.test.insert_one(doc)
 
 
-def process_oov():
-    mv = load_pickle('missing_vectors.pkl')
-    oov = {}  # word: id
-    id = 0
-    all_words = mv['train']['words'].values() \
-                + mv['dev']['words'].values() \
-                + mv['test']['words'].values()
+def _generate_oov_vectors():
+    mv = util.load_pickle('missing_vectors.pkl')
+    oov_vectors = {}  # word: vector
+    all_words = set(list(mv['train']['words'].values())
+                    + list(mv['dev']['words'].values())
+                    + list(mv['test']['words'].values()))
     for word in all_words:
-        if word not in oov.keys():
-            oov[word] = id
-            id += 1
-    save_pickle(oov, 'oov_ids.pkl')
-    oov_count = len(list(oov.keys()))
-    vectors = {}  # id, vector
-    for _, id in oov.items():
-        vector = np.random.rand(1, 300)
-        vectors[id] = vector
-    save_pickle(vectors, 'oov_vectors.pkl')
-    # fuck, the real problem is to know in which position to insert the random vector.
+        oov_vectors[word] = np.random.rand(1, 300)
+    util.save_pickle(oov_vectors, 'oov_vectors.pkl')
+
+
+def update_oov_vectors():
+    nlp = spacy.load('en')
+    missing_vectors = util.load_pickle('missing_vectors.pkl')
+    oov_vectors = util.load_pickle('oov_vectors.pkl')
+    for collection in mongoi.COLLECTIONS['snli']:
+        _update_oov_vectors_per_collection(collection, nlp, missing_vectors, oov_vectors)
+
+
+def _update_oov_vectors_per_collection(collection, nlp, missing_vectors, oov_vectors):
+    repository = mongoi.get_repository('snli', collection)
+    for word, doc_id in missing_vectors[collection]['words']:
+        doc = repository.get(doc_id)
+        _update_oov_vectors_per_document(doc, word, oov_vectors[word], nlp, repository)
+
+
+def _update_oov_vectors_per_document(doc, word, word_vector, nlp, repository):
+    if word in doc['sentence1']:
+        premise_doc = nlp(doc['sentence1'])
+        index = next((t.i for t in premise_doc if t.text == word))
+        premise_matrix = mongoi.string_to_array(doc['premise'])
+        premise_matrix[index, :] = word_vector
+        repository.update_one(doc['_id'], {'premise': mongoi.array_to_string(premise_matrix)})
+    if word in doc['sentence2']:
+        hypothesis_doc = nlp(doc['sentence2'])
+        index = next((t.i for t in hypothesis_doc if t.text == word))
+        premise_matrix = mongoi.string_to_array(doc['hypothesis'])
+        premise_matrix[index, :] = word_vector
+        repository.update_one(doc['_id'], {'hypothesis': mongoi.array_to_string(premise_matrix)})
+
+
+def remove_no_gold_label_ids():
+    no_gold_label_ids = util.load_pickle('no_gold_label_ids.pkl')
+    for collection in mongoi.COLLECTIONS['snli']:
+        repository = mongoi.get_repository('snli', collection)
+        for id in no_gold_label_ids[collection]:
+            repository.delete_one(id)
 
 
 if __name__ == '__main__':
-    _get_missing_word_vectors()
+    _generate_oov_vectors()

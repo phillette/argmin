@@ -27,3 +27,6 @@ Parkih:
 *** Got to bring computation time down
 - get_batch limian de code can be moved into Mongo - pre-process Mofo
 - Got to find a way to deal with variable lengths, timesteps...
+
+* Global step is still not being saved properly
+* It would also be nice if the number of epochs were saved on the model
