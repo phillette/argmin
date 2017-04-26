@@ -160,7 +160,7 @@ class RandomGenerator:
         self._db_name = db_name
         self._collection = collection
         self._repository = get_repository(db_name, collection)
-        self._gen = self._repository.find_all()
+        self._gen = self._repository.batch()
         self._buffer_size = buffer_size
         self._db_yielded = 0
         self._i_yielded = 0
