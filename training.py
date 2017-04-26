@@ -25,6 +25,10 @@ class History:
         plt.show()
 
 
+def report_every(num_iters):
+    return np.floor(num_iters / 10)
+
+
 def train(model, db, collection, num_epochs, sess, batch_size=4,
           load_ckpt=True, save_ckpt=True, transfer=False, summarise=True):
     # make sure sess.run(tf.global_variables_initializer() has already been run)
@@ -48,7 +52,7 @@ def train(model, db, collection, num_epochs, sess, batch_size=4,
         epoch_start = time.time()
         batch_gen = batching.get_batch_gen(db, collection, batch_size=batch_size)
         last_iter = starting_iter + ((epoch + 1) * num_iters)
-        while iter <= last_iter:  # check that <= is right, I had < before
+        while iter < last_iter:
             iter_start = time.time()
             batch = next(batch_gen)
             batch_loss, batch_accuracy, _, summary = sess.run([model.loss,
@@ -70,25 +74,24 @@ def train(model, db, collection, num_epochs, sess, batch_size=4,
             iter += 1
             average_time = np.average(iter_time_takens)
             iters_remaining = last_iter - iter
-            if iter % stats.REPORT_EVERY[db][collection] == 0:
+            if iter % report_every(num_iters) == 0:
                 print('Step %s (%s%%): '
                       'loss = %s; '
                       'accuracy = %s; '
                       'time = %s; '
                       'remaining = %s' % (iter,
-                                          iter / last_iter,
+                                          round((iter / last_iter) * 100, 1),
                                           average_loss / iter,
                                           average_accuracy / iter,
-                                          average_time,
-                                          average_time * iters_remaining))
+                                          round(average_time, 3),
+                                          round(average_time * iters_remaining, 1)))
                 if save_ckpt:
                     util.save_checkpoint(model, saver, sess, transfer, iter)
         epoch_end = time.time()
         epoch_time_taken = epoch_end - epoch_start
         epoch_time_takens.append(epoch_time_taken)
-        print('Epoch time taken: %s; average = %s; ETC: %s' % (epoch_time_taken,
-                                                               np.average(epoch_time_takens),
-                                                               start + np.average(epoch_time_takens) * num_epochs))
+        print('Epoch time: %s; average = %s' % (round(epoch_time_taken, 2),
+                                                round(np.average(epoch_time_takens), 2)))
     writer.close()
     model.in_training = False
     history.visualize()
