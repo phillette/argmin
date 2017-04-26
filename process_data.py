@@ -286,5 +286,10 @@ def remove_no_gold_label_ids():
             repository.delete_one(id)
 
 
+def remove_oov_samples():
+    missing_vectors = util.load_pickle('missing_vectors.pkl')
+
+
+
 if __name__ == '__main__':
-    _generate_oov_vectors()
+    update_oov_vectors()

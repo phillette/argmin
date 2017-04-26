@@ -55,7 +55,7 @@ def alignment_parikh():
     75acc 5e-4, ep45(no restart)
     70ish with extrapolation 1e-4, ep45(no restart)
     """
-    config = Config(learning_rate=5e-4,
+    config = Config(learning_rate=1e-4,
                     p_keep_ff=0.8,
                     grad_clip_norm=5.0,
                     lamda=0.0,
@@ -77,7 +77,7 @@ def alignment_bi_rnn():
 def _train(model, transfer_to_carstens):
     with tf.Session() as sess:
         sess.run(tf.global_variables_initializer())
-        train(model, 'snli', 'train', 20, sess, load_ckpt=True, save_ckpt=True, transfer=False)
+        #train(model, 'snli', 'train', 20, sess, load_ckpt=True, save_ckpt=True, transfer=False)
         accuracy(model, 'snli', 'train', sess, load_ckpt=False)
         accuracy(model, 'snli', 'dev', sess, load_ckpt=False)
         accuracy(model, 'snli', 'test', sess, load_ckpt=False)
