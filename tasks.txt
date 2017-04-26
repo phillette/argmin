@@ -1,11 +1,22 @@
-* Run process_data cleanup functions
-    - THINK about making new properties instead of just overwriting everything
-
-Make get_batch_gen more efficient:
-* Project desired fields from mongo
-* Shift as much of the processing out by saving already in the db
-    - timesteps?  Might have to look through the code to see if I can fix this
-* By deleting no gold label records I can remove the need to process that
+Goals:
+1. Get my hands on a well trained set of parameters to do transfer learning
+    a. try the lower learning rate for Parikh model
+    b. look at implementation details for errors
+    c. do I want to investigate batch size?
+2. Start working on encoding models
+    a. keep reading papers
+    b. implement promising ideas
+3. Make the training process FASTER
+    a. prepending NULL to be added into mongo
+    *  already got the projection fetch in new repo method
+    b. encoded label can be put into mongo
+    c. review the padding out of sentences - can be by batch?  look at model details
+    *  adding third dimension to batches necessary in code
+    d. removing no gold label samples reduces CPU overhead
+    e. when I figure out what to do with OOV, make the change in mongo
+    f. async buffer filling
+4. Clean up my training process
+    a. global step is not being saved properly
 
 Training Process:
 * Create separate checkpoint files based on config settings automatically

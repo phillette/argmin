@@ -1,6 +1,5 @@
 import tensorflow as tf
 import numpy as np
-from batching import BatchGenWrapper, Batch2
 from util import *
 from prediction import accuracy2
 from decorators import define_scope
@@ -20,6 +19,22 @@ NUM_ITERS = 45
 REPORT_EVERY = 5
 NUM_ITERS_TEST = 5
 NUM_EPOCHS = 40
+
+
+class Batch2:
+    def __init__(self, X, Y):
+        self.X = X
+        self.Y = Y
+
+
+class BatchGenWrapper:
+    def __init__(self, batch_gen_generator, num_iters, report_every):
+        self.batch_gen_generator = batch_gen_generator
+        self.num_iters = num_iters
+        self.report_every = report_every
+
+    def new_batch_generator(self):
+        return self.batch_gen_generator()
 
 
 def train2(model, batch_gen_wrapper, num_epochs, sess,
