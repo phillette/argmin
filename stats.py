@@ -33,6 +33,13 @@ NO_GOLD_LABEL_COUNTS = {
     'dev': 158,
     'test': 176
 }
+SAMPLES_WITH_OOV = {
+    'snli': {
+        'train': 10297,
+        'dev': 161,
+        'test': 176
+    }
+}
 
 # Stats for batching and training
 BATCH_SIZE = {

@@ -248,30 +248,32 @@ def _generate_oov_vectors():
     util.save_pickle(oov_vectors, 'oov_vectors.pkl')
 
 
-def update_oov_vectors():
+def update_oov_vectors(collections=mongoi.COLLECTIONS['snli']):
     nlp = spacy.load('en')
     missing_vectors = util.load_pickle('missing_vectors.pkl')
     oov_vectors = util.load_pickle('oov_vectors.pkl')
-    for collection in mongoi.COLLECTIONS['snli']:
+    for collection in collections:
         _update_oov_vectors_per_collection(collection, nlp, missing_vectors, oov_vectors)
 
 
 def _update_oov_vectors_per_collection(collection, nlp, missing_vectors, oov_vectors):
+    no_gold_labels = util.load_pickle('no_gold_label_ids.pkl')
     repository = mongoi.get_repository('snli', collection)
-    for word, doc_id in missing_vectors[collection]['words']:
-        doc = repository.get(doc_id)
-        _update_oov_vectors_per_document(doc, word, oov_vectors[word], nlp, repository)
+    for doc_id, word in missing_vectors[collection]['words'].items():
+        if doc_id not in no_gold_labels[collection]:
+            doc = next(repository.get(doc_id))
+            _update_oov_vectors_per_document(doc, word, oov_vectors[word], nlp, repository)
 
 
 def _update_oov_vectors_per_document(doc, word, word_vector, nlp, repository):
-    if word in doc['sentence1']:
-        premise_doc = nlp(doc['sentence1'])
+    premise_doc = nlp(doc['sentence1'])
+    hypothesis_doc = nlp(doc['sentence2'])
+    if word in [t.text for t in premise_doc]:
         index = next((t.i for t in premise_doc if t.text == word))
         premise_matrix = mongoi.string_to_array(doc['premise'])
         premise_matrix[index, :] = word_vector
         repository.update_one(doc['_id'], {'premise': mongoi.array_to_string(premise_matrix)})
-    if word in doc['sentence2']:
-        hypothesis_doc = nlp(doc['sentence2'])
+    if word in [t.text for t in hypothesis_doc]:
         index = next((t.i for t in hypothesis_doc if t.text == word))
         premise_matrix = mongoi.string_to_array(doc['hypothesis'])
         premise_matrix[index, :] = word_vector
@@ -286,10 +288,11 @@ def remove_no_gold_label_samples():
             repository.delete_one(id)
 
 
-def remove_oov_samples():
-    missing_vectors = util.load_pickle('missing_vectors.pkl')
-    raise Exception('Do I really want to do this?')
+def prepend_nulls(collections=mongoi.COLLECTIONS['snli']):
+    for collection in collections:
+        repository = mongoi.get_repository('snli', collection)
+
 
 
 if __name__ == '__main__':
-    remove_no_gold_label_samples()
+    update_oov_vectors(['dev'])

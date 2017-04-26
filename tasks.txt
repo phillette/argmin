@@ -12,9 +12,8 @@ Goals:
     b. encoded label can be put into mongo
     c. review the padding out of sentences - can be by batch?  look at model details
     *  adding third dimension to batches necessary in code
-    d. removing no gold label samples reduces CPU overhead
-    e. when I figure out what to do with OOV, make the change in mongo
-    f. async buffer filling
+    d. when I figure out what to do with OOV, make the change in mongo
+    e. async buffer filling
 4. Clean up my training process
     a. global step is not being saved properly
 

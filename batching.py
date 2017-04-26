@@ -6,7 +6,6 @@ import labeling
 
 
 NULL_VECTOR = util.load_pickle('NULL_glove_vector.pkl')
-NO_GOLD_LABEL_IDS = util.load_pickle('no_gold_label_ids.pkl')
 PREFERRED_BATCH_SIZES = {
     'snli': {
         'train': 4,
@@ -28,11 +27,7 @@ class Batch:
 
 
 class RandomGenerator:
-    """
-    This is the new one that takes account of no gold labels.
-    """
     def __init__(self, db_name='snli', collection='train', buffer_size=100):
-        print('Random Generator constructed')
         self._db_name = db_name
         self._collection = collection
         self._repository = mongoi.get_repository(db_name, collection)
@@ -41,7 +36,6 @@ class RandomGenerator:
         self._db_yielded = 0
         self._i_yielded = 0
         self._buffer = []
-        self._passed_over = 0
         self._fill_buffer()
 
     def _fill_buffer(self):  # I wish I could do this async!
@@ -49,10 +43,7 @@ class RandomGenerator:
             if self._gen.alive:
                 next_doc = next(self._gen)
                 self._db_yielded += 1
-                if next_doc['_id'] not in NO_GOLD_LABEL_IDS[self._collection]:
-                    self._buffer.append(next_doc)
-                else:
-                    self._passed_over += 1
+                self._buffer.append(next_doc)
             else:
                 break  # don't waste time iterating further if we're at the end
 
@@ -71,10 +62,9 @@ class RandomGenerator:
 
     def _raise_exception(self):
         info = 'Attempted to fetch but buffer is empty.'
-        info += '\nState: %s yielded; %s buffered; %s passed over; %s db yielded.' % (self._i_yielded,
-                                                                                      len(self._buffer),
-                                                                                      self._passed_over,
-                                                                                      self._db_yielded)
+        info += '\nState: %s yielded; %s buffered; %s db yielded.' % (self._i_yielded,
+                                                                      len(self._buffer),
+                                                                      self._db_yielded)
         info += '\ndb: %s; collection: %s' % (self._db_name,
                                               self._collection)
         raise Exception(info)
