@@ -1,25 +1,22 @@
-from mongoi import CarstensDb, SNLIDb, string_to_array, get_repository
+import mongoi
 import numpy as np
-from util import load_pickle
-from stats import *
+import util
+import stats
+import labeling
 
 
-"""
-Thinking it is best to remove the no gold labels observations:
-* train: 550,012 - 785 = 549,227.  This is divisible by 217 2531 times.
-* dev:    10,000 - 158 =   9,842.  This is divisible by 259   38 times.
-* test:   10,000 - 176 =   9,824.  This is divisible by 307   32 times.
-"""
+NULL_VECTOR = util.load_pickle('NULL_glove_vector.pkl')
+NO_GOLD_LABEL_IDS = util.load_pickle('no_gold_label_ids.pkl')
+PREFERRED_BATCH_SIZES = {
+    'snli': {
+        'train': 4,
+        'dev': 4,
+        'test': 4
+    },
+    'carstens': {
 
-
-NULL_VECTOR = load_pickle('NULL_glove_vector.pkl')
-NO_GOLD_LABEL_IDS = load_pickle('no_gold_label_ids.pkl')
-
-
-def add_third_dimensions(batch):
-    batch.premises = np.concatenate(list(M[np.newaxis, ...] for M in batch.premises), axis=0)
-    batch.hypotheses = np.concatenate(list(M[np.newaxis, ...] for M in batch.hypotheses), axis=0)
-    batch.labels = np.vstack(batch.labels)
+    }
+}
 
 
 class Batch:
@@ -30,112 +27,6 @@ class Batch:
         self.labels = labels
 
 
-def encode(label):
-    encoding = np.zeros((1, 3), dtype='float64')
-    encoding[0, LABEL_TO_ENCODING[label]] = 1
-    return encoding
-
-
-def get_batch_gen(db, collection):
-    gen = RandomGenerator(db, collection)
-    while True:
-        ids = []
-        premises = []
-        hypotheses = []
-        labels = []
-        for _ in range(BATCH_SIZE[db][collection]):
-            if gen.alive():  # if there are no more records, don't try and find one
-                doc = gen.next()
-                id = doc['_id']
-                premise = string_to_array(doc['premise'])
-                hypothesis = string_to_array(doc['hypothesis'])
-                premise = prepend_null(premise)        # comment this out to go back to normal
-                hypothesis = prepend_null(hypothesis)  # comment this out to go back to normal
-                label = encode(doc['gold_label'])
-                ids.append(id)
-                premises.append(premise)
-                hypotheses.append(hypothesis)
-                labels.append(label)
-        batch = Batch(ids, premises, hypotheses, labels)
-        pad_out_sentences(batch)
-        add_third_dimensions(batch)
-        yield batch
-
-
-def pad_out_sentences(batch,
-                      pad_max=False,
-                      premise_pad_length=LONGEST_SENTENCE_SNLI,
-                      hypothesis_pad_length=LONGEST_SENTENCE_SNLI):
-    # at this stage the premises and hypotheses are still lists of matrices
-    if pad_max:
-        premise_pad_length = max([premise.shape[0] for premise in batch.premises])
-        hypothesis_pad_length = max([hypothesis.shape[0] for hypothesis in batch.hypotheses])
-    batch.premises = list(pad_sentence(premise, premise_pad_length) for premise in batch.premises)
-    batch.hypotheses = list(pad_sentence(hypothesis, hypothesis_pad_length) for hypothesis in batch.hypotheses)
-
-
-def pad_sentence(sentence, desired_length):
-    original_length = sentence.shape[0]
-    word_embed_dim = sentence.shape[1]
-    if original_length < desired_length:
-        sentence = np.concatenate([sentence,
-                                   np.zeros((desired_length - original_length,
-                                             word_embed_dim))],
-                                  axis=0)
-    return sentence
-
-
-def prepend_null(sentence_matrix):
-    return np.vstack([NULL_VECTOR, sentence_matrix])
-
-
-class RandomizedGeneratorFromGen:
-    def __init__(self, db='snli', collection='train'):
-        self._db_name = db
-        self._collection = collection
-        self._batch_size = BATCH_SIZE[db][collection]
-        self._buffer_factor = BUFFER_FACTORS[db][collection]
-        self._db = CarstensDb() if db == 'carstens' else SNLIDb()
-        self._gen = self._db.repository(self._collection).find_all()
-        self._i_yielded = 0
-        self._i_buffered = 0
-        self._buffered = []
-        self._fill_buffer()
-
-    def _fill_buffer(self):
-        for i in range(self._batch_size * self._buffer_factor):
-            if self._gen.alive:
-                self._buffered.append(next(self._gen))
-                self._i_buffered += 1
-            else:
-                break  # don't waste time iterating further if we're at the end
-
-    def next(self):
-        if len(self._buffered) == 0:
-            self._raise_exception()
-        sample = np.random.choice(self._buffered, size=1)[0]
-        self._buffered.remove(sample)
-        if len(self._buffered) == 0:
-            if self._gen.alive:
-                self._fill_buffer()
-        self._i_yielded += 1
-        return sample
-
-    def _raise_exception(self):
-        info = 'Attempted to fetch but buffer is empty.  State: ' \
-               '%s yielded; %s buffered.' % (self._i_yielded, self._i_buffered)
-        info += '\ndb: %s; collection: %s' % (self._db_name, self._collection)
-        raise Exception(info)
-
-
-"""
-Thinking it is best to remove the no gold labels observations:
-* train: 550,012 - 785 = 549,227.  This is divisible by 217 2531 times.
-* dev:    10,000 - 158 =   9,842.  This is divisible by 259   38 times.
-* test:   10,000 - 176 =   9,824.  This is divisible by 307   32 times.
-"""
-
-
 class RandomGenerator:
     """
     This is the new one that takes account of no gold labels.
@@ -143,7 +34,7 @@ class RandomGenerator:
     def __init__(self, db_name='snli', collection='train', buffer_size=100):
         self._db_name = db_name
         self._collection = collection
-        self._repository = get_repository(db_name, collection)
+        self._repository = mongoi.get_repository(db_name, collection)
         self._gen = self._repository.batch()
         self._buffer_size = buffer_size
         self._db_yielded = 0
@@ -188,33 +79,73 @@ class RandomGenerator:
         raise Exception(info)
 
 
-class RandomizedGeneratorFromIDs:
-    """
-    I don't think I'd end up using this just based on the performance.
-    I haven't tested it, but theoretically it looks too slow.
-    Moving over a large enough window (buffer size)
-    and selecting randomly from within there has got to be good enough
-    to eliminate any patterns in the way the data is presented to the network.
-    """
-    def __init__(self, db, collection):
-        self._collection = collection
-        self._batch_size = BATCH_SIZE[db][collection]
-        self._db = CarstensDb() if db == 'carstens' else SNLIDb()
-        self._ids = list(range(COLLECTION_SIZE[db][collection]))
+def get_batch_gen(db, collection, batch_size=None):
+    if not batch_size:
+        batch_size = PREFERRED_BATCH_SIZES[db][collection]
+    gen = RandomGenerator(db, collection)
+    while True:
+        ids = []
+        premises = []
+        hypotheses = []
+        labels = []
+        for _ in range(batch_size):
+            if gen.alive():  # if there are no more records, don't try and find one
+                doc = gen.next()
+                id = doc['_id']
+                premise = mongoi.string_to_array(doc['premise'])
+                hypothesis = mongoi.string_to_array(doc['hypothesis'])
+                premise = prepend_null(premise)        # comment this out to go back to normal
+                hypothesis = prepend_null(hypothesis)  # comment this out to go back to normal
+                label = encode(doc['gold_label'])
+                ids.append(id)
+                premises.append(premise)
+                hypotheses.append(hypothesis)
+                labels.append(label)
+        batch = Batch(ids, premises, hypotheses, labels)
+        pad_sentences(batch)
+        add_third_dimensions(batch)
+        yield batch
 
-    def next(self):
-        new_id = np.random.choice(a=self._ids,
-                                  size=1)[0]
-        self._ids.remove(new_id)
-        return self._db.repository(self._collection).find('_id', new_id)  # will this be slow?
+
+def encode(label):
+    encoding = np.zeros((1, 3), dtype='float64')
+    encoding[0, labeling.LABEL_TO_ENCODING[label]] = 1
+    return encoding
 
 
-if __name__ == '__main__':
-    db = 'snli'
-    collection = 'dev'
-    gen = get_batch_gen(db, collection)
-    for i in range(NUM_ITERS[db][collection]):
-        try:
-            doc = next(gen)
-        except:
-            raise Exception('%s' % i)
+def pad_sentences(batch,
+                  pad_max=False,
+                  premise_pad_length=stats.LONGEST_SENTENCE_SNLI,
+                  hypothesis_pad_length=stats.LONGEST_SENTENCE_SNLI):
+    # at this stage the premises and hypotheses are still lists of matrices
+    if pad_max:
+        premise_pad_length = max([premise.shape[0] for premise in batch.premises])
+        hypothesis_pad_length = max([hypothesis.shape[0] for hypothesis in batch.hypotheses])
+    batch.premises = list(pad_sentence(premise, premise_pad_length) for premise in batch.premises)
+    batch.hypotheses = list(pad_sentence(hypothesis, hypothesis_pad_length) for hypothesis in batch.hypotheses)
+
+
+def pad_sentence(sentence, desired_length):
+    original_length = sentence.shape[0]
+    word_embed_dim = sentence.shape[1]
+    if original_length < desired_length:
+        sentence = np.concatenate([sentence,
+                                   np.zeros((desired_length - original_length,
+                                             word_embed_dim))],
+                                  axis=0)
+    return sentence
+
+
+def prepend_null(sentence_matrix):
+    return np.vstack([NULL_VECTOR, sentence_matrix])
+
+
+def add_third_dimensions(batch):
+    batch.premises = np.concatenate(list(M[np.newaxis, ...] for M in batch.premises), axis=0)
+    batch.hypotheses = np.concatenate(list(M[np.newaxis, ...] for M in batch.hypotheses), axis=0)
+    batch.labels = np.vstack(batch.labels)
+
+
+def num_iters(db, collection, batch_size):
+    collection_size = stats.COLLECTION_SIZE[db][collection]
+    return np.ceil(collection_size / batch_size)

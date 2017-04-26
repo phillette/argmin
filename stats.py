@@ -5,10 +5,29 @@ Notes:
 """
 
 
+"""
+Thinking it is best to remove the no gold labels observations:
+* train: 550,012 - 785 = 549,227.  This is divisible by 217 2531 times.
+* dev:    10,000 - 158 =   9,842.  This is divisible by 259   38 times.
+* test:   10,000 - 176 =   9,824.  This is divisible by 307   32 times.
+"""
+
+
 # Basic stats
 NUM_LABELS = 3
 LONGEST_SENTENCE_SNLI = 403  # 402, but we have prepended NULL to everything now
-
+COLLECTION_SIZE = {
+    'snli': {
+        'train': 549367,
+        'dev': 9842,
+        'test': 9824
+    },
+    'carstens': {
+        'all': 4058,
+        'train': 3500,
+        'test': 558
+    }
+}
 
 # Stats for batching and training
 BATCH_SIZE = {
@@ -23,18 +42,7 @@ BATCH_SIZE = {
         'test': 558
     }
 }
-COLLECTION_SIZE = {
-    'snli': {
-        'train': 549367,
-        'dev': 9842,
-        'test': 9824
-    },
-    'carstens': {
-        'all': 4058,
-        'train': 3500,
-        'test': 558
-    }
-}
+
 NUM_ITERS = {
     'snli': {
         'train': 137342,
@@ -75,7 +83,4 @@ BUFFER_FACTORS = {
 ENCODING_TO_LABEL = {0: 'neutral',
                      1: 'entailment',
                      2: 'contradiction'}
-LABEL_TO_ENCODING = {'neutral': 0,
-                     'entailment': 1,
-                     'contradiction': 2,
-                     '-': 0}  # this is an issue
+
