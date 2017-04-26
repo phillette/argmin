@@ -6,7 +6,8 @@ import util
 import time
 
 
-def train(model, db, collection, num_epochs, sess, load_ckpt=True, save_ckpt=True, transfer=False, summarise=True):
+def train(model, db, collection, num_epochs, sess, batch_size=4,
+          load_ckpt=True, save_ckpt=True, transfer=False, summarise=True):
     # make sure sess.run(tf.global_variables_initializer() has already been run)
     writer = tf.summary.FileWriter(util.log_graph_path(model.name), sess.graph)
     saver = tf.train.Saver()
@@ -18,14 +19,16 @@ def train(model, db, collection, num_epochs, sess, load_ckpt=True, save_ckpt=Tru
     average_accuracy = 0.0
     starting_iter = model.global_step.eval()
     iter = starting_iter
+    num_iters = batching.num_iters(db, collection, batch_size)
     epoch_time_takens = []
     iter_time_takens = []
     start = time.time()
     for epoch in range(num_epochs):
         print('Epoch %s' % (epoch + 1))
         epoch_start = time.time()
-        batch_gen = batching.get_batch_gen(db, collection)
-        while iter < starting_iter + (epoch + 1) * stats.NUM_ITERS[db][collection]:
+        batch_gen = batching.get_batch_gen(db, collection, batch_size=batch_size)
+        last_iter = starting_iter + ((epoch + 1) * num_iters)
+        while iter <= last_iter:  # check that <= is right, I had < before
             iter_start = time.time()
             batch = next(batch_gen)
             batch_loss, batch_accuracy, _, summary = sess.run([model.loss,
@@ -44,11 +47,19 @@ def train(model, db, collection, num_epochs, sess, load_ckpt=True, save_ckpt=Tru
             if summarise:
                 writer.add_summary(summary, global_step=model.global_step.eval())
             iter += 1
+            average_time = np.average(iter_time_takens)
+            iters_remaining = last_iter - iter
             if iter % stats.REPORT_EVERY[db][collection] == 0:
-                print('Step %s: loss = %s; accuracy = %s; time = %s' % (iter,
-                                                                        average_loss / iter,
-                                                                        average_accuracy / iter,
-                                                                        np.average(iter_time_takens)))
+                print('Step %s (%s%%): '
+                      'loss = %s; '
+                      'accuracy = %s; '
+                      'time = %s; '
+                      'remaining = %s' % (iter,
+                                          iter / last_iter,
+                                          average_loss / iter,
+                                          average_accuracy / iter,
+                                          average_time,
+                                          average_time * iters_remaining))
                 if save_ckpt:
                     util.save_checkpoint(model, saver, sess, transfer, iter)
         epoch_end = time.time()

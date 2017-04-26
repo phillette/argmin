@@ -3,10 +3,9 @@ from batching import get_batch_gen
 import numpy as np
 from util import load_checkpoint, feed_dict, feed_dict2
 import tensorflow as tf
-import itertools
+import aligned
 from mongoi import get_repository
 import pandas as pd
-from aligned import Alignment
 from model_base import Config
 from stats import *
 
@@ -144,7 +143,7 @@ if __name__ == '__main__':
                     p_keep_ff=1.0,
                     grad_clip_norm=5.0,
                     lamda=0.0)
-    model = Alignment(config, 100)
+    model = aligned.AlignmentParikh(config, 100)
     with tf.Session() as sess:
         sess.run(tf.global_variables_initializer())
         re = evaluate(model, sess)

@@ -25,30 +25,6 @@ def bi_rnn_bowman():
     return model
 
 
-def alignment():
-    # UNREGULARIZED
-    # 1e-4 sees successful training for no regularization (5.0 clip) [tanh version]
-    # relu version: 1e-3 no good; 1e-4 seems slow; 6e-4 not as good as 1e-4; 3e-4 stuck at 53
-    #               training on train @ 1e-4 VERY slow.  After 3 epochs: 71 loss, 44 accuracy.
-    # REGULARIZED
-    # pki: 0.8; pkf: 0.5 @ 1e-3: Stuck at 55
-    # FIXED TO ALL RELU - pumped ff alignment size up to 300
-    # pki: 0.8; pkf: 0.5 @ 1e-3: blew the hell up
-    #  ""        ""      @ 1e-5: all over the place.  Can't get past 55.
-    # back to vanilla unreg but the bias is added (tanh too).
-    # 1e-4 will not converge - getting stuck around 52 or so
-    # 1e-5 stuck at 56
-    # RELU
-    #
-    config = Config(learning_rate=1e-3,
-                    p_keep_input=0.9,
-                    p_keep_ff=0.7,
-                    grad_clip_norm=5.0,
-                    lamda=0.0)
-    model = aligned.Alignment(config, 300, 100, activation=tf.nn.relu)
-    return model
-
-
 def alignment_parikh():
     """ Dev 40ep @ 1e-3: forgot, but roughly 60 at a guess
     70acc 8e-4, ep45(restarted)
@@ -77,8 +53,8 @@ def alignment_bi_rnn():
 def _train(model, transfer_to_carstens):
     with tf.Session() as sess:
         sess.run(tf.global_variables_initializer())
-        #train(model, 'snli', 'train', 20, sess, load_ckpt=True, save_ckpt=True, transfer=False)
-        accuracy(model, 'snli', 'train', sess, load_ckpt=False)
+        train(model, 'snli', 'dev', 20, sess, batch_size=32, load_ckpt=False, save_ckpt=False, transfer=False)
+        #accuracy(model, 'snli', 'train', sess, load_ckpt=False)
         accuracy(model, 'snli', 'dev', sess, load_ckpt=False)
         accuracy(model, 'snli', 'test', sess, load_ckpt=False)
         if transfer_to_carstens:

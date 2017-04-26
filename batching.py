@@ -81,21 +81,21 @@ def get_batch_gen(db, collection, batch_size=None):
         premises = []
         hypotheses = []
         labels = []
+        pad_length = 0
         for _ in range(batch_size):
             if gen.alive():  # if there are no more records, don't try and find one
                 doc = gen.next()
                 id = doc['_id']
                 premise = mongoi.string_to_array(doc['premise'])
                 hypothesis = mongoi.string_to_array(doc['hypothesis'])
-                premise = prepend_null(premise)        # comment this out to go back to normal
-                hypothesis = prepend_null(hypothesis)  # comment this out to go back to normal
                 label = encode(doc['gold_label'])
                 ids.append(id)
                 premises.append(premise)
                 hypotheses.append(hypothesis)
                 labels.append(label)
+                pad_length = update_pad_length(pad_length, premise, hypothesis)
         batch = Batch(ids, premises, hypotheses, labels)
-        pad_sentences(batch)
+        pad_sentences(batch, pad_length)
         add_third_dimensions(batch)
         yield batch
 
@@ -106,30 +106,30 @@ def encode(label):
     return encoding
 
 
-def pad_sentences(batch,
-                  pad_max=False,
-                  pad_length=stats.LONGEST_SENTENCE_SNLI):
-    # at this stage the premises and hypotheses are still lists of matrices
-    if pad_max:
-        premise_pad_length = max([premise.shape[0] for premise in batch.premises])
-        hypothesis_pad_length = max([hypothesis.shape[0] for hypothesis in batch.hypotheses])
+def update_pad_length(pad_length, premise, hypothesis):
+    premise_length = premise.shape[0]
+    if pad_length < premise_length:
+        pad_length = premise_length
+    hypothesis_length = hypothesis.shape[0]
+    if pad_length < hypothesis_length:
+        pad_length = hypothesis_length
+    return pad_length
+
+
+def pad_sentences(batch, pad_length):
     batch.premises = list(pad_sentence(premise, pad_length) for premise in batch.premises)
     batch.hypotheses = list(pad_sentence(hypothesis, pad_length) for hypothesis in batch.hypotheses)
 
 
-def pad_sentence(sentence, desired_length):
+def pad_sentence(sentence, pad_length):
     original_length = sentence.shape[0]
     word_embed_dim = sentence.shape[1]
-    if original_length < desired_length:
+    if original_length < pad_length:
         sentence = np.concatenate([sentence,
-                                   np.zeros((desired_length - original_length,
+                                   np.zeros((pad_length - original_length,
                                              word_embed_dim))],
                                   axis=0)
     return sentence
-
-
-def prepend_null(sentence_matrix):
-    return np.vstack([NULL_VECTOR, sentence_matrix])
 
 
 def add_third_dimensions(batch):

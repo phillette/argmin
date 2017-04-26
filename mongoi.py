@@ -70,7 +70,7 @@ class CarstensDb(RepositoryFacade):
 class SNLIDb(RepositoryFacade):
     """ Repository Facade for the SNLI 1.0 data set. """
     def __init__(self):
-        RepositoryFacade.__init__(self, 'localhost', 27017, 'snlidb')
+        RepositoryFacade.__init__(self, 'localhost', 27017, 'snli')
         self.train = Repository(self.db.train)
         self.dev = Repository(self.db.dev)
         self.test = Repository(self.db.test)
