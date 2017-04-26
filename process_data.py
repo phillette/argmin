@@ -288,11 +288,24 @@ def remove_no_gold_label_samples():
             repository.delete_one(id)
 
 
+NULL_VECTOR = util.load_pickle('NULL_glove_vector.pkl')
+
+
+def prepend_null(sentence_matrix):
+    return np.vstack([NULL_VECTOR, sentence_matrix])
+
+
 def prepend_nulls(collections=mongoi.COLLECTIONS['snli']):
     for collection in collections:
         repository = mongoi.get_repository('snli', collection)
-
+        for doc in repository.find_all():
+            premise = mongoi.string_to_array(doc['premise'])
+            premise = prepend_null(premise)
+            repository.update_one(doc['_id'], {'premise': mongoi.array_to_string(premise)})
+            hypothesis = mongoi.string_to_array(doc['hypothesis'])
+            hypothesis = prepend_null(hypothesis)
+            repository.update_one(doc['_id'], {'hypothesis': mongoi.array_to_string(hypothesis)})
 
 
 if __name__ == '__main__':
-    update_oov_vectors(['dev'])
+    prepend_nulls()
