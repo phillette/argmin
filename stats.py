@@ -28,6 +28,11 @@ COLLECTION_SIZE = {
         'test': 558
     }
 }
+NO_GOLD_LABEL_COUNTS = {
+    'train': 785,
+    'dev': 158,
+    'test': 176
+}
 
 # Stats for batching and training
 BATCH_SIZE = {

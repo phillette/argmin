@@ -278,7 +278,7 @@ def _update_oov_vectors_per_document(doc, word, word_vector, nlp, repository):
         repository.update_one(doc['_id'], {'hypothesis': mongoi.array_to_string(premise_matrix)})
 
 
-def remove_no_gold_label_ids():
+def remove_no_gold_label_samples():
     no_gold_label_ids = util.load_pickle('no_gold_label_ids.pkl')
     for collection in mongoi.COLLECTIONS['snli']:
         repository = mongoi.get_repository('snli', collection)
@@ -288,8 +288,8 @@ def remove_no_gold_label_ids():
 
 def remove_oov_samples():
     missing_vectors = util.load_pickle('missing_vectors.pkl')
-
+    raise Exception('Do I really want to do this?')
 
 
 if __name__ == '__main__':
-    update_oov_vectors()
+    remove_no_gold_label_samples()

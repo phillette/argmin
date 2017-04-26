@@ -1,7 +1,7 @@
 import tensorflow as tf
-from batching import LONGEST_SENTENCE_SNLI
-from decorators import define_scope
-from util import clip_gradients
+import stats
+import decorators
+import util
 
 
 class X:
@@ -17,15 +17,15 @@ def augment_factor(probability, in_training):
         return probability
 
 
-def data_placeholders(time_steps, word_embed_size):
+def data_placeholders(word_embed_size):
     premises = tf.placeholder(tf.float64,
                               [None,
-                               time_steps,
+                               None,
                                word_embed_size],
                               name='premises')
     hypotheses = tf.placeholder(tf.float64,
                                 [None,
-                                 time_steps,
+                                 None,
                                  word_embed_size],
                                 name='hypotheses')
     Y = tf.placeholder(tf.float64,
@@ -51,7 +51,7 @@ class Config:
     def __init__(self,
                  word_embed_size=300,
                  learning_rate=1e-3,
-                 time_steps=LONGEST_SENTENCE_SNLI,
+                 time_steps=stats.LONGEST_SENTENCE_SNLI,
                  grad_clip_norm=5.0,
                  hidden_size=100,
                  rnn_size=300,
@@ -82,37 +82,46 @@ class Model:
                                        name='global_step')
         self.in_training = False
         self.data
+        self.batch_size
+        self.batch_timesteps
 
-    @define_scope
+    @decorators.define_scope
     def accuracy(self):
         return tf.reduce_mean(tf.cast(self.correct_predictions, tf.float64))
 
-    @define_scope
+    @decorators.define_scope
+    def batch_size(self):
+        return tf.shape(self.X.premises)[0]
+
+    @decorators.define_scope
+    def batch_timesteps(self):
+        return tf.shape(self.X.premises)[1]
+
+    @decorators.define_scope
     def confidences(self):
         return tf.reduce_max(self.logits, axis=1)
 
-    @define_scope
+    @decorators.define_scope
     def correct_predictions(self):
         return tf.equal(self.predicted_labels, tf.argmax(self.Y, axis=1))
 
-    @define_scope
+    @decorators.define_scope
     def data(self):
-        self.X, self.Y = data_placeholders(self.config.time_steps,
-                                           self.config.word_embed_size)
+        self.X, self.Y = data_placeholders(self.config.word_embed_size)
         return self.X, self.Y
 
-    @define_scope
+    @decorators.define_scope
     def optimize(self):
         optimizer = tf.train.AdamOptimizer(self.config.learning_rate)
         grads_and_vars = optimizer.compute_gradients(self.loss, self._all_weights())
-        clipped_grads_and_vars = clip_gradients(grads_and_vars)
+        clipped_grads_and_vars = util.clip_gradients(grads_and_vars)
         return optimizer.apply_gradients(clipped_grads_and_vars)
 
-    @define_scope
+    @decorators.define_scope
     def predicted_labels(self):
         return tf.argmax(self.logits, axis=1)
 
-    @define_scope
+    @decorators.define_scope
     def summary(self):
         tf.summary.scalar('loss', self.loss)
         tf.summary.scalar('accuracy', self.accuracy)

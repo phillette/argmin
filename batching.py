@@ -32,6 +32,7 @@ class RandomGenerator:
     This is the new one that takes account of no gold labels.
     """
     def __init__(self, db_name='snli', collection='train', buffer_size=100):
+        print('Random Generator constructed')
         self._db_name = db_name
         self._collection = collection
         self._repository = mongoi.get_repository(db_name, collection)
@@ -80,8 +81,10 @@ class RandomGenerator:
 
 
 def get_batch_gen(db, collection, batch_size=None):
+    # if a batch_size is not selected, default to the preferred
     if not batch_size:
         batch_size = PREFERRED_BATCH_SIZES[db][collection]
+    # the random generator to use
     gen = RandomGenerator(db, collection)
     while True:
         ids = []
@@ -115,14 +118,13 @@ def encode(label):
 
 def pad_sentences(batch,
                   pad_max=False,
-                  premise_pad_length=stats.LONGEST_SENTENCE_SNLI,
-                  hypothesis_pad_length=stats.LONGEST_SENTENCE_SNLI):
+                  pad_length=stats.LONGEST_SENTENCE_SNLI):
     # at this stage the premises and hypotheses are still lists of matrices
     if pad_max:
         premise_pad_length = max([premise.shape[0] for premise in batch.premises])
         hypothesis_pad_length = max([hypothesis.shape[0] for hypothesis in batch.hypotheses])
-    batch.premises = list(pad_sentence(premise, premise_pad_length) for premise in batch.premises)
-    batch.hypotheses = list(pad_sentence(hypothesis, hypothesis_pad_length) for hypothesis in batch.hypotheses)
+    batch.premises = list(pad_sentence(premise, pad_length) for premise in batch.premises)
+    batch.hypotheses = list(pad_sentence(hypothesis, pad_length) for hypothesis in batch.hypotheses)
 
 
 def pad_sentence(sentence, desired_length):
