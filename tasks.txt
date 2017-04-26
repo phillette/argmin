@@ -1,13 +1,20 @@
-Data Cleaning / Prep:
-* Generate vocab dictionary
-* Determine missing word vectors
-* Train missing word vectors
+* Run process_data cleanup functions
+    - THINK about making new properties instead of just overwriting everything
+
+Make get_batch_gen more efficient:
+* Project desired fields from mongo
+* Shift as much of the processing out by saving already in the db
+    - timesteps?  Might have to look through the code to see if I can fix this
+* By deleting no gold label records I can remove the need to process that
 
 Training Process:
 * Create separate checkpoint files based on config settings automatically
+* Back up parameters in separate folders at certain times
 * Add an option to look at accuracy on dev / train after each epoch and record that history
     - visualizing on TB may also be great
 * Broader algorithm to assist training, saving results, visualizing, etc
+* Delete old scalar data from summary so that I can actually look at a clean graph
+    - or move back to matplotlib and just customize it all
 
 Models:
 * Assess performance on properly clean data set:
@@ -24,9 +31,6 @@ Parkih:
 - dropout rate 0.2
 - LR = 0.05
 
-*** Got to bring computation time down
-- get_batch limian de code can be moved into Mongo - pre-process Mofo
-- Got to find a way to deal with variable lengths, timesteps...
-
 * Global step is still not being saved properly
 * It would also be nice if the number of epochs were saved on the model
+* I can define the batch length and then automatically calculate the number of iterations given the collection size

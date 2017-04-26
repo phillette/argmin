@@ -85,6 +85,16 @@ class Repository:
     def __init__(self, collection):
         self.collection = collection
 
+    def batch(self):
+        """
+        Gets all documents for a batch - projecting just _id, premises, hypotheses, and label.
+        :return: generator
+        """
+        return self.collection.find({}, {'_id': 1,
+                                         'premise': 1,
+                                         'hypothesis': 1,
+                                         'gold_label': 1})
+
     def count(self):
         """
         Gets the document count in the collection.
