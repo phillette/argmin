@@ -4,6 +4,25 @@ import batching
 import stats
 import util
 import time
+import datetime
+import matplotlib.pyplot as plt
+
+
+class History:
+    def __init__(self):
+        self.iter = []
+        self.loss = []
+        self.accuracy = []
+
+    def report(self, iter, loss, accuracy):
+        self.iter.append(iter)
+        self.loss.append(loss)
+        self.accuracy.append(accuracy)
+
+    def visualize(self):
+        plt.plot(self.iter, self.loss, 'r-')
+        plt.plot(self.iter, self.accuracy, 'b-')
+        plt.show()
 
 
 def train(model, db, collection, num_epochs, sess, batch_size=4,
@@ -22,6 +41,7 @@ def train(model, db, collection, num_epochs, sess, batch_size=4,
     num_iters = batching.num_iters(db, collection, batch_size)
     epoch_time_takens = []
     iter_time_takens = []
+    history = History()
     start = time.time()
     for epoch in range(num_epochs):
         print('Epoch %s' % (epoch + 1))
@@ -41,6 +61,7 @@ def train(model, db, collection, num_epochs, sess, batch_size=4,
                 start_reported = True
             average_loss += batch_loss
             average_accuracy += batch_accuracy
+            history.report(iter, average_loss, average_accuracy)
             iter_end = time.time()
             iter_time_taken = iter_end - iter_start
             iter_time_takens.append(iter_time_taken)
@@ -70,3 +91,6 @@ def train(model, db, collection, num_epochs, sess, batch_size=4,
                                                                start + np.average(epoch_time_takens) * num_epochs))
     writer.close()
     model.in_training = False
+    history.visualize()
+    util.save_pickle(history, 'histories/%s_%s' % (model.name,
+                                                   datetime.datetime.now().strftime('%d-%b-%Y_%H-%M-%S')))

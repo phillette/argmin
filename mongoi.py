@@ -6,6 +6,7 @@ import numpy as np
 
 COLLECTIONS = {
     'snli': ['train', 'dev', 'test'],
+    'mnli': ['train', 'dev', 'test'],
     'carstens': ['all', 'train', 'test']
 }
 
@@ -74,6 +75,12 @@ class SNLIDb(RepositoryFacade):
         self.train = Repository(self.db.train)
         self.dev = Repository(self.db.dev)
         self.test = Repository(self.db.test)
+
+
+class MNLIDb(RepositoryFacade):
+    """ Repository Facade for the MNLI 0.9 data set. """
+    def __init__(self):
+        RepositoryFacade.__init__(self, 'localhost', 27017, 'mnli', COLLECTIONS['mnli'])
 
 
 class Repository:
