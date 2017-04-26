@@ -181,7 +181,7 @@ class RandomGenerator:
                 break  # don't waste time iterating further if we're at the end
 
     def alive(self):
-        return self._gen.alive() or len(self._buffer) > 0
+        return self._gen.alive or len(self._buffer) > 0
 
     def next(self):
         if len(self._buffer) == 0:
