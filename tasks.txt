@@ -1,3 +1,7 @@
+* scale loss on the diagram
+* add
+
+
 Goals:
 1. Get my hands on a well trained set of parameters to do transfer learning
     a. try the lower learning rate for Parikh model
