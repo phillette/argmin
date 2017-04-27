@@ -26,20 +26,53 @@ class History:
                                     2))
 
     def compare(self, comparators, value_to_compare):
-        if value_to_compare == 'batch_size':
-            value_to_compare == 'batch_size_info()'
-        lines = []
-        line_1, = plt.plot(np.array(self.iter),
-                           self.standardized_loss(),
-                           label='%s' % eval('self.%s' % value_to_compare))
-        lines.append(line_1)
+        # loss
+        lines_loss = []
+        plt.subplot(1, 2, 1)
+        line_1_loss, = plt.plot(np.array(self.iter),
+                                self.comparison_metric('loss'),
+                                label=self.comparison_label(value_to_compare))
+        lines_loss.append(line_1_loss)
         for i in range(len(comparators)):
-            line_i, = plt.plot(np.array(comparators[i].iter),
-                               comparators[i].standardized_loss(),
-                               label='%s' % eval('comparators[i].%s' % value_to_compare))
-            lines.append(line_i)
-        plt.legend(handles=lines)
+            line_i_loss, = plt.plot(np.array(comparators[i].iter),
+                                    comparators[i].comparison_metric('loss'),
+                                    label=comparators[i].comparison_label(value_to_compare))
+            lines_loss.append(line_i_loss)
+        plt.legend(handles=lines_loss, loc=2)
+        plt.xlabel('iteration')
+        plt.ylabel('standardized loss')
+        # accuracy
+        lines_accuracy = []
+        plt.subplot(1, 2, 2)
+        line_1_accuracy, = plt.plot(np.array(self.iter),
+                                    self.comparison_metric('accuracy'),
+                                    label=self.comparison_label(value_to_compare))
+        lines_accuracy.append(line_1_accuracy)
+        for i in range(len(comparators)):
+            line_i_accuracy, = plt.plot(np.array(comparators[i].iter),
+                                        comparators[i].comparison_metric('accuracy'),
+                                        label=comparators[i].comparison_label(value_to_compare))
+            lines_accuracy.append(line_i_accuracy)
+        plt.legend(handles=lines_accuracy, loc=2)
+        plt.xlabel('iteration')
+        plt.ylabel('accuracy')
         plt.show()
+
+    def comparison_label(self, value_to_compare):
+        if value_to_compare == 'batch_size':
+            return self.batch_size_info()
+        elif value_to_compare == 'learning_rate':
+            return '%s' % self.learning_rate
+        else:
+            raise Exception('Unexpected value_to_compare: %s' % value_to_compare)
+
+    def comparison_metric(self, metric):
+        if metric == 'loss':
+            return self.standardized_loss()
+        elif metric == 'accuracy':
+            return np.array(self.accuracy)
+        else:
+            raise Exception('Unexpected metric: %s' % metric)
 
     def report(self, iter, loss, accuracy):
         self.iter.append(iter)
@@ -55,12 +88,12 @@ class History:
                                                                    date_and_time))
 
     def standardized_loss(self):
-        return np.array(self.loss) / self.loss[1]
+        return np.log(np.array(self.loss) / self.batch_size)
 
     def visualize(self):
         loss, = plt.plot(np.array(self.iter), self.standardized_loss(), label='loss')
         accuracy, = plt.plot(np.array(self.iter), self.accuracy, label='accuracy')
-        plt.legend(handles=[loss, accuracy])
+        plt.legend(handles=[loss, accuracy], loc=2)
         plt.show()
 
 
@@ -86,7 +119,7 @@ def train(model, db, collection, num_epochs, sess, batch_size=4,
     iter_time_takens = []
     history = History(model.name, db, collection, batch_size, model.config.learning_rate)
     for epoch in range(num_epochs):
-        print('Epoch %s/%s\tloss\taccuracy\tavg(t)/iter\tremaining' % (epoch + 1, num_epochs))
+        print('Epoch %s/%s\t\tloss\taccuracy\tavg(t)\tremaining' % (epoch + 1, num_epochs))
         epoch_start = time.time()
         batch_gen = batching.get_batch_gen(db, collection, batch_size=batch_size)
         last_iter = starting_iter + ((epoch + 1) * num_iters)
@@ -135,6 +168,13 @@ def train(model, db, collection, num_epochs, sess, batch_size=4,
 
 
 if __name__ == '__main__':
-    l3 = util.load_pickle('histories/alignment_dev_32_1.00E-03_27-Apr-2017_10-54-06.pkl')
-    l4 = util.load_pickle('histories/alignment_dev_32_1.00E-04_27-Apr-2017_11-45-43.pkl')
-    l3.compare([l4], 'learning_rate')
+    a = util.load_pickle('histories/alignment_dev_4_1.00E-03_27-Apr-2017_14-20-50.pkl')
+    b = util.load_pickle('histories/alignment_dev_8_1.00E-03_27-Apr-2017_14-31-31.pkl')
+    c = util.load_pickle('histories/alignment_dev_16_1.00E-03_27-Apr-2017_15-04-26.pkl')
+    d = util.load_pickle('histories/alignment_dev_32_1.00E-03_27-Apr-2017_10-54-06.pkl')
+    e = util.load_pickle('histories/alignment_dev_64_1.00E-03_27-Apr-2017_14-45-41.pkl')
+    f = util.load_pickle('histories/alignment_dev_128_1.00E-03_27-Apr-2017_14-56-25.pkl')
+    g = util.load_pickle('histories/alignment_dev_256_1.00E-03_27-Apr-2017_15-06-00.pkl')
+    h = util.load_pickle('histories/alignment_dev_512_1.00E-03_27-Apr-2017_16-08-46.pkl')
+    i = util.load_pickle('histories/alignment_dev_1024_1.00E-03_27-Apr-2017_15-23-01.pkl')
+    a.compare([b, c, d, e, f, g, h, i], 'batch_size')

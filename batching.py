@@ -88,7 +88,7 @@ def get_batch_gen(db, collection, batch_size=None):
                 id = doc['_id']
                 premise = mongoi.string_to_array(doc['premise'])
                 hypothesis = mongoi.string_to_array(doc['hypothesis'])
-                label = encode(doc['gold_label'])
+                label = mongoi.string_to_array(doc['label_encoding'])
                 ids.append(id)
                 premises.append(premise)
                 hypotheses.append(hypothesis)
@@ -98,12 +98,6 @@ def get_batch_gen(db, collection, batch_size=None):
         pad_sentences(batch, pad_length)
         add_third_dimensions(batch)
         yield batch
-
-
-def encode(label):
-    encoding = np.zeros((1, 3), dtype='float64')
-    encoding[0, labeling.LABEL_TO_ENCODING[label]] = 1
-    return encoding
 
 
 def update_pad_length(pad_length, premise, hypothesis):

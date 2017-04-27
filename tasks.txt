@@ -1,5 +1,14 @@
-* scale loss on the diagram
-* add
+* need to cleanup the main.py functions
+* would like a way to tune - select 10,000 of the training set to work on, or an arbitary number
+  and wrap some functions in there inluding history comparisons, and dev set acccuracy. there
+  should be an algorithm to automatically search for good parameters, a nice way to display
+  results, etc.
+  ALGORITHM
+    - define some default parameters
+    - along the dimension of each parameter, moves either side of the default
+      and assesses relevant metrics to compare the paremeters, and build diagrams
+    - repeats training processes on its own to search until finished
+    - prints a final report
 
 
 Goals:
@@ -11,12 +20,6 @@ Goals:
     a. keep reading papers
     b. implement promising ideas
 3. Make the training process FASTER
-    a. prepending NULL to be added into mongo
-    *  already got the projection fetch in new repo method
-    b. encoded label can be put into mongo
-    c. review the padding out of sentences - can be by batch?  look at model details
-    *  adding third dimension to batches necessary in code
-    d. when I figure out what to do with OOV, make the change in mongo
     e. async buffer filling
 4. Clean up my training process
     a. global step is not being saved properly

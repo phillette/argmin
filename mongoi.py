@@ -100,7 +100,7 @@ class Repository:
         return self.collection.find({}, {'_id': 1,
                                          'premise': 1,
                                          'hypothesis': 1,
-                                         'gold_label': 1})
+                                         'label_encoding': 1})
 
     def count(self):
         """

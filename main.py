@@ -53,7 +53,7 @@ def alignment_bi_rnn():
 def _train(model, transfer_to_carstens):
     with tf.Session() as sess:
         sess.run(tf.global_variables_initializer())
-        train(model, 'snli', 'dev', 40, sess, batch_size=1000, load_ckpt=False, save_ckpt=False, transfer=False)
+        train(model, 'snli', 'dev', 40, sess, batch_size=512, load_ckpt=False, save_ckpt=False, transfer=False)
         #accuracy(model, 'snli', 'train', sess, load_ckpt=False)
         accuracy(model, 'snli', 'dev', sess, load_ckpt=False)
         accuracy(model, 'snli', 'test', sess, load_ckpt=False)

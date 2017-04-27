@@ -5,6 +5,7 @@ import itertools
 import pandas as pd
 from batching import pad_sentence
 import util
+import labeling
 
 
 """
@@ -60,6 +61,24 @@ def generate_friendly_ids():
             repository.update_one(doc['_id'], {'id': id})
             id += 1
     print('Completed successfully.')
+
+
+def generate_label_encodings():
+    print('Generating label encodings...')
+    for collection in mongoi.COLLECTIONS['snli']:
+        print('Working on collection: %s' % collection)
+        repository = mongoi.get_repository('snli', collection)
+        for doc in repository.find_all():
+            encoding = encode(doc['gold_label'])
+            repository.update_one(doc['_id'],
+                                  {'label_encoding': mongoi.array_to_string(encoding)})
+    print('Completed successfully.')
+
+
+def encode(label):
+    encoding = np.zeros((1, 3), dtype='float64')
+    encoding[0, labeling.LABEL_TO_ENCODING[label]] = 1
+    return encoding
 
 
 def generate_sentence_matrices():
@@ -234,6 +253,4 @@ def prepend_nulls(collections=mongoi.COLLECTIONS['snli']):
 
 
 if __name__ == '__main__':
-    remove_no_gold_label_samples()
-    generate_friendly_ids()
-    generate_sentence_matrices()
+    generate_label_encodings()
