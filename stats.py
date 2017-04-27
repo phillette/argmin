@@ -16,11 +16,29 @@ Thinking it is best to remove the no gold labels observations:
 # Basic stats
 NUM_LABELS = 3
 LONGEST_SENTENCE_SNLI = 403  # 402, but we have prepended NULL to everything now
+LONGEST_SENTENCE_MNLI = 0
+LONGEST_SENTENCES = {
+    'snli': {
+        'train': 402,
+        'dev': 300,
+        'test': 265
+    },
+    'mnli': {
+        'train': 0,
+        'dev_matched': 0,
+        'dev_mismatched': 0
+    }
+}
 COLLECTION_SIZE = {
     'snli': {
         'train': 549367,
         'dev': 9842,
         'test': 9824
+    },
+    'mnli': {
+        'train': 392702,
+        'dev_matched': 1,
+        'dev_mismatched': 1
     },
     'carstens': {
         'all': 4058,
@@ -29,70 +47,26 @@ COLLECTION_SIZE = {
     }
 }
 NO_GOLD_LABEL_COUNTS = {
-    'train': 785,
-    'dev': 158,
-    'test': 176
+    'snli': {
+        'train': 785,
+        'dev': 158,
+        'test': 176
+    },
+    'mnli': {
+        'train': 0,
+        'dev_matched': 185,
+        'dev_mismatched': 168
+    }
 }
 SAMPLES_WITH_OOV = {
     'snli': {
         'train': 10297,
         'dev': 161,
         'test': 176
-    }
-}
-
-# Stats for batching and training
-BATCH_SIZE = {
-    'snli': {
-        'train': 4,
-        'dev': 4,
-        'test': 4
     },
-    'carstens': {
-        'all': 101,
-        'train': 100,
-        'test': 558
+    'mnli': {
+        'train': 0,
+        'dev_matched': 0,
+        'dev_mismatched': 0
     }
 }
-
-NUM_ITERS = {
-    'snli': {
-        'train': 137342,
-        'dev': 1406,
-        'test': 2456
-    },
-    'carstens': {
-        'all': 40,
-        'train': 35,
-        'test': 1
-    }
-}
-REPORT_EVERY = {
-    'snli': {
-        'train': 5000,
-        'dev': 100,
-        'test': 100
-    },
-    'carstens': {
-        'all': 4,
-        'train': 5,
-        'test': 1
-    }
-}
-
-
-# For the old buffer-style batch generator - probably move it to there?
-BUFFER_FACTORS = {
-    'snli': {'train': 4,
-             'dev': 4,
-             'test': 4},
-    'carstens': {'all': 4,
-                 'train': 35,
-                 'test': 1}
-}
-
-# Encoding mappings for labels
-ENCODING_TO_LABEL = {0: 'neutral',
-                     1: 'entailment',
-                     2: 'contradiction'}
-

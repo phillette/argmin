@@ -101,7 +101,7 @@ def report_every(num_iters):
     return np.floor(num_iters / 10)
 
 
-def train(model, db, collection, num_epochs, sess, batch_size=4,
+def train(model, db, collection, num_epochs, sess, batch_size=4, subset_size=None,
           load_ckpt=True, save_ckpt=True, transfer=False, summarise=False):
     # make sure sess.run(tf.global_variables_initializer() has already been run)
     writer = tf.summary.FileWriter(util.log_graph_path(model.name), sess.graph)
@@ -114,7 +114,7 @@ def train(model, db, collection, num_epochs, sess, batch_size=4,
     average_accuracy = 0.0
     starting_iter = model.global_step.eval()
     iter = starting_iter
-    num_iters = batching.num_iters(db, collection, batch_size)
+    num_iters = batching.num_iters(db, collection, batch_size, subset_size)
     epoch_time_takens = []
     iter_time_takens = []
     history = History(model.name, db, collection, batch_size, model.config.learning_rate)

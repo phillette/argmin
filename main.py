@@ -53,8 +53,8 @@ def alignment_bi_rnn():
 def _train(model, transfer_to_carstens):
     with tf.Session() as sess:
         sess.run(tf.global_variables_initializer())
-        train(model, 'snli', 'dev', 40, sess, batch_size=512, load_ckpt=False, save_ckpt=False, transfer=False)
-        #accuracy(model, 'snli', 'train', sess, load_ckpt=False)
+        train(model, 'snli', 'train', 10, sess, batch_size=64, subset_size=55000, load_ckpt=False, save_ckpt=True, transfer=False)
+        accuracy(model, 'snli', 'train', sess, load_ckpt=False)
         accuracy(model, 'snli', 'dev', sess, load_ckpt=False)
         accuracy(model, 'snli', 'test', sess, load_ckpt=False)
         if transfer_to_carstens:
@@ -65,7 +65,7 @@ def _train(model, transfer_to_carstens):
 
 
 if __name__ == '__main__':
-    model = alignment_parikh()
+    model = alignment_bi_rnn()
     transfer_to_carstens = False
     _train(model, transfer_to_carstens)
 

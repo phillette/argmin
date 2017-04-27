@@ -6,7 +6,7 @@ import numpy as np
 
 COLLECTIONS = {
     'snli': ['train', 'dev', 'test'],
-    'mnli': ['train', 'dev', 'test'],
+    'mnli': ['train', 'dev_matched', 'dev_mismatched'],
     'carstens': ['all', 'train', 'test']
 }
 

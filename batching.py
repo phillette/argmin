@@ -132,6 +132,8 @@ def add_third_dimensions(batch):
     batch.labels = np.vstack(batch.labels)
 
 
-def num_iters(db, collection, batch_size):
+def num_iters(db, collection, batch_size, subset_size=None):
+    if subset_size:
+        return np.ceil(subset_size / batch_size)
     collection_size = stats.COLLECTION_SIZE[db][collection]
     return np.ceil(collection_size / batch_size)

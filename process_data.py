@@ -1,30 +1,22 @@
 import mongoi
 import spacy
 import numpy as np
-import itertools
 import pandas as pd
-from batching import pad_sentence
 import util
 import labeling
 
 
 """
-Note that to split the Carstens data into train and test, I used a variant on this code:
-http://stackoverflow.com/questions/27039083/mongodb-move-documents-from-one-collection-to-another-collection
-First 3500 into train, the next 558 into test, as the _id goes from 1 to 4058.  Use $gt: 3500 and $lt: 5301.
-It would also be simple (simpler perhaps) to modify the carstens_into_mongo function below.
-"""
-
-
-"""
 Process from start to finish:
-1. Import data into mongo
-    mongoimport --db snli --collection train "/home/hanshan/PycharmProjects/argmin/data/....jsonl"
-    etc
+* Make sure the OOV_VECTORS dictionary has the entry for the db
+1. Import data into mongo, e.g.:
+    mongoimport --db snli --collection train
+    "/home/hanshan/PycharmProjects/argmin/data/....jsonl"
 2. remove_no_gold_label_samples()
 3. generate_friendly_ids()
     - this will be an extra field this time
-3. generate_sentence_matrices()
+4. generate_label_encodings()
+5. generate_sentence_matrices()
     - turn sentences into spacy docs
     - grab GloVe vectors from spacy into matrices
     - put in place OOV random vectors
@@ -33,15 +25,21 @@ Process from start to finish:
 
 
 NULL_VECTOR = util.load_pickle('NULL_glove_vector.pkl')
-OOV_VECTORS = util.load_pickle('oov_vectors.pkl')
+OOV_VECTORS = {
+    'snli': util.load_pickle('oov_vectors_snli.pkl'),
+    #'mnli': util.load_pickle('oov_vectors_mnli.pkl')
+}
 
 
-def remove_no_gold_label_samples():
-    print('Removing no gold label samples...')
-    for collection in mongoi.COLLECTIONS['snli']:
+""" Functions for pre-processing data in mongo """
+
+
+def remove_no_gold_label_samples(db):
+    print('Removing no gold label samples from %s...' % db)
+    for collection in mongoi.COLLECTIONS[db]:
         print('Deleting no gold labels from collection: "%s"' % collection)
         deleted_count = 0
-        repository = mongoi.get_repository('snli', collection)
+        repository = mongoi.get_repository(db, collection)
         for doc in repository.find_all():
             if doc['gold_label'] == '-':
                 repository.delete_one(doc['_id'])
@@ -51,27 +49,28 @@ def remove_no_gold_label_samples():
     print('Finished successfully.')
 
 
-def generate_friendly_ids():
-    print('Generating friendly ids...')
+def generate_friendly_ids(db):
+    print('Generating friendly ids for %s...' % db)
     id = 1
-    for collection in mongoi.COLLECTIONS['snli']:
+    for collection in mongoi.COLLECTIONS[db]:
         print('Working on collection: %s' % collection)
-        repository = mongoi.get_repository('snli', collection)
+        repository = mongoi.get_repository(db, collection)
         for doc in repository.find_all():
             repository.update_one(doc['_id'], {'id': id})
             id += 1
     print('Completed successfully.')
 
 
-def generate_label_encodings():
-    print('Generating label encodings...')
-    for collection in mongoi.COLLECTIONS['snli']:
+def generate_label_encodings(db):
+    print('Generating label encodings for %s...' % db)
+    for collection in mongoi.COLLECTIONS[db]:
         print('Working on collection: %s' % collection)
-        repository = mongoi.get_repository('snli', collection)
+        repository = mongoi.get_repository(db, collection)
         for doc in repository.find_all():
             encoding = encode(doc['gold_label'])
             repository.update_one(doc['_id'],
-                                  {'label_encoding': mongoi.array_to_string(encoding)})
+                                  {'label_encoding':
+                                       mongoi.array_to_string(encoding)})
     print('Completed successfully.')
 
 
@@ -81,29 +80,32 @@ def encode(label):
     return encoding
 
 
-def generate_sentence_matrices():
-    print('Generating sentence matrices...')
+def generate_sentence_matrices(db):
+    print('Generating sentence matrices for %s...' % db)
     nlp = spacy.load('en')
-    for collection in mongoi.COLLECTIONS['snli']:
+    for collection in mongoi.COLLECTIONS[db]:
         print('Working on collection: %s' % collection)
-        repository = mongoi.get_repository('snli', collection)
+        repository = mongoi.get_repository(db, collection)
         for doc in repository.find_all():
-            premise = sentence_matrix(doc['sentence1'], nlp)
-            hypothesis = sentence_matrix(doc['sentence2'], nlp)
-            repository.update_one(doc['_id'], {'premise': mongoi.array_to_string(premise),
-                                               'hypothesis': mongoi.array_to_string(hypothesis)})
+            premise = sentence_matrix(doc['sentence1'], nlp, db)
+            hypothesis = sentence_matrix(doc['sentence2'], nlp, db)
+            repository.update_one(doc['_id'],
+                                  {'premise':
+                                       mongoi.array_to_string(premise),
+                                   'hypothesis':
+                                       mongoi.array_to_string(hypothesis)})
     print('Completed successfully.')
 
 
-def sentence_matrix(sentence, nlp):
+def sentence_matrix(sentence, nlp, db):
     doc = nlp(sentence)
-    matrix = np.vstack(list(get_vector(t).reshape((1, 300)) for t in doc))
+    matrix = np.vstack(list(get_vector(t, db).reshape((1, 300)) for t in doc))
     return prepend_null(matrix)
 
 
-def get_vector(token):
+def get_vector(token, db):
     if token.text in OOV_VECTORS.keys():
-        return OOV_VECTORS[token.text]
+        return OOV_VECTORS[db][token.text]
     else:
         return token.vector
 
@@ -112,89 +114,28 @@ def prepend_null(sentence_matrix):
     return np.vstack([NULL_VECTOR, sentence_matrix])
 
 
-def find_max_length():
-    db = mongoi.SNLIDb()
-    max_length = 0
-    dev_gen = db.dev.find_all()
-    test_gen = db.test.find_all()
-    for doc in test_gen:
-        if len(doc['sentence1']) > max_length:
-            max_length = len(doc['sentence1'])
-            print('New max from test = %s' % len(doc['sentence1']))
-        if len(doc['sentence2']) > max_length:
-            max_length = len(doc['sentence2'])
-            print('New max from test = %s' % len(doc['sentence2']))
-    for doc in dev_gen:
-        if len(doc['sentence1']) > max_length:
-            max_length = len(doc['sentence1'])
-            print('New max from dev = %s' % len(doc['sentence1']))
-        if len(doc['sentence2']) > max_length:
-            max_length = len(doc['sentence2'])
-            print('New max from dev = %s' % len(doc['sentence2']))
-    train_gen = db.train.find_all()
-    for doc in train_gen:
-        if len(doc['sentence1']) > max_length:
-            max_length = len(doc['sentence1'])
-            print('New max from train = %s' % len(doc['sentence1']))
-        if len(doc['sentence2']) > max_length:
-            max_length = len(doc['sentence2'])
-            print('New max from train = %s' % len(doc['sentence2']))
-    return max_length  # I'm getting 402 - in train; max in dev 300; test 265
+""" Functions for finding statistics """
 
 
-def test_doc():
-    with open('data/sco_ind.txt') as f:
-        text = f.read()
-    paras = text.split('\n')
-    sents = itertools.chain(*[para.split('.') for para in text.split('\n') if para != ''])
-    sents = [sent.strip() for sent in sents if sent != '']
+def find_max_length(db):
+    longest_overall = 0
     nlp = spacy.load('en')
-    docs = [nlp(sent) for sent in sents]
-    #max_length = 0  # turns out to be 37
-    #for doc in docs:
-    #    if max_length < len(doc):
-    #        max_length = len(doc)
-    matrices = [pad_sentence(sentence_matrix(sent, nlp), 402) for sent in sents]
-    return sents, matrices
+    for collection in mongoi.COLLECTIONS[db]:
+        longest_in_collection = 0
+        repository = mongoi.get_repository(db, collection)
+        for doc in repository.find_all():
+            spacy_premise = nlp(doc['sentence1'])
+            if len(spacy_premise) > longest_in_collection:
+                longest_in_collection = len(spacy_premise)
+            spacy_hypothesis = nlp(doc['sentence2'])
+            if len(spacy_hypothesis) > longest_in_collection:
+                longest_in_collection = len(spacy_hypothesis)
+        if longest_in_collection > longest_overall:
+            longest_overall = longest_in_collection
 
 
-def carstens_into_mongo(file_path='/home/hanshan/carstens.csv'):
-    # should edit this to do the train-test split (3500-558)
-    X = pd.read_csv(file_path, header=None)
-    label = {
-        'n': 'neutral',
-        's': 'entailment',
-        'a': 'contradiction'
-    }
-    db = mongoi.CarstensDb()
-    nlp = spacy.load('en')
-    id = 0
-    for x in X.iterrows():
-        id += 1
-        doc = {
-            '_id': id,
-            'sentence1': x[1][3],
-            'sentence2': x[1][4],
-            'gold_label': label[x[1][5]]
-        }
-        doc['premise'] = mongoi.array_to_string(sentence_matrix(doc['sentence1'], nlp))
-        doc['hypothesis'] = mongoi.array_to_string(sentence_matrix(doc['sentence2'], nlp))
-        db.all.insert_one(doc)
-    raise Exception('Could do the train and test split here, too')
 
-
-def carstens_train_test_split():
-    db = mongoi.CarstensDb()
-    id = 0
-    all = db.all.find_all()
-    while id < 3500:
-        doc = next(all)
-        id += 1
-        db.train.insert_one(doc)
-    while id < 4058:
-        doc = next(all)
-        id += 1
-        db.test.insert_one(doc)
+""" Functions for dealing with OOV """
 
 
 def _generate_oov_vectors():
@@ -240,17 +181,7 @@ def _update_oov_vectors_per_document(doc, word, word_vector, nlp, repository):
         repository.update_one(doc['_id'], {'hypothesis': mongoi.array_to_string(premise_matrix)})
 
 
-def prepend_nulls(collections=mongoi.COLLECTIONS['snli']):
-    for collection in collections:
-        repository = mongoi.get_repository('snli', collection)
-        for doc in repository.find_all():
-            premise = mongoi.string_to_array(doc['premise'])
-            premise = prepend_null(premise)
-            repository.update_one(doc['_id'], {'premise': mongoi.array_to_string(premise)})
-            hypothesis = mongoi.string_to_array(doc['hypothesis'])
-            hypothesis = prepend_null(hypothesis)
-            repository.update_one(doc['_id'], {'hypothesis': mongoi.array_to_string(hypothesis)})
-
-
 if __name__ == '__main__':
-    generate_label_encodings()
+    remove_no_gold_label_samples('mnli')
+    generate_friendly_ids('mnli')
+    generate_label_encodings('mnli')
