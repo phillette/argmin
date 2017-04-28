@@ -163,56 +163,9 @@ def find_max_length(db):
             longest_overall = longest_in_collection
 
 
-
-""" Functions for dealing with OOV """
-
-
-def _generate_oov_vectors():
-    mv = util.load_pickle('missing_vectors.pkl')
-    oov_vectors = {}  # word: vector
-    all_words = set(list(mv['train']['words'].values())
-                    + list(mv['dev']['words'].values())
-                    + list(mv['test']['words'].values()))
-    for word in all_words:
-        oov_vectors[word] = np.random.rand(1, 300)
-    util.save_pickle(oov_vectors, 'oov_vectors.pkl')
-
-
-def update_oov_vectors(collections=mongoi.COLLECTIONS['snli']):
-    nlp = spacy.load('en')
-    missing_vectors = util.load_pickle('missing_vectors.pkl')
-    oov_vectors = util.load_pickle('oov_vectors.pkl')
-    for collection in collections:
-        _update_oov_vectors_per_collection(collection, nlp, missing_vectors, oov_vectors)
-
-
-def _update_oov_vectors_per_collection(collection, nlp, missing_vectors, oov_vectors):
-    no_gold_labels = util.load_pickle('no_gold_label_ids.pkl')
-    repository = mongoi.get_repository('snli', collection)
-    for doc_id, word in missing_vectors[collection]['words'].items():
-        if doc_id not in no_gold_labels[collection]:
-            doc = next(repository.get(doc_id))
-            _update_oov_vectors_per_document(doc, word, oov_vectors[word], nlp, repository)
-
-
-def _update_oov_vectors_per_document(doc, word, word_vector, nlp, repository):
-    premise_doc = nlp(doc['sentence1'])
-    hypothesis_doc = nlp(doc['sentence2'])
-    if word in [t.text for t in premise_doc]:
-        index = next((t.i for t in premise_doc if t.text == word))
-        premise_matrix = mongoi.string_to_array(doc['premise'])
-        premise_matrix[index, :] = word_vector
-        repository.update_one(doc['_id'], {'premise': mongoi.array_to_string(premise_matrix)})
-    if word in [t.text for t in hypothesis_doc]:
-        index = next((t.i for t in hypothesis_doc if t.text == word))
-        premise_matrix = mongoi.string_to_array(doc['hypothesis'])
-        premise_matrix[index, :] = word_vector
-        repository.update_one(doc['_id'], {'hypothesis': mongoi.array_to_string(premise_matrix)})
-
-
 if __name__ == '__main__':
     find_oov('mnli')
-    remove_no_gold_label_samples('mnli')
-    generate_friendly_ids('mnli')
-    generate_label_encodings('mnli')
+    #remove_no_gold_label_samples('mnli')
+    #generate_friendly_ids('mnli')
+    #generate_label_encodings('mnli')
     generate_sentence_matrices('mnli')

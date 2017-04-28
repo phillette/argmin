@@ -55,11 +55,11 @@ def _train(model, transfer_to_carstens):
         sess.run(tf.global_variables_initializer())
         train(model=model,
               db='snli',
-              collection='train',
-              num_epochs=10,
+              collection='dev',
+              num_epochs=20,
               sess=sess,
-              batch_size=64,
-              subset_size=55000,
+              batch_size=10,  # I say this is 512/550,000 ratio to dev
+              subset_size=None,
               load_ckpt=False,
               save_ckpt=True,
               transfer=False)

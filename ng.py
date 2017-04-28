@@ -37,6 +37,15 @@ class BatchGenWrapper:
         return self.batch_gen_generator()
 
 
+def accuracy2(model, batch_gen, num_iters, sess):
+    average_accuracy = 0
+    for iter in range(num_iters):
+        batch = next(batch_gen)
+        batch_accuracy = sess.run(model.accuracy, feed_dict2(model, batch))
+        average_accuracy += batch_accuracy
+    print('Accuracy: %s' % (average_accuracy / num_iters))
+
+
 def train2(model, batch_gen_wrapper, num_epochs, sess,
            load_ckpt=True, save_ckpt=True, write_graph=True, transfer=False):
     # make sure sess.run(tf.global_variables_initializer() has already been run)

@@ -29,9 +29,6 @@ Training Process:
 * Back up parameters in separate folders at certain times
 * Add an option to look at accuracy on dev / train after each epoch and record that history
     - visualizing on TB may also be great
-* Broader algorithm to assist training, saving results, visualizing, etc
-* Delete old scalar data from summary so that I can actually look at a clean graph
-    - or move back to matplotlib and just customize it all
 
 Models:
 * Assess performance on properly clean data set:

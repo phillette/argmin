@@ -2,15 +2,13 @@ import mongoi
 import numpy as np
 import util
 import stats
-import labeling
 
 
-NULL_VECTOR = util.load_pickle('NULL_glove_vector.pkl')
 PREFERRED_BATCH_SIZES = {
     'snli': {
-        'train': 4,
-        'dev': 4,
-        'test': 4
+        'train': 64,
+        'dev': 64,
+        'test': 64
     },
     'carstens': {
 
@@ -62,9 +60,10 @@ class RandomGenerator:
 
     def _raise_exception(self):
         info = 'Attempted to fetch but buffer is empty.'
-        info += '\nState: %s yielded; %s buffered; %s db yielded.' % (self._i_yielded,
-                                                                      len(self._buffer),
-                                                                      self._db_yielded)
+        info += '\nState: %s yielded; %s buffered; %s db yielded.' \
+                % (self._i_yielded,
+                   len(self._buffer),
+                   self._db_yielded)
         info += '\ndb: %s; collection: %s' % (self._db_name,
                                               self._collection)
         raise Exception(info)
@@ -74,7 +73,6 @@ def get_batch_gen(db, collection, batch_size=None):
     # if a batch_size is not selected, default to the preferred
     if not batch_size:
         batch_size = PREFERRED_BATCH_SIZES[db][collection]
-    # the random generator to use
     gen = RandomGenerator(db, collection)
     while True:
         ids = []
@@ -83,7 +81,7 @@ def get_batch_gen(db, collection, batch_size=None):
         labels = []
         pad_length = 0
         for _ in range(batch_size):
-            if gen.alive():  # if there are no more records, don't try and find one
+            if gen.alive():
                 doc = gen.next()
                 id = doc['_id']
                 premise = mongoi.string_to_array(doc['premise'])
@@ -111,8 +109,10 @@ def update_pad_length(pad_length, premise, hypothesis):
 
 
 def pad_sentences(batch, pad_length):
-    batch.premises = list(pad_sentence(premise, pad_length) for premise in batch.premises)
-    batch.hypotheses = list(pad_sentence(hypothesis, pad_length) for hypothesis in batch.hypotheses)
+    batch.premises = list(pad_sentence(premise, pad_length)
+                          for premise in batch.premises)
+    batch.hypotheses = list(pad_sentence(hypothesis, pad_length)
+                            for hypothesis in batch.hypotheses)
 
 
 def pad_sentence(sentence, pad_length):
@@ -127,12 +127,18 @@ def pad_sentence(sentence, pad_length):
 
 
 def add_third_dimensions(batch):
-    batch.premises = np.concatenate(list(M[np.newaxis, ...] for M in batch.premises), axis=0)
-    batch.hypotheses = np.concatenate(list(M[np.newaxis, ...] for M in batch.hypotheses), axis=0)
+    batch.premises = np.concatenate(list(M[np.newaxis, ...]
+                                         for M in batch.premises),
+                                    axis=0)
+    batch.hypotheses = np.concatenate(list(M[np.newaxis, ...]
+                                           for M in batch.hypotheses),
+                                      axis=0)
     batch.labels = np.vstack(batch.labels)
 
 
-def num_iters(db, collection, batch_size, subset_size=None):
+def num_iters(db, collection, batch_size=None, subset_size=None):
+    if not batch_size:
+        batch_size = PREFERRED_BATCH_SIZES[db][collection]
     if subset_size:
         return np.ceil(subset_size / batch_size)
     collection_size = stats.COLLECTION_SIZE[db][collection]

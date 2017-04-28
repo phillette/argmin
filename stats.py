@@ -1,21 +1,5 @@
-"""
-Notes:
-* No gold label observations are definitely removed by default
-* At the moment giving the option to remove observations with missing word vectors
-"""
-
-
-"""
-Thinking it is best to remove the no gold labels observations:
-* train: 550,012 - 785 = 549,227.  This is divisible by 217 2531 times.
-* dev:    10,000 - 158 =   9,842.  This is divisible by 259   38 times.
-* test:   10,000 - 176 =   9,824.  This is divisible by 307   32 times.
-"""
-
-
-# Basic stats
 NUM_LABELS = 3
-LONGEST_SENTENCE_SNLI = 403  # 402, but we have prepended NULL to everything now
+LONGEST_SENTENCE_SNLI = 403  # 402, but we have prepended NULL to everything
 LONGEST_SENTENCE_MNLI = 0
 LONGEST_SENTENCES = {
     'snli': {
