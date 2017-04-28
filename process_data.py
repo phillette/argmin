@@ -1,7 +1,6 @@
 import mongoi
 import spacy
 import numpy as np
-import pandas as pd
 import util
 import labeling
 
@@ -12,11 +11,12 @@ Process from start to finish:
 1. Import data into mongo, e.g.:
     mongoimport --db snli --collection train
     "/home/hanshan/PycharmProjects/argmin/data/....jsonl"
-2. remove_no_gold_label_samples()
-3. generate_friendly_ids()
+2. find_oov()
+3. remove_no_gold_label_samples()
+4. generate_friendly_ids()
     - this will be an extra field this time
-4. generate_label_encodings()
-5. generate_sentence_matrices()
+5. generate_label_encodings()
+6. generate_sentence_matrices()
     - turn sentences into spacy docs
     - grab GloVe vectors from spacy into matrices
     - put in place OOV random vectors
@@ -24,14 +24,31 @@ Process from start to finish:
 """
 
 
-NULL_VECTOR = util.load_pickle('NULL_glove_vector.pkl')
-OOV_VECTORS = {
-    'snli': util.load_pickle('oov_vectors_snli.pkl'),
-    #'mnli': util.load_pickle('oov_vectors_mnli.pkl')
-}
-
-
 """ Functions for pre-processing data in mongo """
+
+
+def find_oov(db):
+    print('Finding OOV words '
+          'and creating random vector dictionary'
+          'for db %s' % db)
+    oov_words = []
+    oov_vectors = {}
+    nlp = spacy.load('en')
+    zero_vector = np.zeros(300,)
+    for collection in mongoi.COLLECTIONS[db]:
+        repository = mongoi.get_repository(db, collection)
+        for doc in repository.find_all():
+            premise_doc = nlp(doc['sentence1'])
+            for token in premise_doc:
+                if np.array_equal(token.vector, zero_vector):
+                    oov_words.append(token.text)
+            hypothesis_doc = nlp(doc['sentence2'])
+            for token in hypothesis_doc:
+                if np.array_equal(token.vector, zero_vector):
+                    oov_words.append(token.text)
+    for word in set(oov_words):
+        oov_vectors[word] = np.random.rand(1, 300)
+    util.save_pickle(oov_vectors, 'oov_vectors_%s.pkl' % db)
 
 
 def remove_no_gold_label_samples(db):
@@ -83,12 +100,20 @@ def encode(label):
 def generate_sentence_matrices(db):
     print('Generating sentence matrices for %s...' % db)
     nlp = spacy.load('en')
+    null_vector = util.load_pickle('NULL_glove_vector.pkl')
+    oov_vectors = load_oov_vectors(db)
     for collection in mongoi.COLLECTIONS[db]:
         print('Working on collection: %s' % collection)
         repository = mongoi.get_repository(db, collection)
         for doc in repository.find_all():
-            premise = sentence_matrix(doc['sentence1'], nlp, db)
-            hypothesis = sentence_matrix(doc['sentence2'], nlp, db)
+            premise = sentence_matrix(doc['sentence1'],
+                                      nlp,
+                                      null_vector,
+                                      oov_vectors)
+            hypothesis = sentence_matrix(doc['sentence2'],
+                                         nlp,
+                                         null_vector,
+                                         oov_vectors)
             repository.update_one(doc['_id'],
                                   {'premise':
                                        mongoi.array_to_string(premise),
@@ -97,21 +122,25 @@ def generate_sentence_matrices(db):
     print('Completed successfully.')
 
 
-def sentence_matrix(sentence, nlp, db):
+def sentence_matrix(sentence, nlp, null_vector, oov_vectors):
     doc = nlp(sentence)
-    matrix = np.vstack(list(get_vector(t, db).reshape((1, 300)) for t in doc))
-    return prepend_null(matrix)
+    matrix = np.vstack(
+        list(
+            get_vector(t, oov_vectors).reshape((1, 300)) for t in doc
+        ))
+    matrix = np.vstack([null_vector, matrix])
+    return matrix
 
 
-def get_vector(token, db):
-    if token.text in OOV_VECTORS.keys():
-        return OOV_VECTORS[db][token.text]
+def get_vector(token, oov_vectors):
+    if token.text in oov_vectors.keys():
+        return oov_vectors[token.text]
     else:
         return token.vector
 
 
-def prepend_null(sentence_matrix):
-    return np.vstack([NULL_VECTOR, sentence_matrix])
+def load_oov_vectors(db):
+    return util.load_pickle('oov_vectors_%s.pkl' % db)
 
 
 """ Functions for finding statistics """
@@ -182,6 +211,8 @@ def _update_oov_vectors_per_document(doc, word, word_vector, nlp, repository):
 
 
 if __name__ == '__main__':
+    find_oov('mnli')
     remove_no_gold_label_samples('mnli')
     generate_friendly_ids('mnli')
     generate_label_encodings('mnli')
+    generate_sentence_matrices('mnli')

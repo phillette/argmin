@@ -15,10 +15,10 @@ def bi_rnn():
 
 
 def bi_rnn_bowman():
-    config = Config(learning_rate=1e-3,
-                    p_keep_rnn=1.0,
-                    p_keep_input=0.8,
-                    p_keep_ff=0.5,
+    config = Config(learning_rate=5e-4,
+                    p_keep_rnn=0.8,
+                    p_keep_input=1.0,
+                    p_keep_ff=0.8,
                     grad_clip_norm=5.0,
                     lamda=0.0)
     model = BiRNNBowman(config)
@@ -31,7 +31,7 @@ def alignment_parikh():
     75acc 5e-4, ep45(no restart)
     70ish with extrapolation 1e-4, ep45(no restart)
     """
-    config = Config(learning_rate=1e-3,
+    config = Config(learning_rate=5e-4,
                     p_keep_ff=0.8,
                     grad_clip_norm=5.0,
                     lamda=0.0,
@@ -41,7 +41,7 @@ def alignment_parikh():
 
 
 def alignment_bi_rnn():
-    config = Config(learning_rate=5e-2,
+    config = Config(learning_rate=5e-4,
                     p_keep_ff=0.8,
                     grad_clip_norm=5.0,
                     lamda=0.0,
@@ -53,15 +53,42 @@ def alignment_bi_rnn():
 def _train(model, transfer_to_carstens):
     with tf.Session() as sess:
         sess.run(tf.global_variables_initializer())
-        train(model, 'snli', 'train', 10, sess, batch_size=64, subset_size=55000, load_ckpt=False, save_ckpt=True, transfer=False)
+        train(model=model,
+              db='snli',
+              collection='train',
+              num_epochs=10,
+              sess=sess,
+              batch_size=64,
+              subset_size=55000,
+              load_ckpt=False,
+              save_ckpt=True,
+              transfer=False)
         accuracy(model, 'snli', 'train', sess, load_ckpt=False)
         accuracy(model, 'snli', 'dev', sess, load_ckpt=False)
         accuracy(model, 'snli', 'test', sess, load_ckpt=False)
         if transfer_to_carstens:
             model.learning_rate = 1e-10
-            train(model, 'carstens', 'train', 100, sess, load_ckpt=False, save_ckpt=False, transfer=True, summarise=False)
-            accuracy(model, 'carstens', 'train', sess, load_ckpt=False, transfer=True)
-            accuracy(model, 'carstens', 'test', sess, load_ckpt=False, transfer=True)
+            train(model=model,
+                  db='carstens',
+                  collection='train',
+                  num_epochs=100,
+                  sess=sess,
+                  load_ckpt=False,
+                  save_ckpt=False,
+                  transfer=True,
+                  summarise=False)
+            accuracy(model=model,
+                     db='carstens',
+                     collection='train',
+                     sess=sess,
+                     load_ckpt=False,
+                     transfer=True)
+            accuracy(model=model,
+                     db='carstens',
+                     collection='test',
+                     sess=sess,
+                     load_ckpt=False,
+                     transfer=True)
 
 
 if __name__ == '__main__':

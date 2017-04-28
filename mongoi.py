@@ -12,7 +12,14 @@ COLLECTIONS = {
 
 
 def get_db(db_name):
-    return SNLIDb() if db_name == 'snli' else CarstensDb()
+    if db_name == 'snli':
+        return SNLIDb()
+    elif db_name == 'carstens':
+        return CarstensDb()
+    elif db_name == 'mnli':
+        return MNLIDb()
+    else:
+        raise Exception('Unexpected db_name: %s' % db_name)
 
 
 def get_repository(db, collection):
