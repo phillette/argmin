@@ -56,10 +56,11 @@ def _train(model, transfer_to_carstens):
         train(model=model,
               db='snli',
               collection='dev',
-              num_epochs=20,
+              tuning_collection='test',
+              num_epochs=3,
               sess=sess,
-              batch_size=10,  # I say this is 512/550,000 ratio to dev
-              subset_size=None,
+              batch_size=100,
+              subset_size=1000,
               load_ckpt=False,
               save_ckpt=True,
               transfer=False)
@@ -75,8 +76,7 @@ def _train(model, transfer_to_carstens):
                   sess=sess,
                   load_ckpt=False,
                   save_ckpt=False,
-                  transfer=True,
-                  summarise=False)
+                  transfer=True)
             accuracy(model=model,
                      db='carstens',
                      collection='train',

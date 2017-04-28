@@ -10,13 +10,6 @@ class X:
         self.hypotheses = hypotheses
 
 
-def augment_factor(probability, in_training):
-    if in_training:
-        return 1.0
-    else:
-        return probability
-
-
 def data_placeholders(word_embed_size):
     premises = tf.placeholder(tf.float64,
                               [None,
@@ -34,15 +27,10 @@ def data_placeholders(word_embed_size):
     return X(premises, hypotheses), Y
 
 
-def p_drop(probability, in_training):
-    if in_training:
-        return probability
-    else:
-        return 1.0
-
-
 def fully_connected_with_dropout(inputs, num_outputs, activation_fn, p_keep):
-    fully_connected = tf.contrib.layers.fully_connected(inputs, num_outputs, activation_fn)
+    fully_connected = tf.contrib.layers.fully_connected(inputs,
+                                                        num_outputs,
+                                                        activation_fn)
     dropped_out = tf.nn.dropout(fully_connected, p_keep)
     return dropped_out
 
@@ -136,7 +124,9 @@ class Model:
         return next(v for v in vars if v.name == weights_name)
 
     def _all_weights(self):
-        return [v for v in tf.get_collection(tf.GraphKeys.TRAINABLE_VARIABLES) if v.name.endswith('weights:0')]
+        return [v for
+                v in tf.get_collection(tf.GraphKeys.TRAINABLE_VARIABLES)
+                if v.name.endswith('weights:0')]
 
 
 if __name__ == '__main__':

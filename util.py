@@ -115,7 +115,6 @@ def split_after_concat(tensor, batch_size):
     :param batch_size: the batch_size for the split along the first axis
     :return: two tensors p and h, each of shape [batch_size, a, b]
     """
-    print('batch_size: %s' % batch_size)
     p = tf.slice(tensor, [0, 0, 0], [batch_size, -1, -1])
     h = tf.slice(tensor, [batch_size-1, 0, 0], [batch_size, -1, -1])
     return p, h

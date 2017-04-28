@@ -25,9 +25,11 @@ def accuracy(model, db, collection, sess, load_ckpt=True, transfer=False):
                                   util.feed_dict(model,
                                                  batch))
         average_accuracy += batch_accuracy
-    print('%s %s set accuracy = %s' % (db,
-                                       collection,
-                                       average_accuracy / num_iters))
+    print('%s %s set accuracy = %s%%'
+          % (db,
+             collection,
+             round(average_accuracy / num_iters * 100, 2)))
+    return average_accuracy / num_iters
 
 
 def evaluate(model, sess, db='snli', collection='test', transfer=False):

@@ -6,6 +6,7 @@ import stats
 import time
 import datetime
 import matplotlib.pyplot as plt
+import prediction
 
 
 class History:
@@ -18,6 +19,9 @@ class History:
         self.iter = []
         self.loss = []
         self.accuracy = []
+        self.tuning = {}
+        self.epoch_loss_gradients = {}
+        self.epoch_accuracy_gradients = {}
 
     def batch_size_info(self):
         return '%s (%s%%)' \
@@ -84,6 +88,13 @@ class History:
         self.loss.append(loss)
         self.accuracy.append(accuracy)
 
+    def report_epoch_gradients(self, epoch, loss, accuracy):
+        self.epoch_loss_gradients[epoch] = loss
+        self.epoch_accuracy_gradients[epoch] = accuracy
+
+    def report_tuning(self, iter, accuracy):
+        self.tuning[iter] = accuracy
+
     def save(self):
         date_and_time = datetime.datetime.now().strftime('%d-%b-%Y_%H-%M-%S')
         util.save_pickle(self,
@@ -98,13 +109,27 @@ class History:
         return np.log(np.array(self.loss) / self.batch_size)
 
     def visualize(self):
+        plt.subplot(1, 2, 1)
         loss, = plt.plot(np.array(self.iter),
                          self.standardized_loss(),
                          label='loss')
         accuracy, = plt.plot(np.array(self.iter),
                              self.accuracy,
                              label='accuracy')
-        plt.legend(handles=[loss, accuracy], loc=2)
+        tuning, = plt.plot(np.array(list(self.tuning.keys())),
+                           np.array(list(self.tuning.values())),
+                           label='tuning accuracy')
+        plt.legend(handles=[loss, accuracy, tuning], loc=2)
+        plt.subplot(1, 2, 2)
+        epoch_loss, = plt.plot(
+            np.array(list(self.epoch_loss_gradients.keys())),
+            np.array(list(self.epoch_loss_gradients.values())),
+            label='roc loss')
+        epoch_accuracy, = plt.plot(
+            np.array(list(self.epoch_accuracy_gradients.keys())),
+            np.array(list(self.epoch_accuracy_gradients.values())),
+            label='roc accuracy')
+        plt.legend(handles=[epoch_loss, epoch_accuracy], loc=1)
         plt.show()
 
 
@@ -112,8 +137,13 @@ def report_every(num_iters):
     return np.floor(num_iters / 10)
 
 
-def train(model, db, collection, num_epochs, sess, batch_size=4,
-          subset_size=None, load_ckpt=True, save_ckpt=True, transfer=False):
+def tune_every(num_epochs):
+    return max(np.floor(num_epochs / 20), 1)
+
+
+def train(model, db, collection, num_epochs, sess,
+          batch_size=4, subset_size=None, tuning_collection=None,
+          load_ckpt=True, save_ckpt=True, transfer=False):
     # make sure sess.run(tf.global_variables_initializer() has already been run)
     writer = tf.summary.FileWriter(util.log_graph_path(model.name), sess.graph)
     saver = tf.train.Saver()
@@ -133,6 +163,12 @@ def train(model, db, collection, num_epochs, sess, batch_size=4,
                       collection,
                       batch_size,
                       model.config.learning_rate)
+    epoch_starting_loss = 0.0
+    epoch_starting_accuracy = 0.0
+    epoch_final_loss = 0.0
+    epoch_final_accuracy = 0.0
+    epoch_change_loss = 0.0
+    epoch_change_accuracy = 0.0
     for epoch in range(num_epochs):
         print('Epoch %s/%s\t\tloss\taccuracy\tavg(t)\tremaining'
               % (epoch + 1, num_epochs))
@@ -150,8 +186,10 @@ def train(model, db, collection, num_epochs, sess, batch_size=4,
                             model.optimize],
                            util.feed_dict(model, batch))
             if not start_reported:
-                print('Starting condition: loss = %s; accuracy = %s'
-                      % (batch_loss, batch_accuracy))
+                print('1\t\t%s\t%s%%'
+                      % (batch_loss, round(batch_accuracy, 4)))
+                epoch_starting_loss = batch_loss
+                epoch_starting_accuracy = batch_accuracy
                 start_reported = True
             average_loss += batch_loss
             average_accuracy += batch_accuracy
@@ -178,35 +216,44 @@ def train(model, db, collection, num_epochs, sess, batch_size=4,
                                          sess,
                                          transfer,
                                          iter)
+            if iter + 1 == last_iter:
+                epoch_final_loss = average_loss / iter
+                epoch_final_accuracy = average_accuracy / iter
+                epoch_change_loss = \
+                    epoch_final_loss - epoch_starting_loss
+                epoch_change_accuracy = \
+                    (epoch_final_accuracy - epoch_starting_accuracy) * 100
+                epoch_starting_loss = average_loss / iter
+                epoch_starting_accuracy = average_accuracy / iter
         epoch_end = time.time()
         epoch_time_taken = epoch_end - epoch_start
         epoch_time_takens.append(epoch_time_taken)
-        print('Epoch time: %s; average = %s'
-              % (round(epoch_time_taken, 2),
-                 round(np.average(epoch_time_takens), 2)))
+        history.report_epoch_gradients(epoch + 1,
+                                       epoch_change_loss,
+                                       epoch_change_accuracy)
+        print('\t\t%s%s\t%s%s%%\t%ss\t%ss'
+              % ('+' if epoch_change_loss > 0 else None,
+                 epoch_change_loss,
+                 '+' if epoch_change_accuracy > 0 else None,
+                 round(epoch_change_accuracy, 2),
+                 round(np.average(epoch_time_takens), 2),
+                 round(np.average(epoch_time_takens
+                                  * (num_epochs - epoch + 1)), 2)))
+        if iter % tune_every(num_epochs) == 0:
+            tuning_accuracy = prediction.accuracy(model=model,
+                                                  db=db,
+                                                  collection=tuning_collection,
+                                                  sess=sess,
+                                                  load_ckpt=False,
+                                                  transfer=False)
+            history.report_tuning(iter, tuning_accuracy)
     writer.close()
     model.in_training = False
-    history.visualize()
     history.save()
+    history.visualize()
 
 
 if __name__ == '__main__':
-    a = util.load_pickle('histories/'
-                         'alignment_dev_4_1.00E-03_27-Apr-2017_14-20-50.pkl')
-    b = util.load_pickle('histories/'
-                         'alignment_dev_8_1.00E-03_27-Apr-2017_14-31-31.pkl')
-    c = util.load_pickle('histories/'
-                         'alignment_dev_16_1.00E-03_27-Apr-2017_15-04-26.pkl')
-    d = util.load_pickle('histories/'
-                         'alignment_dev_32_1.00E-03_27-Apr-2017_10-54-06.pkl')
-    e = util.load_pickle('histories/'
-                         'alignment_dev_64_1.00E-03_27-Apr-2017_14-45-41.pkl')
-    f = util.load_pickle('histories/'
-                         'alignment_dev_128_1.00E-03_27-Apr-2017_14-56-25.pkl')
-    g = util.load_pickle('histories/'
-                         'alignment_dev_256_1.00E-03_27-Apr-2017_15-06-00.pkl')
-    h = util.load_pickle('histories/'
-                         'alignment_dev_512_1.00E-03_27-Apr-2017_16-08-46.pkl')
-    i = util.load_pickle('histories/'
-                         'alignment_dev_1024_1.00E-03_27-Apr-2017_15-23-01.pkl')
-    a.compare([b, c, d, e, f, g, h, i], 'batch_size')
+    h = util.load_pickle(
+        'histories/bi_rnn_alignment_dev_100_5.00E-04_28-Apr-2017_14-53-21.pkl')
+    h.visualize()
