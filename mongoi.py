@@ -104,7 +104,7 @@ class Repository:
         Gets all documents for a batch - projecting just _id, premises, hypotheses, and label.
         :return: generator
         """
-        return self.collection.find({}, {'_id': 1,
+        return self.collection.find({}, {'id': 1,
                                          'premise': 1,
                                          'hypothesis': 1,
                                          'label_encoding': 1})
@@ -164,11 +164,11 @@ class Repository:
 
     def get(self, id):
         """
-        Get a document by _id.
-        :param id: the mongo _id.
+        Get a document by id.
+        :param id: the friendly id for the record.
         :return: a doc if found, else None.
         """
-        return self.collection.find({'_id': id})
+        return self.collection.find({'id': id})
 
     def insert_one(self, document):
         """

@@ -60,9 +60,9 @@ if __name__ == '__main__':
               tuning_collection=None,
               num_epochs=6,
               sess=sess,
-              batch_size=20,
-              subset_size=4000,
-              load_ckpt=True,
+              batch_size=4,
+              subset_size=2000,
+              load_ckpt=False,
               save_ckpt=True,
               transfer=False)
         #accuracy(model, 'snli', 'train', sess, load_ckpt=False)

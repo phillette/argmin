@@ -64,15 +64,19 @@ class Config:
 class Model:
     def __init__(self, config):
         self.config = config
-        self.global_step = tf.Variable(0,
+        self.global_step = tf.Variable(initial_value=0,
                                        dtype=tf.int32,
                                        trainable=False,
                                        name='global_step')
-        self.accumulated_loss = tf.Variable(0,
+        self.global_epoch = tf.Variable(initial_value=0,
+                                        dtype=tf.int32,
+                                        trainable=False,
+                                        name='global_epoch')
+        self.accumulated_loss = tf.Variable(initial_value=0,
                                             dtype=tf.float32,
                                             trainable=False,
                                             name='average_loss')
-        self.accumulated_accuracy = tf.Variable(0,
+        self.accumulated_accuracy = tf.Variable(initial_value=0,
                                                 dtype=tf.float32,
                                                 trainable=False,
                                                 name='average_accuracy')

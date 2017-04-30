@@ -12,7 +12,7 @@ import labeling
 
 
 def accuracy(model, db, collection, sess,
-             load_ckpt=True, transfer=False, batch_size=500):
+             load_ckpt=True, transfer=False, batch_size=128):
     # make sure sess.run(tf.global_variables_initializer()) has been called
     batch_gen = batching.get_batch_gen(db,
                                        collection,

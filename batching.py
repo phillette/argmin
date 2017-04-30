@@ -23,6 +23,16 @@ class Batch:
         self.hypotheses = hypotheses
         self.labels = labels
 
+    def details(self):
+        return 'Ids: %s\n' \
+               'Premises shape: %s\n' \
+               'Hypotheses shape: %s\n' \
+               'Labels shape: %s' \
+               % (' '.join(str(id) for id in self.ids),
+                  self.premises.shape,
+                  self.hypotheses.shape,
+                  self.labels.shape)
+
 
 class RandomGenerator:
     def __init__(self, db_name='snli', collection='train', buffer_size=100):
@@ -73,7 +83,7 @@ def get_batch_gen(db, collection, batch_size=None):
     # if a batch_size is not selected, default to the preferred
     if not batch_size:
         batch_size = PREFERRED_BATCH_SIZES[db][collection]
-    gen = RandomGenerator(db, collection)
+    gen = RandomGenerator(db, collection, buffer_size=batch_size * 2)
     while True:
         ids = []
         premises = []
@@ -83,7 +93,7 @@ def get_batch_gen(db, collection, batch_size=None):
         for _ in range(batch_size):
             if gen.alive():
                 doc = gen.next()
-                id = doc['_id']
+                id = doc['id']
                 premise = mongoi.string_to_array(doc['premise'])
                 hypothesis = mongoi.string_to_array(doc['hypothesis'])
                 label = mongoi.string_to_array(doc['label_encoding'])

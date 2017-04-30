@@ -9,6 +9,9 @@ import matplotlib.pyplot as plt
 import prediction
 
 
+DEBUG = True
+
+
 class History:
     def __init__(self, model_name, db, collection, batch_size, learning_rate):
         self.model_name = model_name
@@ -145,6 +148,12 @@ def train(model, db, collection, num_epochs, sess,
           batch_size=4, subset_size=None, tuning_collection=None,
           load_ckpt=True, save_ckpt=True, transfer=False):
 
+    report('Training %s on %s.%s for %s epochs '
+           'with batch size %s'
+           % (model.name, db, collection, num_epochs, batch_size))
+
+    # num_epochs is a target - we keep the state in global_epoch
+
     # NOTE: make sure sess.run(tf.global_variables_initializer())
     #       has already been run
 
@@ -166,14 +175,18 @@ def train(model, db, collection, num_epochs, sess,
         util.load_checkpoint(model, saver, sess, transfer)
 
     # initialize training variables according to model state
+    epoch = model.global_epoch.eval()
     iter = model.global_step.eval()
     accumulated_loss = model.accumulated_loss.eval()
     accumulated_accuracy = model.accumulated_accuracy.eval()
 
     # define the update ops for the training state variables
+    ph_global_epoch = tf.placeholder(tf.int32)
     ph_global_step = tf.placeholder(tf.int32)
     ph_accumulated_loss = tf.placeholder(tf.float32)
     ph_accumulated_accuracy = tf.placeholder(tf.float32)
+    update_epoch = tf.assign(model.global_epoch,
+                             ph_global_epoch)
     update_iter = tf.assign(model.global_step,
                             ph_global_step)
     update_loss = tf.assign(model.accumulated_loss,
@@ -186,9 +199,13 @@ def train(model, db, collection, num_epochs, sess,
     iter_time_takens = []  # averaging these over the whole process
                            # not just epochs
 
+    report('Global initialization successful. '
+           'Model state: epoch = %s; iter = %s'
+           % (epoch, iter))
+
     # START EPOCHS
-    for epoch in range(num_epochs):
-        # "range" gives us zero-based, we want 1-based epoch numbers
+    while epoch < num_epochs:
+        # we init to zero, and update after each, so this is correct
         epoch += 1
 
         # print the header with dividers for visual ease
@@ -211,14 +228,17 @@ def train(model, db, collection, num_epochs, sess,
         # get the batch generator for this epoch
         # NOTE: a generator generator could genericize this,
         #       untying it from this structure
+        report('Getting batch_gen...')
         batch_gen = batching.get_batch_gen(db,
                                            collection,
                                            batch_size=batch_size)
+        report('Successfully got batch_gen.')
 
         # START ITERS
         while iter < epoch_last_iter:
             # global_step is initialized to zero - iterating here is correct
             iter += 1
+            report('iter: %s' % iter)
 
             # take the time before starting
             iter_start = time.time()
@@ -226,12 +246,17 @@ def train(model, db, collection, num_epochs, sess,
             # get the next batch and run the ops
             # NOTE: taking a feed_dict function as an argument
             #       could genericize this
+            report('Getting next batch...')
             batch = next(batch_gen)
+            report('Successfully got batch. Printing details.')
+            report(batch.details())
+            report('Running ops...')
             batch_loss, batch_accuracy, _ \
                 = sess.run([model.loss,
                             model.accuracy,
                             model.optimize],
                            util.feed_dict(model, batch))
+            report('Ops ran successfully.')
 
             # accumulate the loss and accuracy
             accumulated_loss += batch_loss
@@ -286,6 +311,9 @@ def train(model, db, collection, num_epochs, sess,
             # END ITER
         # END ITERS
 
+        # save the global_epoch state to the model
+        sess.run(update_epoch, {ph_global_epoch: epoch})
+
         # calculate epoch stats
         epoch_end = time.time()
         epoch_time_taken = epoch_end - epoch_start
@@ -336,6 +364,11 @@ def train(model, db, collection, num_epochs, sess,
 
 def print_dividing_lines():
     print('------\t\t------\t\t------\t\t------\t------')
+
+
+def report(info):
+    if DEBUG:
+        print(info)
 
 
 if __name__ == '__main__':
