@@ -54,19 +54,19 @@ if __name__ == '__main__':
     model = alignment_parikh()
     with tf.Session() as sess:
         sess.run(tf.global_variables_initializer())
-        train(model=model,
-              db='snli',
-              collection='train',
-              tuning_collection=None,
-              num_epochs=6,
-              sess=sess,
-              batch_size=4,
-              subset_size=2000,
-              load_ckpt=False,
-              save_ckpt=True,
-              transfer=False)
+        #train(model=model,
+        #      db='snli',
+        #      collection='train',
+        #      tuning_collection=None,
+        #      num_epochs=6,
+        #      sess=sess,
+        #      batch_size=4,
+        #      subset_size=2000,
+        #      load_ckpt=False,
+        #      save_ckpt=True,
+        #      transfer=False)
         #accuracy(model, 'snli', 'train', sess, load_ckpt=False)
-        #accuracy(model, 'snli', 'dev', sess, load_ckpt=False)
+        accuracy(model, 'snli', 'dev', sess, load_ckpt=False)
         #accuracy(model, 'snli', 'test', sess, load_ckpt=False)
 
 
