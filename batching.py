@@ -11,7 +11,7 @@ PREFERRED_BATCH_SIZES = {
         'test': 64
     },
     'carstens': {
-
+        'all': 4
     }
 }
 

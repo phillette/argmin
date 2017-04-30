@@ -11,9 +11,12 @@ import stats
 import labeling
 
 
-def accuracy(model, db, collection, sess, load_ckpt=True, transfer=False):
+def accuracy(model, db, collection, sess,
+             load_ckpt=True, transfer=False, batch_size=500):
     # make sure sess.run(tf.global_variables_initializer()) has been called
-    batch_gen = batching.get_batch_gen(db, collection)
+    batch_gen = batching.get_batch_gen(db,
+                                       collection,
+                                       batch_size=batch_size)
     num_iters = batching.num_iters(db, collection)
     saver = tf.train.Saver()
     if load_ckpt:

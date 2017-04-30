@@ -2,6 +2,7 @@ import mongoi
 import spacy
 import process_data
 import pandas as pd
+import util
 
 """
 Note that to split the Carstens data into train and test,
@@ -12,6 +13,40 @@ Use $gt: 3500 and $lt: 5301.
 It would also be simple (simpler perhaps)
 to modify the carstens_into_mongo function below.
 """
+
+
+"""
+Training word vectors.
+I think it could be worthwhile to crawl for data on the topics in the corpus.
+Generate a much larger text corpus in an attempt to get better word vectors.
+So use scrapy or something?
+I can generate the dictionary of words I want from the oov list I already have.
+So:
+1. Grab a very large collection of documents
+2. Determine a dictionary for ALL words in those documents
+3. Where GloVes exist, pop them into the parameter matrix
+4. Where they don't, random init (for non-corpus OOV, too)
+5. Train the whole thing together
+6. Now have a good set of vectors (in theory)
+
+* could also compare this approach to: random init and projection
+  AND simple projection
+"""
+
+
+def rebuild_text_corpus():
+    print("Rebuilding text from Carsten's corpus for word vector training...")
+    db = mongoi.get_db('carstens')
+    sentences = []
+    for doc in db.all.find_all():
+        sentences.append(doc['sentence1'])
+        sentences.append(doc['sentence2'])
+    sentences = set(sentences)
+    print('Found %s unique sentences' % len(sentences))
+    corpus = ' '.join(sentences)
+    util.save_pickle(corpus, 'carstens_text_corpus.pkl')
+    print('The corpus has %s characters' % len(corpus))
+    print('Pickle saved successfully.')
 
 
 def carstens_into_mongo(file_path='/home/hanshan/carstens.csv'):
@@ -51,3 +86,7 @@ def carstens_train_test_split():
         doc = next(all)
         id += 1
         db.test.insert_one(doc)
+
+
+if __name__ == '__main__':
+    rebuild_text_corpus()

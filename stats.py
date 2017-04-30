@@ -9,8 +9,8 @@ LONGEST_SENTENCES = {
     },
     'mnli': {
         'train': 0,
-        'dev_matched': 0,
-        'dev_mismatched': 0
+        'dev_matched': 9815,
+        'dev_mismatched': 9832
     }
 }
 COLLECTION_SIZE = {
@@ -25,9 +25,7 @@ COLLECTION_SIZE = {
         'dev_mismatched': 1
     },
     'carstens': {
-        'all': 4058,
-        'train': 3500,
-        'test': 558
+        'all': 4058
     }
 }
 NO_GOLD_LABEL_COUNTS = {
@@ -52,5 +50,8 @@ SAMPLES_WITH_OOV = {
         'train': 0,
         'dev_matched': 0,
         'dev_mismatched': 0
+    },
+    'carstens': {
+        'all': 1353
     }
 }

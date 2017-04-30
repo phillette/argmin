@@ -29,23 +29,30 @@ Process from start to finish:
 
 def find_oov(db):
     print('Finding OOV words '
-          'and creating random vector dictionary'
-          'for db %s' % db)
+          'and creating random vector dictionary '
+          'for db "%s"' % db)
     oov_words = []
     oov_vectors = {}
     nlp = spacy.load('en')
     zero_vector = np.zeros(300,)
     for collection in mongoi.COLLECTIONS[db]:
+        count = 0
         repository = mongoi.get_repository(db, collection)
         for doc in repository.find_all():
+            got_one = False
             premise_doc = nlp(doc['sentence1'])
             for token in premise_doc:
                 if np.array_equal(token.vector, zero_vector):
                     oov_words.append(token.text)
+                    got_one = True
             hypothesis_doc = nlp(doc['sentence2'])
             for token in hypothesis_doc:
                 if np.array_equal(token.vector, zero_vector):
                     oov_words.append(token.text)
+                    got_one = True
+            if got_one:
+                count += 1
+        print('%s samples with OOV in %s.%s' % (count, db, collection))
     for word in set(oov_words):
         oov_vectors[word] = np.random.rand(1, 300)
     util.save_pickle(oov_vectors, 'oov_vectors_%s.pkl' % db)
@@ -164,8 +171,8 @@ def find_max_length(db):
 
 
 if __name__ == '__main__':
-    find_oov('mnli')
+    find_oov('carstens')
     #remove_no_gold_label_samples('mnli')
     #generate_friendly_ids('mnli')
     #generate_label_encodings('mnli')
-    generate_sentence_matrices('mnli')
+    generate_sentence_matrices('carstens')

@@ -119,7 +119,7 @@ class History:
         tuning, = plt.plot(np.array(list(self.tuning.keys())),
                            np.array(list(self.tuning.values())),
                            label='tuning accuracy')
-        plt.legend(handles=[loss, accuracy, tuning], loc=2)
+        plt.legend(handles=[loss, accuracy, tuning], loc=1)
         plt.subplot(1, 2, 2)
         epoch_loss, = plt.plot(
             np.array(list(self.epoch_loss_gradients.keys())),
@@ -129,7 +129,7 @@ class History:
             np.array(list(self.epoch_accuracy_gradients.keys())),
             np.array(list(self.epoch_accuracy_gradients.values())),
             label='roc accuracy')
-        plt.legend(handles=[epoch_loss, epoch_accuracy], loc=1)
+        plt.legend(handles=[epoch_loss, epoch_accuracy], loc=2)
         plt.show()
 
 
@@ -144,102 +144,177 @@ def tune_every(num_epochs):
 def train(model, db, collection, num_epochs, sess,
           batch_size=4, subset_size=None, tuning_collection=None,
           load_ckpt=True, save_ckpt=True, transfer=False):
-    # make sure sess.run(tf.global_variables_initializer() has already been run)
+
+    # NOTE: make sure sess.run(tf.global_variables_initializer())
+    #       has already been run
+
+    # self-explanatory variables we need for the process
     writer = tf.summary.FileWriter(util.log_graph_path(model.name), sess.graph)
-    saver = tf.train.Saver()
-    if load_ckpt:
-        util.load_checkpoint(model, saver, sess, transfer)
-    model.in_training = True
-    start_reported = False
-    average_loss = 0.0
-    average_accuracy = 0.0
-    starting_iter = model.global_step.eval()
-    iter = starting_iter
-    num_iters = batching.num_iters(db, collection, batch_size, subset_size)
-    epoch_time_takens = []
-    iter_time_takens = []
+    saver = tf.train.Saver(max_to_keep=10000)
     history = History(model.name,
                       db,
                       collection,
                       batch_size,
                       model.config.learning_rate)
-    epoch_starting_loss = 0.0
-    epoch_starting_accuracy = 0.0
-    epoch_final_loss = 0.0
-    epoch_final_accuracy = 0.0
-    epoch_change_loss = 0.0
-    epoch_change_accuracy = 0.0
+    num_iters = batching.num_iters(db=db,
+                                   collection=collection,
+                                   batch_size=batch_size,
+                                   subset_size=subset_size)
+
+    # load the model checkpoint if required
+    if load_ckpt:
+        util.load_checkpoint(model, saver, sess, transfer)
+
+    # initialize training variables according to model state
+    iter = model.global_step.eval()
+    accumulated_loss = model.accumulated_loss.eval()
+    accumulated_accuracy = model.accumulated_accuracy.eval()
+
+    # define the update ops for the training state variables
+    ph_global_step = tf.placeholder(tf.int32)
+    ph_accumulated_loss = tf.placeholder(tf.float32)
+    ph_accumulated_accuracy = tf.placeholder(tf.float32)
+    update_iter = tf.assign(model.global_step,
+                            ph_global_step)
+    update_loss = tf.assign(model.accumulated_loss,
+                            ph_accumulated_loss)
+    update_accuracy = tf.assign(model.accumulated_accuracy,
+                                ph_accumulated_accuracy)
+
+    # summary variables for History
+    epoch_time_takens = []
+    iter_time_takens = []  # averaging these over the whole process
+                           # not just epochs
+
+    # START EPOCHS
     for epoch in range(num_epochs):
-        print('Epoch %s/%s\t\tloss\taccuracy\tavg(t)\tremaining'
-              % (epoch + 1, num_epochs))
+        # "range" gives us zero-based, we want 1-based epoch numbers
+        epoch += 1
+
+        # print the header with dividers for visual ease
+        print_dividing_lines()
+        print('Epoch %s/%s\tloss\t\taccuracy\tavg(t)\tremaining'
+              % (epoch, num_epochs))
+        print_dividing_lines()
+
+        # variables to hold epoch statistics
         epoch_start = time.time()
+        epoch_last_iter = iter + num_iters
+        epoch_start_average_loss = 0.0
+        epoch_start_average_accuracy = 0.0
+        epoch_end_average_loss = 0.0
+        epoch_end_average_accuracy = 0.0
+        epoch_change_average_loss = 0.0
+        epoch_change_average_accuracy = 0.0
+        first_report_made = False
+
+        # get the batch generator for this epoch
+        # NOTE: a generator generator could genericize this,
+        #       untying it from this structure
         batch_gen = batching.get_batch_gen(db,
                                            collection,
                                            batch_size=batch_size)
-        last_iter = starting_iter + ((epoch + 1) * num_iters)
-        while iter < last_iter:
+
+        # START ITERS
+        while iter < epoch_last_iter:
+            # global_step is initialized to zero - iterating here is correct
+            iter += 1
+
+            # take the time before starting
             iter_start = time.time()
+
+            # get the next batch and run the ops
+            # NOTE: taking a feed_dict function as an argument
+            #       could genericize this
             batch = next(batch_gen)
             batch_loss, batch_accuracy, _ \
                 = sess.run([model.loss,
                             model.accuracy,
                             model.optimize],
                            util.feed_dict(model, batch))
-            if not start_reported:
-                print('1\t\t%s\t%s%%'
-                      % (batch_loss, round(batch_accuracy, 4)))
-                epoch_starting_loss = batch_loss
-                epoch_starting_accuracy = batch_accuracy
-                start_reported = True
-            average_loss += batch_loss
-            average_accuracy += batch_accuracy
-            history.report(iter, average_loss / iter, average_accuracy / iter)
+
+            # accumulate the loss and accuracy
+            accumulated_loss += batch_loss
+            accumulated_accuracy += batch_accuracy
+
+            # report information to History
+            # NOTE: I'm wondering if this could be tied to the model?
+            history.report(iter,
+                           accumulated_loss / iter,
+                           accumulated_accuracy / iter)
+
+            # calculate time related variables and report
             iter_end = time.time()
             iter_time_taken = iter_end - iter_start
             iter_time_takens.append(iter_time_taken)
-            iter += 1
             average_time = np.average(iter_time_takens)
-            iters_remaining = last_iter - iter
+            iters_remaining = epoch_last_iter - iter
+
+            # print to screen if it's time
             if iter % report_every(num_iters) == 0:
+                if not first_report_made:
+                    epoch_start_average_loss = accumulated_loss / iter
+                    epoch_start_average_accuracy = accumulated_accuracy / iter
+                    first_report_made = True
                 print('Step %s:\t'
                       '%s\t'
-                      '%s%%\t'
+                      '%6.4f%%\t'
                       '%ss\t'
                       '%ss' % (iter,
-                               average_loss / iter,
-                               round(average_accuracy / iter * 100, 4),
+                               accumulated_loss / iter,
+                               accumulated_accuracy / iter * 100,
                                round(average_time, 2),
                                int(round(average_time * iters_remaining, 0))))
-                if save_ckpt:
-                    util.save_checkpoint(model,
-                                         saver,
-                                         sess,
-                                         transfer,
-                                         iter)
-            if iter + 1 == last_iter:
-                epoch_final_loss = average_loss / iter
-                epoch_final_accuracy = average_accuracy / iter
-                epoch_change_loss = \
-                    epoch_final_loss - epoch_starting_loss
-                epoch_change_accuracy = \
-                    (epoch_final_accuracy - epoch_starting_accuracy) * 100
-                epoch_starting_loss = average_loss / iter
-                epoch_starting_accuracy = average_accuracy / iter
+
+            # if we're in the last iteration, update end of epoch stats
+            if iter == epoch_last_iter:
+                epoch_end_average_loss = accumulated_loss / iter
+                epoch_end_average_accuracy = accumulated_accuracy / iter
+                epoch_change_average_loss = \
+                    epoch_end_average_loss - epoch_start_average_loss
+                epoch_change_average_accuracy = \
+                    (epoch_end_average_accuracy
+                     - epoch_start_average_accuracy) \
+                    * 100
+
+            # update the training state variables on the model
+            sess.run([update_iter, update_loss, update_accuracy],
+                     {ph_global_step: iter,
+                      ph_accumulated_loss: accumulated_loss,
+                      ph_accumulated_accuracy: accumulated_accuracy})
+
+            # END ITER
+        # END ITERS
+
+        # calculate epoch stats
         epoch_end = time.time()
         epoch_time_taken = epoch_end - epoch_start
         epoch_time_takens.append(epoch_time_taken)
-        history.report_epoch_gradients(epoch + 1,
-                                       epoch_change_loss,
-                                       epoch_change_accuracy)
-        print('\t\t%s%s\t%s%s%%\t%ss\t%ss'
-              % ('+' if epoch_change_loss > 0 else None,
-                 epoch_change_loss,
-                 '+' if epoch_change_accuracy > 0 else None,
-                 round(epoch_change_accuracy, 2),
+        history.report_epoch_gradients(epoch,
+                                       epoch_change_average_loss,
+                                       epoch_change_average_accuracy)
+
+        # print the results
+        print_dividing_lines()
+        print('\t\t%s%s\t%s%6.4f%%\t%ss\t%ss'
+              % ('+' if epoch_change_average_loss > 0 else '',
+                 epoch_change_average_loss,
+                 '+' if epoch_change_average_accuracy > 0 else '',
+                 epoch_change_average_accuracy,
                  round(np.average(epoch_time_takens), 2),
-                 round(np.average(epoch_time_takens
-                                  * (num_epochs - epoch + 1)), 2)))
-        if iter % tune_every(num_epochs) == 0:
+                 round(np.average(epoch_time_takens)
+                                  * (num_epochs - epoch), 2)))
+
+        # save the checkpoint if required
+        if save_ckpt:
+            util.save_checkpoint(model=model,
+                                 saver=saver,
+                                 sess=sess,
+                                 global_step=iter,
+                                 transfer=transfer)
+
+        # perform tuning on dev set if required and if its time
+        if tuning_collection and iter % tune_every(num_epochs) == 0:
             tuning_accuracy = prediction.accuracy(model=model,
                                                   db=db,
                                                   collection=tuning_collection,
@@ -247,10 +322,20 @@ def train(model, db, collection, num_epochs, sess,
                                                   load_ckpt=False,
                                                   transfer=False)
             history.report_tuning(iter, tuning_accuracy)
+
+        # END EPOCH
+    # END EPOCHS
+
+    # clean up writer object
     writer.close()
-    model.in_training = False
+
+    # save and report history
     history.save()
     history.visualize()
+
+
+def print_dividing_lines():
+    print('------\t\t------\t\t------\t\t------\t------')
 
 
 if __name__ == '__main__':

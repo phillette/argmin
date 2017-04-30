@@ -68,6 +68,14 @@ class Model:
                                        dtype=tf.int32,
                                        trainable=False,
                                        name='global_step')
+        self.accumulated_loss = tf.Variable(0,
+                                            dtype=tf.float32,
+                                            trainable=False,
+                                            name='average_loss')
+        self.accumulated_accuracy = tf.Variable(0,
+                                                dtype=tf.float32,
+                                                trainable=False,
+                                                name='average_accuracy')
         self.in_training = False
         self.data
         self.batch_size
@@ -120,7 +128,8 @@ class Model:
         vars = tf.global_variables()
         weights_name = '%s/weights:0' % scope
         if weights_name not in [v.name for v in vars]:
-            raise Exception('Could not find weights with name %s' % weights_name)
+            raise Exception('Could not find weights with name %s'
+                            % weights_name)
         return next(v for v in vars if v.name == weights_name)
 
     def _all_weights(self):

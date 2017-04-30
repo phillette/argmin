@@ -50,51 +50,24 @@ def alignment_bi_rnn():
     return model
 
 
-def _train(model, transfer_to_carstens):
+if __name__ == '__main__':
+    model = alignment_parikh()
     with tf.Session() as sess:
         sess.run(tf.global_variables_initializer())
         train(model=model,
               db='snli',
-              collection='dev',
-              tuning_collection='test',
-              num_epochs=3,
+              collection='train',
+              tuning_collection=None,
+              num_epochs=6,
               sess=sess,
-              batch_size=100,
-              subset_size=1000,
-              load_ckpt=False,
+              batch_size=20,
+              subset_size=4000,
+              load_ckpt=True,
               save_ckpt=True,
               transfer=False)
-        accuracy(model, 'snli', 'train', sess, load_ckpt=False)
-        accuracy(model, 'snli', 'dev', sess, load_ckpt=False)
-        accuracy(model, 'snli', 'test', sess, load_ckpt=False)
-        if transfer_to_carstens:
-            model.learning_rate = 1e-10
-            train(model=model,
-                  db='carstens',
-                  collection='train',
-                  num_epochs=100,
-                  sess=sess,
-                  load_ckpt=False,
-                  save_ckpt=False,
-                  transfer=True)
-            accuracy(model=model,
-                     db='carstens',
-                     collection='train',
-                     sess=sess,
-                     load_ckpt=False,
-                     transfer=True)
-            accuracy(model=model,
-                     db='carstens',
-                     collection='test',
-                     sess=sess,
-                     load_ckpt=False,
-                     transfer=True)
-
-
-if __name__ == '__main__':
-    model = alignment_bi_rnn()
-    transfer_to_carstens = False
-    _train(model, transfer_to_carstens)
+        #accuracy(model, 'snli', 'train', sess, load_ckpt=False)
+        #accuracy(model, 'snli', 'dev', sess, load_ckpt=False)
+        #accuracy(model, 'snli', 'test', sess, load_ckpt=False)
 
 
 """
