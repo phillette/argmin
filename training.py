@@ -141,7 +141,7 @@ def report_every(num_iters):
 
 
 def tune_every(num_epochs):
-    return max(np.floor(num_epochs / 20), 1)
+    return int(min(max(np.floor(num_epochs / 20), 1), 10))
 
 
 def train(model, db, collection, num_epochs, sess,
