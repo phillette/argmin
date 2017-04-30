@@ -149,6 +149,6 @@ def num_iters(db, collection, batch_size=None, subset_size=None):
     if not batch_size:
         batch_size = PREFERRED_BATCH_SIZES[db][collection]
     if subset_size:
-        return int(np.floor(subset_size / batch_size))
+        return int(np.ceil(subset_size / batch_size))
     collection_size = stats.COLLECTION_SIZE[db][collection]
-    return int(np.floor(collection_size / batch_size))
+    return int(np.ceil(collection_size / batch_size))

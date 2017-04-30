@@ -12,12 +12,17 @@ import labeling
 
 
 def accuracy(model, db, collection, sess,
-             load_ckpt=True, transfer=False, batch_size=128):
+             load_ckpt=True, transfer=False,
+             batch_size=128, subset_size=None):
     # make sure sess.run(tf.global_variables_initializer()) has been called
     batch_gen = batching.get_batch_gen(db,
                                        collection,
                                        batch_size=batch_size)
-    num_iters = batching.num_iters(db, collection)
+    num_iters = batching.num_iters(db=db,
+                                   collection=collection,
+                                   batch_size=batch_size,
+                                   subset_size=subset_size)
+    print('%s %s %s' % (batch_size, stats.COLLECTION_SIZE[db][collection], num_iters))
     saver = tf.train.Saver()
     if load_ckpt:
         util.load_checkpoint(model, saver, sess, transfer)
