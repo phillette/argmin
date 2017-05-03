@@ -9,7 +9,7 @@ import matplotlib.pyplot as plt
 import prediction
 
 
-DEBUG = True
+DEBUG = False
 
 
 class History:
@@ -148,9 +148,10 @@ def train(model, db, collection, num_epochs, sess,
           batch_size=4, subset_size=None, tuning_collection=None,
           load_ckpt=True, save_ckpt=True, transfer=False):
 
-    report('Training %s on %s.%s for %s epochs '
-           'with batch size %s'
-           % (model.name, db, collection, num_epochs, batch_size))
+    print('Training %s on %s.%s for %s epochs '
+          'with batch size %s at LR %s'
+          % (model.name, db, collection,
+             num_epochs, batch_size, model.config.learning_rate))
 
     # num_epochs is a target - we keep the state in global_epoch
 
@@ -282,14 +283,14 @@ def train(model, db, collection, num_epochs, sess,
                     epoch_start_average_accuracy = accumulated_accuracy / iter
                     first_report_made = True
                 print('Step %s:\t'
-                      '%s\t'
+                      '%10.5f\t'
                       '%6.4f%%\t'
-                      '%ss\t'
-                      '%ss' % (iter,
+                      '%6.2f\t'
+                      '%s' % (iter,
                                accumulated_loss / iter,
                                accumulated_accuracy / iter * 100,
-                               round(average_time, 2),
-                               int(round(average_time * iters_remaining, 0))))
+                               average_time,
+                               time_remaining(average_time * iters_remaining)))
 
             # if we're in the last iteration, update end of epoch stats
             if iter == epoch_last_iter:
@@ -324,14 +325,14 @@ def train(model, db, collection, num_epochs, sess,
 
         # print the results
         print_dividing_lines()
-        print('\t\t%s%s\t%s%6.4f%%\t%ss\t%ss'
+        print('\t\t%s%10.5f\t%s%6.4f%%\t%8.2fs\t%s'
               % ('+' if epoch_change_average_loss > 0 else '',
                  epoch_change_average_loss,
                  '+' if epoch_change_average_accuracy > 0 else '',
                  epoch_change_average_accuracy,
-                 round(np.average(epoch_time_takens), 2),
-                 round(np.average(epoch_time_takens)
-                                  * (num_epochs - epoch), 2)))
+                 np.average(epoch_time_takens),
+                 time_remaining(np.average(epoch_time_takens)
+                                           * (num_epochs - epoch))))
 
         # save the checkpoint if required
         if save_ckpt:
@@ -369,6 +370,17 @@ def print_dividing_lines():
 def report(info):
     if DEBUG:
         print(info)
+
+
+def time_remaining(secs):
+    if secs < 60.0:
+        return '%4.2f secs' % secs
+    elif secs < 3600.0:
+        return '%4.2f mins' % (secs / 60)
+    elif secs < 86400.0:
+        return '%4.2f hrs' % (secs / 60 / 60)
+    else:
+        return '%3.2f days' % (secs / 60 / 60 / 24)
 
 
 if __name__ == '__main__':

@@ -22,7 +22,6 @@ def accuracy(model, db, collection, sess,
                                    collection=collection,
                                    batch_size=batch_size,
                                    subset_size=subset_size)
-    print('%s %s %s' % (batch_size, stats.COLLECTION_SIZE[db][collection], num_iters))
     saver = tf.train.Saver()
     if load_ckpt:
         util.load_checkpoint(model, saver, sess, transfer)

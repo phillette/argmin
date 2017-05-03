@@ -171,8 +171,9 @@ def find_max_length(db):
 
 
 if __name__ == '__main__':
-    find_oov('carstens')
-    #remove_no_gold_label_samples('mnli')
-    #generate_friendly_ids('mnli')
-    #generate_label_encodings('mnli')
-    generate_sentence_matrices('carstens')
+    db = 'carstens'
+    #find_oov(db)
+    #remove_no_gold_label_samples(db)
+    generate_friendly_ids(db)
+    generate_label_encodings(db)
+    generate_sentence_matrices(db)

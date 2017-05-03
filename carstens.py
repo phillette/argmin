@@ -1,8 +1,17 @@
 import mongoi
-import spacy
-import process_data
 import pandas as pd
 import util
+import numpy as np
+import stats
+
+
+"""
+1. import_carstens()
+2. process_data.generate_friendly_ids('carstens')
+3. process_data.generate_label_encodings('carstens')
+4. process_data.generate_sentence_matrices('carstens')
+"""
+
 
 """
 Note that to split the Carstens data into train and test,
@@ -49,8 +58,8 @@ def rebuild_text_corpus():
     print('Pickle saved successfully.')
 
 
-def carstens_into_mongo(file_path='/home/hanshan/carstens.csv'):
-    # should edit this to do the train-test split (3500-558)
+def import_carstens(file_path='/home/hanshan/carstens.csv'):
+    print('Importing Carstens corpus from %s' % file_path)
     X = pd.read_csv(file_path, header=None)
     label = {
         'n': 'neutral',
@@ -58,35 +67,30 @@ def carstens_into_mongo(file_path='/home/hanshan/carstens.csv'):
         'a': 'contradiction'
     }
     db = mongoi.CarstensDb()
-    nlp = spacy.load('en')
-    id = 0
     for x in X.iterrows():
-        id += 1
         doc = {
-            '_id': id,
             'sentence1': x[1][3],
             'sentence2': x[1][4],
             'gold_label': label[x[1][5]]
         }
-        doc['premise'] = mongoi.array_to_string(process_data.sentence_matrix(doc['sentence1'], nlp))
-        doc['hypothesis'] = mongoi.array_to_string(process_data.sentence_matrix(doc['sentence2'], nlp))
         db.all.insert_one(doc)
-    raise Exception('Could do the train and test split here, too')
+    print('Carstens corpus imported successfully.')
 
 
-def carstens_train_test_split():
+def train_test_split(test_set_size=558):
+    print('Creating train-test split for Carstens randomly...')
     db = mongoi.CarstensDb()
-    id = 0
-    all = db.all.find_all()
-    while id < 3500:
-        doc = next(all)
-        id += 1
-        db.train.insert_one(doc)
-    while id < 4058:
-        doc = next(all)
-        id += 1
-        db.test.insert_one(doc)
+    ids = np.arange(stats.COLLECTION_SIZE['carstens']['all'])
+    test_set_ids = np.random.choice(a=ids,
+                                    size=test_set_size,
+                                    replace=False)
+    for doc in db.all.find_all():
+        if doc['id'] in test_set_ids:
+            db.test.insert_one(doc)
+        else:
+            db.train.insert_one(doc)
+    print('Completed successfully.')
 
 
 if __name__ == '__main__':
-    rebuild_text_corpus()
+    train_test_split()

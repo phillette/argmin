@@ -25,7 +25,9 @@ COLLECTION_SIZE = {
         'dev_mismatched': 1
     },
     'carstens': {
-        'all': 4058
+        'all': 4058,
+        'train': 3500,
+        'test': 558
     }
 }
 NO_GOLD_LABEL_COUNTS = {
