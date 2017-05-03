@@ -10,7 +10,11 @@ tf.set_random_seed(1984)
 
 
 class AlignmentParikh(model_base.Model):
-    def __init__(self, config, encoding_size=300, alignment_size=200, projection_size=200, activation=tf.nn.relu):
+    def __init__(self, config, encoding_size=300, alignment_size=200,
+                 projection_size=200, activation=tf.nn.relu):
+        # NOTE: it is critical to the below that alignment=projection size.
+        #       I want to come back and remove one of the settings when I
+        #       have time.
         model_base.Model.__init__(self, config)
         self.name = 'alignment'
         self.encoding_size = encoding_size
@@ -100,9 +104,20 @@ class AlignmentParikh(model_base.Model):
     @decorators.define_scope
     def compare(self):
         betas, alphas = self.align
-        concatenated = util.concat(betas, alphas)
+
+        # [batch_size, timesteps, 2 * align_size]
+        V1_input = tf.concat([self.premises_encoding,
+                              betas],
+                             axis=2)
+        # [batch_size, timesteps, 2 * align_size]
+        V2_input = tf.concat([self.hypotheses_encoding,
+                              alphas],
+                             axis=2)
+
+        # [2 * batch_size, timesteps, 2 * align_size]
+        ff_input = util.concat(V1_input, V2_input)
         Vs1 = model_base.fully_connected_with_dropout(
-             inputs=concatenated,
+             inputs=ff_input,
              num_outputs=self.config.ff_size,
              activation_fn=self.activation,
              p_keep=self.config.p_keep_ff)
@@ -112,17 +127,25 @@ class AlignmentParikh(model_base.Model):
             activation_fn=self.activation,
             p_keep=self.config.p_keep_ff
         )
-        V1, V2 = util.split_after_concat(Vs2, self.batch_size)                         # [batch_size, timesteps, ff_size]
+
+        # [batch_size, timesteps, ff_size]
+        V1, V2 = util.split_after_concat(Vs2, self.batch_size)
+
         return V1, V2
 
     @decorators.define_scope
     def aggregate(self):
-        V1, V2 = self.compare                                                         # [batch_size, timesteps, ff_size]
-        v1 = tf.reduce_sum(V1, axis=1)                                                        # [batch_size, 1, ff_size]
-        v2 = tf.reduce_sum(V2, axis=1)                                                        # [batch_size, 1, ff_size]
-        concatenated = tf.concat([v1, v2], axis=1)                         # [batch_size, 2, ff_size]  can't be right...
-        concatenated.set_shape([None, 2 * self.config.ff_size])            # because this is 2d
-        return concatenated                                                                  # [batch_size, 2 * ff_size]
+        # [batch_size, timesteps, ff_size]
+        V1, V2 = self.compare
+        # [batch_size, 1, ff_size]
+        v1 = tf.reduce_sum(V1, axis=1)
+        # [batch_size, 1, ff_size]
+        v2 = tf.reduce_sum(V2, axis=1)
+        # [batch_size, 2, ff_size]  can't be right because this is 2d
+        concatenated = tf.concat([v1, v2], axis=1)
+        concatenated.set_shape([None, 2 * self.config.ff_size])
+        # [batch_size, 2 * ff_size]
+        return concatenated
 
     @decorators.define_scope
     def logits(self):
