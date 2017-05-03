@@ -287,10 +287,10 @@ def train(model, db, collection, num_epochs, sess,
                       '%6.4f%%\t'
                       '%6.2f\t'
                       '%s' % (iter,
-                               accumulated_loss / iter,
-                               accumulated_accuracy / iter * 100,
-                               average_time,
-                               time_remaining(average_time * iters_remaining)))
+                              accumulated_loss / iter,
+                              accumulated_accuracy / iter * 100,
+                              average_time,
+                              time_remaining(average_time * iters_remaining)))
 
             # if we're in the last iteration, update end of epoch stats
             if iter == epoch_last_iter:

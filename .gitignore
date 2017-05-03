@@ -102,3 +102,4 @@ logs/
 checkpoints/
 data/
 histories/
+main.py
