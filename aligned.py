@@ -34,51 +34,85 @@ class AlignmentParikh(model_base.Model):
 
     @decorators.define_scope
     def premises_encoding(self):
-        return self.X.premises                                                     # [batch_size, timesteps, embed_size]
+        # [batch_size, timesteps, embed_size]
+        return self.X.premises
 
     @decorators.define_scope
     def hypotheses_encoding(self):
-        return self.X.hypotheses                                                   # [batch_size, timesteps, embed_size]
+        # [batch_size, timesteps, embed_size]
+        return self.X.hypotheses
 
     @decorators.define_scope
     def project(self):
+        # [2 * batch_size, timesteps, embed_size]
         concatenated = util.concat(self.premises_encoding,
-                                   self.hypotheses_encoding)                   # [2 * batch_size, timesteps, embed_size]
-        projected = model_base.fully_connected_with_dropout(concatenated,
-                                                            self.projection_size,
-                                                            self.activation,
-                                                            self.config.p_keep_ff)
+                                   self.hypotheses_encoding)
+
+        # [2 * batch_size, timesteps, project_size]
+        projected = model_base.fully_connected_with_dropout(
+            concatenated,
+            self.projection_size,
+            self.activation,
+            self.config.p_keep_ff)
+
         return projected
 
     @decorators.define_scope
     def align(self):
-        Fs = model_base.fully_connected_with_dropout(inputs=self.project,
-                                                     num_outputs=self.alignment_size,
-                                                     activation_fn=self.activation,
-                                                     p_keep=self.config.p_keep_ff)
-        F_premises, F_hypotheses = util.split_after_concat(Fs,                 # [batch_size, timesteps, alignment_size]
-                                                           self.batch_size)
+        # [2 * batch_size, timesteps, align_size]
+        Fs1 = model_base.fully_connected_with_dropout(
+             inputs=self.project,
+             num_outputs=self.alignment_size,
+             activation_fn=self.activation,
+             p_keep=self.config.p_keep_ff)
+        Fs2 = model_base.fully_connected_with_dropout(
+            inputs=Fs1,
+            num_outputs=self.alignment_size,
+            activation_fn=self.activation,
+            p_keep=self.config.p_keep_ff
+        )
+
+        # [batch_size, timesteps, align_size]
+        F_premises, F_hypotheses = util.split_after_concat(
+            Fs2,
+            self.batch_size)
+
+        # [batch_size, timesteps, timesteps]
         eijs = tf.matmul(F_premises,
                          tf.transpose(F_hypotheses,
                                       perm=[0, 2, 1]),
-                         name='eijs')                                               # [batch_size, timesteps, timesteps]
-        eijs_softmaxed = tf.nn.softmax(eijs)                                        # [batch_size, timesteps, timesteps]
+                         name='eijs')
+
+        # [batch_size, timesteps, timesteps]
+        eijs_softmaxed = tf.nn.softmax(eijs)
+
+        # [batch_size, timesteps, align_size]
         betas = tf.matmul(eijs_softmaxed,
-                          self.hypotheses_encoding)                            # [batch_size, timesteps, alignment_size]
+                          self.hypotheses_encoding)
+
+        # [batch_size, timesteps, align_size]
         alphas = tf.matmul(tf.transpose(eijs_softmaxed,
                                         perm=[0, 2, 1]),
-                           self.premises_encoding)                             # [batch_size, timesteps, alignment_size]
+                           self.premises_encoding)
+
         return betas, alphas
 
     @decorators.define_scope
     def compare(self):
         betas, alphas = self.align
         concatenated = util.concat(betas, alphas)
-        Vs = model_base.fully_connected_with_dropout(inputs=concatenated,
-                                                     num_outputs=self.config.ff_size,
-                                                     activation_fn=self.activation,
-                                                     p_keep=self.config.p_keep_ff)
-        V1, V2 = util.split_after_concat(Vs, self.batch_size)                         # [batch_size, timesteps, ff_size]
+        Vs1 = model_base.fully_connected_with_dropout(
+             inputs=concatenated,
+             num_outputs=self.config.ff_size,
+             activation_fn=self.activation,
+             p_keep=self.config.p_keep_ff)
+        Vs2 = model_base.fully_connected_with_dropout(
+            inputs=Vs1,
+            num_outputs=self.config.ff_size,
+            activation_fn=self.activation,
+            p_keep=self.config.p_keep_ff
+        )
+        V1, V2 = util.split_after_concat(Vs2, self.batch_size)                         # [batch_size, timesteps, ff_size]
         return V1, V2
 
     @decorators.define_scope
