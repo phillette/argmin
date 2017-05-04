@@ -9,7 +9,7 @@ import rnn_encoders
 tf.set_random_seed(1984)
 
 
-class AlignmentParikh(model_base.Model):
+class Alignment(model_base.Model):
     def __init__(self, config, encoding_size=300, alignment_size=200,
                  projection_size=200, activation=tf.nn.relu):
         # NOTE: it is critical to the below that alignment=projection size.
@@ -137,14 +137,31 @@ class AlignmentParikh(model_base.Model):
     def aggregate(self):
         # [batch_size, timesteps, ff_size]
         V1, V2 = self.compare
+
+        # old aggregation method (Parikh)
+
         # [batch_size, 1, ff_size]
-        v1 = tf.reduce_sum(V1, axis=1)
+        #v1 = tf.reduce_sum(V1, axis=1)
         # [batch_size, 1, ff_size]
-        v2 = tf.reduce_sum(V2, axis=1)
+        #v2 = tf.reduce_sum(V2, axis=1)
         # [batch_size, 2, ff_size]  can't be right because this is 2d
-        concatenated = tf.concat([v1, v2], axis=1)
-        concatenated.set_shape([None, 2 * self.config.ff_size])
+        #concatenated = tf.concat([v1, v2], axis=1)
+        #concatenated.set_shape([None, 2 * self.config.ff_size])
         # [batch_size, 2 * ff_size]
+
+        # new aggregation method (Chen)
+
+        avg_premises = tf.reduce_mean(V1, axis=1)
+        max_premises = tf.reduce_max(V1, axis=1)
+        avg_hypotheses = tf.reduce_mean(V2, axis=1)
+        max_hypotheses = tf.reduce_max(V2, axis=1)
+        concatenated = tf.concat([avg_premises,
+                                  max_premises,
+                                  avg_hypotheses,
+                                  max_hypotheses],
+                                 axis=1)
+        concatenated.set_shape([None, 4 * self.config.ff_size])
+
         return concatenated
 
     @decorators.define_scope
@@ -171,7 +188,7 @@ class AlignmentParikh(model_base.Model):
         return tf.add(cross_entropy, penalty_term, name='loss')
 
 
-class BiRNNAlignment(AlignmentParikh):
+class BiRNNAlignment(Alignment):
     def __init__(self, config, encoding_size=300, alignment_size=200, projection_size=200, activation=tf.nn.relu):
         AlignmentParikh.__init__(self, config, encoding_size, alignment_size, projection_size, activation)
         self.name = 'bi_rnn_alignment'
@@ -197,7 +214,7 @@ class BiRNNAlignment(AlignmentParikh):
 
 if __name__ == '__main__':
     config = model_base.Config()
-    model = AlignmentParikh(config)
+    model = Alignment(config)
     import numpy as np
     premises = np.random.rand(4, 12, 300)
     hypotheses = np.random.rand(4, 12, 300)

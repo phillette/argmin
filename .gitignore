@@ -103,3 +103,4 @@ checkpoints/
 data/
 histories/
 main.py
+scratch.py
