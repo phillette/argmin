@@ -7,7 +7,8 @@ import numpy as np
 COLLECTIONS = {
     'snli': ['train', 'dev', 'test'],
     'mnli': ['train', 'dev_matched', 'dev_mismatched'],
-    'carstens': ['all']
+    'xnli': ['train', 'dev_matched', 'dev_mismatched'],
+    'carstens': ['all', 'train', 'test']
 }
 
 
@@ -18,6 +19,8 @@ def get_db(db_name):
         return CarstensDb()
     elif db_name == 'mnli':
         return MNLIDb()
+    elif db_name == 'xnli':
+        return XNLIDb()
     else:
         raise Exception('Unexpected db_name: %s' % db_name)
 
@@ -50,13 +53,19 @@ class RepositoryFacade:
     Facade to provide a convenient single point of access for the db connection
     and repository classes for accessing the collections.
     """
-    def __init__(self, server='localhost', port=27017, db=None, collections=[]):
+    def __init__(self,
+                 server='localhost',
+                 port=27017,
+                 db=None,
+                 collections=None):
         """
         :param server: MongoDB server address
         :param port: MongoDB server port
         :param db: the name of the database to access
         :param collections: a list of collections for which repositories will be initialized
         """
+        if not collections:
+            collections = COLLECTIONS[db]
         self.connection = MongoClient(server, port)
         exec('self.db = self.connection.%s' % db)
         for collection in collections:
@@ -69,7 +78,7 @@ class RepositoryFacade:
 class CarstensDb(RepositoryFacade):
     """Repository Facade for the Carstens and Toni (2015) data set. """
     def __init__(self):
-        RepositoryFacade.__init__(self, 'localhost', 27017, 'carstens')
+        RepositoryFacade.__init__(self, db='carstens')
         self.all = Repository(self.db.all)
         self.train = Repository(self.db.train)
         self.test = Repository(self.db.test)
@@ -78,7 +87,7 @@ class CarstensDb(RepositoryFacade):
 class SNLIDb(RepositoryFacade):
     """ Repository Facade for the SNLI 1.0 data set. """
     def __init__(self):
-        RepositoryFacade.__init__(self, 'localhost', 27017, 'snli')
+        RepositoryFacade.__init__(self, db='snli')
         self.train = Repository(self.db.train)
         self.dev = Repository(self.db.dev)
         self.test = Repository(self.db.test)
@@ -87,7 +96,21 @@ class SNLIDb(RepositoryFacade):
 class MNLIDb(RepositoryFacade):
     """ Repository Facade for the MNLI 0.9 data set. """
     def __init__(self):
-        RepositoryFacade.__init__(self, 'localhost', 27017, 'mnli', COLLECTIONS['mnli'])
+        RepositoryFacade.__init__(self, db='mnli')
+        self.train = Repository(self.db.train)
+        self.dev_matched = Repository(self.db.dev_matched)
+        self.dev_mismatched = Repository(self.db.dev_mismatched)
+        self.test = Repository(self.db.test)
+
+
+class XNLIDb(RepositoryFacade):
+    """ Repository Facade for Cross-NLI data set. """
+    def __init__(self):
+        RepositoryFacade.__init__(self, db='xnli')
+        self.train = Repository(self.db.train)
+        self.dev_matched = Repository(self.db.dev_matched)
+        self.dev_mismatched = Repository(self.db.dev_mismatched)
+        self.test = Repository(self.db.test)
 
 
 class Repository:
