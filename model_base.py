@@ -113,9 +113,11 @@ class Model:
     @decorators.define_scope
     def optimize(self):
         optimizer = tf.train.AdamOptimizer(self.config.learning_rate)
-        grads_and_vars = optimizer.compute_gradients(self.loss, self._all_weights())
-        clipped_grads_and_vars = util.clip_gradients(grads_and_vars)
-        return optimizer.apply_gradients(clipped_grads_and_vars)
+        grads_and_vars = optimizer.compute_gradients(self.loss,
+                                                     self._all_weights())
+        if self.config.grad_clip_norm > 0.0:
+            grads_and_vars = util.clip_gradients(grads_and_vars)
+        return optimizer.apply_gradients(grads_and_vars)
 
     @decorators.define_scope
     def predicted_labels(self):
