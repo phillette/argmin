@@ -190,7 +190,7 @@ class Alignment(model_base.Model):
 
 class BiRNNAlignment(Alignment):
     def __init__(self, config, encoding_size=300, alignment_size=200, projection_size=200, activation=tf.nn.relu):
-        AlignmentParikh.__init__(self, config, encoding_size, alignment_size, projection_size, activation)
+        Alignment.__init__(self, config, encoding_size, alignment_size, projection_size, activation)
         self.name = 'bi_rnn_alignment'
 
     @decorators.define_scope
