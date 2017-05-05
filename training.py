@@ -74,6 +74,8 @@ class History:
             return self.batch_size_info()
         elif value_to_compare == 'learning_rate':
             return '%s' % self.learning_rate
+        elif value_to_compare == 'model_name':
+            return '%s' % self.model_name
         else:
             raise Exception('Unexpected value_to_compare: %s'
                             % value_to_compare)
