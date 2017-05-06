@@ -255,7 +255,7 @@ def summary_keys():
     ]
 
 
-def view_runs():
+def view():
     print('Training histories:')
     db = mongoi.HistoryDb()
     docs = list(db.all.find_all())

@@ -1,30 +1,6 @@
 import tensorflow as tf
-import stats
 import decorators
 import util
-
-
-class X:
-    def __init__(self, premises, hypotheses):
-        self.premises = premises
-        self.hypotheses = hypotheses
-
-
-def data_placeholders(word_embed_size):
-    premises = tf.placeholder(tf.float64,
-                              [None,
-                               None,
-                               word_embed_size],
-                              name='premises')
-    hypotheses = tf.placeholder(tf.float64,
-                                [None,
-                                 None,
-                                 word_embed_size],
-                                name='hypotheses')
-    Y = tf.placeholder(tf.float64,
-                       [None, 3],
-                       name='y')
-    return X(premises, hypotheses), Y
 
 
 def fully_connected_with_dropout(inputs, num_outputs, activation_fn, p_keep):
@@ -33,32 +9,6 @@ def fully_connected_with_dropout(inputs, num_outputs, activation_fn, p_keep):
                                                         activation_fn)
     dropped_out = tf.nn.dropout(fully_connected, p_keep)
     return dropped_out
-
-
-class Config:
-    def __init__(self,
-                 word_embed_size=300,
-                 learning_rate=5e-4,
-                 time_steps=stats.LONGEST_SENTENCE_SNLI,
-                 grad_clip_norm=5.0,
-                 hidden_size=100,
-                 rnn_size=300,
-                 ff_size=200,
-                 lamda=0.0,
-                 p_keep_input=0.8,
-                 p_keep_rnn=0.5,
-                 p_keep_ff=0.8):
-        self.word_embed_size = word_embed_size
-        self.learning_rate = learning_rate
-        self.time_steps = time_steps
-        self.grad_clip_norm = grad_clip_norm
-        self.hidden_size = hidden_size
-        self.rnn_size = rnn_size
-        self.ff_size = ff_size
-        self.lamda = lamda
-        self.p_keep_input = p_keep_input
-        self.p_keep_rnn = p_keep_rnn
-        self.p_keep_ff = p_keep_ff
 
 
 def base_config(embed_size=300,
@@ -106,7 +56,9 @@ class Model:
                                                dtype=tf.int32,
                                                trainable=False,
                                                name='training_history_id')
-        self.data
+        self.premises
+        self.hypotheses
+        self.Y
         self.batch_size
         self.batch_timesteps
 
@@ -116,11 +68,11 @@ class Model:
 
     @decorators.define_scope
     def batch_size(self):
-        return tf.shape(self.X.premises)[0]
+        return tf.shape(self.premises)[0]
 
     @decorators.define_scope
     def batch_timesteps(self):
-        return tf.shape(self.X.premises)[1]
+        return tf.shape(self.premises)[1]
 
     @decorators.define_scope
     def confidences(self):
@@ -131,9 +83,11 @@ class Model:
         return tf.equal(self.predicted_labels, tf.argmax(self.Y, axis=1))
 
     @decorators.define_scope
-    def data(self):
-        self.X, self.Y = data_placeholders(self.embed_size)
-        return self.X, self.Y
+    def hypotheses(self):
+        return tf.placeholder(
+            tf.float64,
+            [None, None, self.embed_size],
+            name='hypotheses')
 
     @decorators.define_scope
     def optimize(self):
@@ -163,11 +117,34 @@ class Model:
         return tf.argmax(self.logits, axis=1)
 
     @decorators.define_scope
+    def premises(self):
+        return tf.placeholder(
+            tf.float64,
+            [None, None, self.embed_size],
+            name='premises')
+
+    @decorators.define_scope
     def summary(self):
         tf.summary.scalar('loss', self.loss)
         tf.summary.scalar('accuracy', self.accuracy)
         tf.summary.histogram('histogram_loss', self.loss)
         return tf.summary.merge_all()
+
+    @decorators.define_scope
+    def Y(self):
+        return tf.placeholder(
+            tf.float64,
+            [None, 3],
+            name='y')
+
+    def _init_backend(self):
+        self.loss
+        self.optimize
+        self.predicted_labels
+        self.correct_predictions
+        self.accuracy
+        self.confidences
+        self.summary
 
     def _weights(self, scope):
         vars = tf.global_variables()

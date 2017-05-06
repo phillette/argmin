@@ -51,14 +51,9 @@ def factors(n):
 
 
 def feed_dict(model, batch):
-    return {model.X.premises: batch.premises,
-            model.X.hypotheses: batch.hypotheses,
+    return {model.premises: batch.premises,
+            model.hypotheses: batch.hypotheses,
             model.Y: batch.labels}
-
-
-def feed_dict2(model, batch):
-    return {model.X: batch.X,
-            model.Y: batch.Y}
 
 
 def length(sequence):

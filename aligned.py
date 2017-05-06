@@ -10,9 +10,6 @@ tf.set_random_seed(1984)
 
 
 class Alignment(model_base.Model):
-    """
-    config.hidden_size = projection_size = ff_size
-    """
     def __init__(self, config):
         model_base.Model.__init__(self, config)
         self.name = 'alignment2'
@@ -34,12 +31,12 @@ class Alignment(model_base.Model):
     @decorators.define_scope
     def premises_encoding(self):
         # [batch_size, timesteps, embed_size]
-        return self.X.premises
+        return self.premises
 
     @decorators.define_scope
     def hypotheses_encoding(self):
         # [batch_size, timesteps, embed_size]
-        return self.X.hypotheses
+        return self.hypotheses
 
     @decorators.define_scope
     def project(self):
@@ -261,7 +258,7 @@ class BiRNNAlignment(Alignment):
     def premises_encoding(self):
         # [batch_size, timesteps, rnn_size]
         _premises_encoding = rnn_encoders.bi_rnn(
-            self.X.premises,
+            self.premises,
             self.embed_size,
             'premise_bi_rnn',
             self.p_keep)
@@ -273,7 +270,7 @@ class BiRNNAlignment(Alignment):
     def hypotheses_encoding(self):
         # [batch_size, timesteps, rnn_size]
         _hypotheses_encoding = rnn_encoders.bi_rnn(
-            self.X.hypotheses,
+            self.hypotheses,
             self.embed_size,
             'hypothesis_bi_rnn',
             self.p_keep)
@@ -283,14 +280,14 @@ class BiRNNAlignment(Alignment):
 
 
 if __name__ == '__main__':
-    config = model_base.Config()
-    model = Alignment(model_base.base_config())
+    config = model_base.base_config()
+    model = Alignment(config)
     import numpy as np
     premises = np.random.rand(4, 12, 300)
     hypotheses = np.random.rand(4, 12, 300)
     labels = np.random.rand(4, 3)
-    feed_dict = {model.X.premises: premises,
-                 model.X.hypotheses: hypotheses,
+    feed_dict = {model.premises: premises,
+                 model.hypotheses: hypotheses,
                  model.Y: labels}
     with tf.Session() as sess:
         sess.run(tf.global_variables_initializer())
