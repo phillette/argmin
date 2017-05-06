@@ -80,15 +80,18 @@ class Alignment(model_base.Model):
                          name='eijs')
 
         # [batch_size, timesteps, timesteps]
-        eijs_softmaxed = tf.nn.softmax(eijs)
+        eijs_softmaxed_for_premises = tf.nn.softmax(eijs)
+        eijs_softmaxed_for_hypotheses = tf.nn.softmax(
+            tf.transpose(
+                eijs,
+                perm=[0, 2, 1]))
 
         # [batch_size, timesteps, hidden_size]
-        betas = tf.matmul(eijs_softmaxed,
+        betas = tf.matmul(eijs_softmaxed_for_premises,
                           self.hypotheses_encoding)
 
         # [batch_size, timesteps, hidden_size]
-        alphas = tf.matmul(tf.transpose(eijs_softmaxed,
-                                        perm=[0, 2, 1]),
+        alphas = tf.matmul(eijs_softmaxed_for_hypotheses,
                            self.premises_encoding)
 
         return betas, alphas
@@ -249,7 +252,7 @@ class AlignmentDeep(Alignment):
         return V1, V2
 
 
-class BiRNNAlignment(Alignment):
+class BiRNNAlignment(AlignmentDeep):
     def __init__(self, config):
         Alignment.__init__(self, config)
         self.name = 'bi_rnn_alignment'
