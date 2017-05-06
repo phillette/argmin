@@ -4,6 +4,7 @@ import mongoi
 import datetime
 import stats
 import itertools
+import batching
 
 
 def batch_size_info(history):
@@ -21,37 +22,43 @@ def compare(ids, param_to_compare):
     lines_loss = []
     plt.subplot(2, 2, 1)
     for i in range(len(histories)):
-        line_i_loss, = plt.plot(
-            np.array(histories[i]['iter']),
-            comparison_x(histories[i], 'loss'),
-            label=comparison_label(histories[i], param_to_compare))
+        line_i_loss = plot(
+            history=histories[i],
+            value_to_compare='loss',
+            param_to_compare=param_to_compare,
+            iter_key='iter'
+        )
         lines_loss.append(line_i_loss)
     plt.legend(handles=lines_loss, loc=1)
-    plt.xlabel('iteration')
+    plt.xlabel(comparison_x_label(param_to_compare, 'loss'))
     plt.ylabel('standardized loss')
     # accuracy
     lines_accuracy = []
     plt.subplot(2, 2, 2)
     for i in range(len(histories)):
-        line_i_accuracy, = plt.plot(
-            np.array(histories[i]['iter']),
-            comparison_x(histories[i], 'accuracy'),
-            label=comparison_label(histories[i], param_to_compare))
+        line_i_accuracy = plot(
+            history=histories[i],
+            value_to_compare='accuracy',
+            param_to_compare=param_to_compare,
+            iter_key='iter'
+        )
         lines_accuracy.append(line_i_accuracy)
     plt.legend(handles=lines_accuracy, loc=2)
-    plt.xlabel('iteration')
+    plt.xlabel(comparison_x_label(param_to_compare, 'accuracy'))
     plt.ylabel('training set accuracy')
     # tuning_accuracy
     lines_tune = []
     plt.subplot(2, 2, 3)
     for i in range(len(histories)):
-        line_i_tune, = plt.plot(
-            np.array(histories[i]['tuning_iter']),
-            comparison_x(histories[i], 'tuning_accuracy'),
-            label=comparison_label(histories[i], param_to_compare))
+        line_i_tune = plot(
+            history=histories[i],
+            value_to_compare='tuning_accuracy',
+            param_to_compare=param_to_compare,
+            iter_key='tuning_iter'
+        )
         lines_tune.append(line_i_tune)
     plt.legend(handles=lines_tune, loc=2)
-    plt.xlabel('iteration')
+    plt.xlabel(comparison_x_label(param_to_compare, 'tuning_accuracy'))
     plt.ylabel('tuning set accuracy')
     plt.show()
 
@@ -66,15 +73,27 @@ def comparison_label(history, param_to_compare):
             return '%s' % history['config'][param_to_compare]
 
 
-def comparison_x(history, value_to_compare):
+def comparison_x(history, param_to_compare, iter_key):
+    if param_to_compare == 'batch_size':
+        return scale_iters_to_epochs(history, iter_key)
+    else:
+        return np.array(history[iter_key])
+
+
+def comparison_x_label(param_to_compare, value_to_compare):
+    if param_to_compare == 'batch_size':
+        return 'epoch'
+    if value_to_compare == 'tuning_accuracy':
+        return 'epoch'
+    else:
+        return 'iteration'
+
+
+def comparison_y(history, value_to_compare):
     if value_to_compare == 'loss':
         return scaled_loss(history)
-    elif value_to_compare == 'accuracy':
-        return np.array(history['accuracy'])
-    elif value_to_compare == 'tuning_accuracy':
-        return np.array(history['tuning_accuracy'])
     else:
-        raise Exception('Unexpected value: %s' % value_to_compare)
+        return np.array(history[value_to_compare])
 
 
 def delete(id):
@@ -172,6 +191,19 @@ def new_id():
     return max(ids) + 1 if len(ids) > 0 else 1
 
 
+def plot(history, param_to_compare, value_to_compare, iter_key):
+    line, = plt.plot(
+        comparison_x(
+            history=history,
+            param_to_compare=param_to_compare,
+            iter_key=iter_key),
+        comparison_y(
+            history=history,
+            value_to_compare=value_to_compare),
+        label=comparison_label(history, param_to_compare))
+    return line
+
+
 def print_config(docs):
     print('----\t----\t----\t\t----\t----\t\t----')
     print('id\talpha\thidden_size\tp_keep\tgrad_clip_norm\tlambda')
@@ -241,6 +273,17 @@ def report_tuning(history, iter, accuracy):
 def save(history):  # try this just with "update"
     db = mongoi.HistoryDb()
     db.all.update(history)
+
+
+def scale_iters_to_epochs(history, iters_key):
+    iters = np.array(history[iters_key])
+    iters_per_epoch = batching.num_iters(
+        db=history['db'],
+        collection=history['collection'],
+        batch_size=history['batch_size'],
+        subset_size=history['subset_size']
+    )
+    return iters / iters_per_epoch
 
 
 def scaled_loss(history):
