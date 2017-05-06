@@ -17,20 +17,21 @@ def batch_size_info(history):
 
 def compare(ids, param_to_compare):
     histories = get_many(ids)
+    # loss
     lines_loss = []
-    plt.subplot(1, 2, 1)
+    plt.subplot(2, 2, 1)
     for i in range(len(histories)):
         line_i_loss, = plt.plot(
             np.array(histories[i]['iter']),
             comparison_x(histories[i], 'loss'),
             label=comparison_label(histories[i], param_to_compare))
         lines_loss.append(line_i_loss)
-    plt.legend(handles=lines_loss, loc=2)
+    plt.legend(handles=lines_loss, loc=1)
     plt.xlabel('iteration')
     plt.ylabel('standardized loss')
     # accuracy
     lines_accuracy = []
-    plt.subplot(1, 2, 2)
+    plt.subplot(2, 2, 2)
     for i in range(len(histories)):
         line_i_accuracy, = plt.plot(
             np.array(histories[i]['iter']),
@@ -39,7 +40,19 @@ def compare(ids, param_to_compare):
         lines_accuracy.append(line_i_accuracy)
     plt.legend(handles=lines_accuracy, loc=2)
     plt.xlabel('iteration')
-    plt.ylabel('accuracy')
+    plt.ylabel('training set accuracy')
+    # tuning_accuracy
+    lines_tune = []
+    plt.subplot(2, 2, 3)
+    for i in range(len(histories)):
+        line_i_tune, = plt.plot(
+            np.array(histories[i]['tuning_iter']),
+            comparison_x(histories[i], 'tuning_accuracy'),
+            label=comparison_label(histories[i], param_to_compare))
+        lines_tune.append(line_i_tune)
+    plt.legend(handles=lines_tune, loc=2)
+    plt.xlabel('iteration')
+    plt.ylabel('tuning set accuracy')
     plt.show()
 
 
@@ -58,6 +71,8 @@ def comparison_x(history, value_to_compare):
         return scaled_loss(history)
     elif value_to_compare == 'accuracy':
         return np.array(history['accuracy'])
+    elif value_to_compare == 'tuning_accuracy':
+        return np.array(history['tuning_accuracy'])
     else:
         raise Exception('Unexpected value: %s' % value_to_compare)
 
@@ -189,10 +204,19 @@ def print_globals(docs):
     print('----\t----\t----\t----\t----\t\t----\t\t----')
     for doc in docs:
         print('%s\t%s\t%s\t%s\t%6.4f\t\t%5.3f%%\t\t%5.3f%%' %
-              (doc['id'], doc['batch_size'],
-               doc['subset_size'], doc['epochs'],
-               min(doc['loss']), max(doc['accuracy']),
+              (doc['id'],
+               doc['batch_size'],
+               doc['subset_size'],
+               doc['epochs'],
+               min(doc['loss'])
+                   if len(doc['loss']) > 0
+                   else 0.0,
+               max(doc['accuracy'])
+                   if len(doc['accuracy']) > 0
+                   else 0.0,
                max(doc['tuning_accuracy'])
+                   if len(doc['tuning_accuracy']) > 0
+                   else 0.0
                ))
 
 
