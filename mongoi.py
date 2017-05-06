@@ -8,7 +8,8 @@ COLLECTIONS = {
     'snli': ['train', 'dev', 'test'],
     'mnli': ['train', 'dev_matched', 'dev_mismatched'],
     'xnli': ['train', 'dev_matched', 'dev_mismatched'],
-    'carstens': ['all', 'train', 'test']
+    'carstens': ['all', 'train', 'test'],
+    'history': ['all']
 }
 
 
@@ -21,6 +22,8 @@ def get_db(db_name):
         return MNLIDb()
     elif db_name == 'xnli':
         return XNLIDb()
+    elif db_name == 'history':
+        return HistoryDb()
     else:
         raise Exception('Unexpected db_name: %s' % db_name)
 
@@ -113,6 +116,12 @@ class XNLIDb(RepositoryFacade):
         self.test = Repository(self.db.test)
 
 
+class HistoryDb(RepositoryFacade):
+    def __init__(self):
+        RepositoryFacade.__init__(self, db='history')
+        self.all = Repository(self.db.all)
+
+
 class Repository:
     """
     Interface for a MongoDB collection.
@@ -203,6 +212,9 @@ class Repository:
 
     def random_sample(self, size):
         return self.collection.aggregate([{'$sample': {'size': size}}])
+
+    def update(self, doc):
+        self.collection.save(doc)
 
     def update_one(self, _id, attr_value_dict):
         """

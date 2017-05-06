@@ -38,16 +38,16 @@ def fully_connected_with_dropout(inputs, num_outputs, activation_fn, p_keep):
 class Config:
     def __init__(self,
                  word_embed_size=300,
-                 learning_rate=1e-3,
+                 learning_rate=5e-4,
                  time_steps=stats.LONGEST_SENTENCE_SNLI,
                  grad_clip_norm=5.0,
                  hidden_size=100,
                  rnn_size=300,
                  ff_size=200,
-                 lamda=0.9,
+                 lamda=0.0,
                  p_keep_input=0.8,
                  p_keep_rnn=0.5,
-                 p_keep_ff=0.5):
+                 p_keep_ff=0.8):
         self.word_embed_size = word_embed_size
         self.learning_rate = learning_rate
         self.time_steps = time_steps
@@ -61,9 +61,31 @@ class Config:
         self.p_keep_ff = p_keep_ff
 
 
+def base_config(embed_size=300,
+                learning_rate=1e-3,
+                grad_clip_norm=0.0,
+                hidden_size=200,
+                lamda=0.0,
+                p_keep=0.8):
+    return {
+        'embed_size': embed_size,
+        'learning_rate': learning_rate,
+        'grad_clip_norm': grad_clip_norm,
+        'hidden_size': hidden_size,
+        'lambda': lamda,
+        'p_keep': p_keep
+    }
+
+
 class Model:
     def __init__(self, config):
         self.config = config
+        self.embed_size = config['embed_size']
+        self.learning_rate = config['learning_rate']
+        self.grad_clip_norm = config['grad_clip_norm']
+        self.hidden_size = config['hidden_size']
+        self.lamda = config['lambda']
+        self.p_keep = config['p_keep']
         self.global_step = tf.Variable(initial_value=0,
                                        dtype=tf.int32,
                                        trainable=False,
@@ -80,7 +102,10 @@ class Model:
                                                 dtype=tf.float32,
                                                 trainable=False,
                                                 name='average_accuracy')
-        self.in_training = False
+        self.training_history_id = tf.Variable(initial_value=-1,
+                                               dtype=tf.int32,
+                                               trainable=False,
+                                               name='training_history_id')
         self.data
         self.batch_size
         self.batch_timesteps
@@ -107,17 +132,31 @@ class Model:
 
     @decorators.define_scope
     def data(self):
-        self.X, self.Y = data_placeholders(self.config.word_embed_size)
+        self.X, self.Y = data_placeholders(self.embed_size)
         return self.X, self.Y
 
     @decorators.define_scope
     def optimize(self):
-        optimizer = tf.train.AdamOptimizer(self.config.learning_rate)
+        optimizer = tf.train.AdamOptimizer(self.learning_rate)
         grads_and_vars = optimizer.compute_gradients(self.loss,
                                                      self._all_weights())
-        if self.config.grad_clip_norm > 0.0:
-            grads_and_vars = util.clip_gradients(grads_and_vars)
+        if self.grad_clip_norm > 0.0:
+            grads_and_vars = util.clip_gradients(grads_and_vars,
+                                                 norm=self.grad_clip_norm)
         return optimizer.apply_gradients(grads_and_vars)
+
+    @decorators.define_scope
+    def loss(self):
+        cross_entropy = tf.reduce_sum(
+            tf.nn.softmax_cross_entropy_with_logits(
+                labels=self.Y,
+                logits=self.logits,
+                name='softmax_cross_entropy'))
+        penalty_term = tf.multiply(
+            tf.cast(self.lamda, tf.float64),
+            sum([tf.nn.l2_loss(w) for w in self._all_weights()]),
+            name='penalty_term')
+        return tf.add(cross_entropy, penalty_term, name='loss')
 
     @decorators.define_scope
     def predicted_labels(self):

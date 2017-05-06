@@ -13,5 +13,14 @@ def import_snli():
     all_snli = mongoi.get_repository('snli', 'train').find_all()
     for _ in range(77350):
         doc = next(all_snli)
+        doc['genre'] = 'snli'
         db.train.insert_one(doc)
     print('Completed successfully.')
+
+
+def fill_empty_genres():
+    pass
+
+
+if __name__ == '__main__':
+    import_snli()
