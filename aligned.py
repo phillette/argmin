@@ -41,8 +41,9 @@ class Alignment(model_base.Model):
     @decorators.define_scope
     def project(self):
         # [2 * batch_size, timesteps, embed_size]
-        concatenated = util.concat(self.premises_encoding,
-                                   self.hypotheses_encoding)
+        concatenated = util.concat(
+            premises=self.premises_encoding,
+            hypotheses=self.hypotheses_encoding)
 
         # [2 * batch_size, timesteps, hidden_size]
         projected = model_base.fully_connected_with_dropout(
@@ -70,8 +71,8 @@ class Alignment(model_base.Model):
 
         # [batch_size, timesteps, hidden_size]
         F_premises, F_hypotheses = util.split_after_concat(
-            Fs2,
-            self.batch_size)
+            tensor=Fs2,
+            batch_size=self.batch_size)
 
         # [batch_size, timesteps, timesteps]
         eijs = tf.matmul(F_premises,
@@ -134,7 +135,6 @@ class Alignment(model_base.Model):
         V1, V2 = self.compare
 
         # new aggregation method (Chen)
-
         avg_premises = tf.reduce_mean(V1, axis=1)
         max_premises = tf.reduce_max(V1, axis=1)
         avg_hypotheses = tf.reduce_mean(V2, axis=1)
@@ -150,14 +150,16 @@ class Alignment(model_base.Model):
 
     @decorators.define_scope
     def logits(self):
-        a1 = model_base.fully_connected_with_dropout(self.aggregate,
-                                                     self.hidden_size,
-                                                     tf.nn.relu,
-                                                     self.p_keep)
-        a2 = model_base.fully_connected_with_dropout(a1,
-                                                     self.hidden_size,
-                                                     tf.nn.relu,
-                                                     self.p_keep)
+        a1 = model_base.fully_connected_with_dropout(
+            inputs=self.aggregate,
+            num_outputs=self.hidden_size,
+            activation_fn=tf.nn.relu,
+            p_keep=self.p_keep)
+        a2 = model_base.fully_connected_with_dropout(
+            inputs=a1,
+            num_outputs=self.hidden_size,
+            activation_fn=tf.nn.relu,
+            p_keep=self.p_keep)
         a3 = tf.contrib.layers.fully_connected(a2, 3, None)
         return a3
 

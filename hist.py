@@ -81,12 +81,7 @@ def comparison_x(history, param_to_compare, value_to_compare, iter_key):
 
 
 def comparison_x_label(param_to_compare, value_to_compare):
-    if param_to_compare == 'batch_size':
-        return 'epoch'
-    elif value_to_compare == 'tuning_accuracy':
-        return 'epoch'
-    else:
-        return 'iteration'
+    return 'epoch'
 
 
 def comparison_y(history, value_to_compare):
