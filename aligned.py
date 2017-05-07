@@ -12,7 +12,7 @@ tf.set_random_seed(1984)
 class Alignment(model_base.Model):
     def __init__(self, config):
         model_base.Model.__init__(self, config)
-        self.name = 'alignment2'
+        self.name = 'alignment'
         self.premises_encoding
         self.hypotheses_encoding
         self.project
