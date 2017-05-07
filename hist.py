@@ -77,12 +77,7 @@ def comparison_label(history, param_to_compare):
 
 
 def comparison_x(history, param_to_compare, value_to_compare, iter_key):
-    if param_to_compare == 'batch_size':
-        return scale_iters_to_epochs(history, iter_key)
-    elif value_to_compare == 'tuning_accuracy':
-        return scale_iters_to_epochs(history, iter_key)
-    else:
-        return np.array(history[iter_key])
+    return scale_iters_to_epochs(history, iter_key)
 
 
 def comparison_x_label(param_to_compare, value_to_compare):
