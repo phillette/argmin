@@ -16,8 +16,11 @@ def batch_size_info(history):
                   2))
 
 
-def compare(ids, param_to_compare):
-    histories = get_many(ids)
+def compare(ids=None, param_to_compare='model_name'):
+    if not ids:
+        histories = get_all()
+    else:
+        histories = get_many(ids)
     # loss
     lines_loss = []
     plt.subplot(2, 2, 1)
@@ -73,8 +76,10 @@ def comparison_label(history, param_to_compare):
             return '%s' % history['config'][param_to_compare]
 
 
-def comparison_x(history, param_to_compare, iter_key):
+def comparison_x(history, param_to_compare, value_to_compare, iter_key):
     if param_to_compare == 'batch_size':
+        return scale_iters_to_epochs(history, iter_key)
+    elif value_to_compare == 'tuning_accuracy':
         return scale_iters_to_epochs(history, iter_key)
     else:
         return np.array(history[iter_key])
@@ -83,7 +88,7 @@ def comparison_x(history, param_to_compare, iter_key):
 def comparison_x_label(param_to_compare, value_to_compare):
     if param_to_compare == 'batch_size':
         return 'epoch'
-    if value_to_compare == 'tuning_accuracy':
+    elif value_to_compare == 'tuning_accuracy':
         return 'epoch'
     else:
         return 'iteration'
@@ -99,6 +104,11 @@ def comparison_y(history, value_to_compare):
 def delete(id):
     db = mongoi.HistoryDb()
     db.db.all.delete_many({'id': id})
+
+
+def get_all():
+    db = mongoi.HistoryDb()
+    return list(db.all.find_all())
 
 
 def get_config_keys(docs):
@@ -196,6 +206,7 @@ def plot(history, param_to_compare, value_to_compare, iter_key):
         comparison_x(
             history=history,
             param_to_compare=param_to_compare,
+            value_to_compare=value_to_compare,
             iter_key=iter_key),
         comparison_y(
             history=history,
@@ -337,4 +348,4 @@ def visualize(id):
 
 
 if __name__ == '__main__':
-    view_runs()
+    view()
