@@ -256,17 +256,18 @@ class AlignmentDeep(Alignment):
 
 class BiRNNAlignment(Alignment):
     def __init__(self, config):
+        self.p_keep_rnn = config['p_keep_rnn']
         Alignment.__init__(self, config)
-        self.name = 'bi_rnn_alignment'
+        self.name = 'BiRNNAlign'
 
     @decorators.define_scope
     def premises_encoding(self):
         # [batch_size, timesteps, rnn_size]
         _premises_encoding = rnn_encoders.bi_rnn(
-            self.premises,
-            self.embed_size,
-            'premise_bi_rnn',
-            self.p_keep)
+            sentences=self.premises,
+            hidden_size=self.embed_size,
+            scope='premise_bi_rnn',
+            p_keep=self.p_keep_rnn)
         # [batch_size, timesteps, 2 * rnn_size]
         concatenated_encoding = tf.concat(_premises_encoding[0], 2)
         return concatenated_encoding
@@ -275,10 +276,10 @@ class BiRNNAlignment(Alignment):
     def hypotheses_encoding(self):
         # [batch_size, timesteps, rnn_size]
         _hypotheses_encoding = rnn_encoders.bi_rnn(
-            self.hypotheses,
-            self.embed_size,
-            'hypothesis_bi_rnn',
-            self.p_keep)
+            sentences=self.hypotheses,
+            hidden_size=self.embed_size,
+            scope='hypothesis_bi_rnn',
+            p_keep=self.p_keep_rnn)
         # [batch_size, timesteps, 2 * rnn_size]
         concatenated_encoding = tf.concat(_hypotheses_encoding[0], 2)
         return concatenated_encoding
@@ -290,6 +291,8 @@ class ChenAlignment(BiRNNAlignment):
 
     @decorators.define_scope
     def align(self):
+        # in the Chen model, we don't use a feedforward here
+
         # [batch_size, timesteps, timesteps]
         eijs = tf.matmul(self.premises_encoding,
                          tf.transpose(self.hypotheses_encoding,

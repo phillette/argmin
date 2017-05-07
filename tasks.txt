@@ -1,6 +1,8 @@
 - mongoi needs cleaning up:
     * function names could be clearer
     * get should not return generator, etc
+- model_base functions that refer to Y can change:sparse
+    * would probably also want to update the mongo objects!
 
 
 * would like a way to tune - select 10,000 of the training set to work on, or an arbitary number
