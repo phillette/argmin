@@ -102,8 +102,8 @@ class Model:
     @decorators.define_scope
     def loss(self):
         cross_entropy = tf.reduce_sum(
-            tf.nn.softmax_cross_entropy_with_logits(
-                labels=self.Y,
+            tf.nn.sparse_softmax_cross_entropy_with_logits(
+                labels=tf.argmax(self.Y, axis=1),
                 logits=self.logits,
                 name='softmax_cross_entropy'))
         penalty_term = tf.multiply(

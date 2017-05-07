@@ -254,7 +254,7 @@ class AlignmentDeep(Alignment):
         return V1, V2
 
 
-class BiRNNAlignment(AlignmentDeep):
+class BiRNNAlignment(Alignment):
     def __init__(self, config):
         Alignment.__init__(self, config)
         self.name = 'bi_rnn_alignment'
@@ -282,6 +282,36 @@ class BiRNNAlignment(AlignmentDeep):
         # [batch_size, timesteps, 2 * rnn_size]
         concatenated_encoding = tf.concat(_hypotheses_encoding[0], 2)
         return concatenated_encoding
+
+
+class ChenAlignment(BiRNNAlignment):
+    def __init__(self, config):
+        BiRNNAlignment.__init__(self, config)
+
+    @decorators.define_scope
+    def align(self):
+        # [batch_size, timesteps, timesteps]
+        eijs = tf.matmul(self.premises_encoding,
+                         tf.transpose(self.hypotheses_encoding,
+                                      perm=[0, 2, 1]),
+                         name='eijs')
+
+        # [batch_size, timesteps, timesteps]
+        eijs_softmaxed_for_premises = tf.nn.softmax(eijs)
+        eijs_softmaxed_for_hypotheses = tf.nn.softmax(
+            tf.transpose(
+                eijs,
+                perm=[0, 2, 1]))
+
+        # [batch_size, timesteps, hidden_size]
+        betas = tf.matmul(eijs_softmaxed_for_premises,
+                          self.hypotheses_encoding)
+
+        # [batch_size, timesteps, hidden_size]
+        alphas = tf.matmul(eijs_softmaxed_for_hypotheses,
+                           self.premises_encoding)
+
+        return betas, alphas
 
 
 if __name__ == '__main__':

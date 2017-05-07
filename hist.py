@@ -5,6 +5,7 @@ import datetime
 import stats
 import itertools
 import batching
+import util
 
 
 def batch_size_info(history):
@@ -60,7 +61,7 @@ def compare(ids=None, param_to_compare='model_name'):
             iter_key='tuning_iter'
         )
         lines_tune.append(line_i_tune)
-    plt.legend(handles=lines_tune, loc=2)
+    plt.legend(handles=lines_tune, loc=4)
     plt.xlabel(comparison_x_label(param_to_compare, 'tuning_accuracy'))
     plt.ylabel('tuning set accuracy')
     plt.show()
@@ -94,6 +95,11 @@ def comparison_y(history, value_to_compare):
 def delete(id):
     db = mongoi.HistoryDb()
     db.db.all.delete_many({'id': id})
+
+
+def export(id):
+    history = get_one(id)
+    util.save_pickle(history, 'histories/%s.pkl' % id)
 
 
 def get_all():
@@ -152,6 +158,12 @@ def global_keys():
             'batch_size',
             'subset_size',
             'epochs']
+
+
+def import_one(id):
+    history = util.load_pickle('histories/%s.pkl' % id)
+    history['id'] = new_id()
+    save(history)
 
 
 def new_history(model_name,
