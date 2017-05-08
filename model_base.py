@@ -36,26 +36,43 @@ class Model:
         self.hidden_size = config['hidden_size']
         self.lamda = config['lambda']
         self.p_keep = config['p_keep']
-        self.global_step = tf.Variable(initial_value=0,
-                                       dtype=tf.int32,
-                                       trainable=False,
-                                       name='global_step')
-        self.global_epoch = tf.Variable(initial_value=0,
-                                        dtype=tf.int32,
-                                        trainable=False,
-                                        name='global_epoch')
-        self.accumulated_loss = tf.Variable(initial_value=0,
-                                            dtype=tf.float32,
-                                            trainable=False,
-                                            name='average_loss')
-        self.accumulated_accuracy = tf.Variable(initial_value=0,
-                                                dtype=tf.float32,
-                                                trainable=False,
-                                                name='average_accuracy')
-        self.training_history_id = tf.Variable(initial_value=-1,
-                                               dtype=tf.int32,
-                                               trainable=False,
-                                               name='training_history_id')
+        self.global_step = tf.Variable(
+            initial_value=0,
+            dtype=tf.int32,
+            trainable=False,
+            name='global_step')
+        self.global_epoch = tf.Variable(
+            initial_value=0,
+            dtype=tf.int32,
+            trainable=False,
+            name='global_epoch')
+        self.accumulated_loss = tf.Variable(
+            initial_value=0,
+            dtype=tf.float32,
+            trainable=False,
+            name='accumulated_loss')
+        self.accumulated_accuracy = tf.Variable(
+            initial_value=0,
+            dtype=tf.float32,
+            trainable=False,
+            name='accumulated_accuracy')
+        self.tuning_iter = tf.Variable(
+            initial_value=0,
+            dtype=tf.int32,
+            trainable=False,
+            name='tuning_iter'
+        )
+        self.accumulated_tuning_accuracy = tf.Variable(
+            initial_value=0.0,
+            dtype=tf.float32,
+            trainable=False,
+            name='accumulated_tuning_accuracy'
+        )
+        self.training_history_id = tf.Variable(
+            initial_value=-1,
+            dtype=tf.int32,
+            trainable=False,
+            name='training_history_id')
         self.premises
         self.hypotheses
         self.Y

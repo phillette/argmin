@@ -1,3 +1,10 @@
+Finding a good model:
+- BiRNN is superior
+- Got to check Chen's various enhancements
+- Project GloVe vectors to 200d and shrink LSTM to 200d vs all 300
+- LSTM vs GRU
+
+
 - mongoi needs cleaning up:
     * function names could be clearer
     * get should not return generator, etc

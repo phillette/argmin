@@ -13,7 +13,8 @@ import labeling
 
 def accuracy(model, db, collection, sess,
              load_ckpt=True, transfer=False,
-             batch_size=128, subset_size=None):
+             batch_size=128, subset_size=None,
+             surpress_print=False):
     # make sure sess.run(tf.global_variables_initializer()) has been called
     batch_gen = batching.get_batch_gen(db,
                                        collection,
@@ -32,10 +33,11 @@ def accuracy(model, db, collection, sess,
                                   util.feed_dict(model,
                                                  batch))
         average_accuracy += batch_accuracy
-    print('%s %s set accuracy = %s%%'
-          % (db,
-             collection,
-             round(average_accuracy / num_iters * 100, 2)))
+    if not surpress_print:
+        print('%s %s set accuracy = %s%%'
+              % (db,
+                 collection,
+                 round(average_accuracy / num_iters * 100, 2)))
     return average_accuracy / num_iters
 
 

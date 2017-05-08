@@ -55,13 +55,25 @@ def train(model, db, collection, num_epochs, sess,
     iter = model.global_step.eval()
     accumulated_loss = model.accumulated_loss.eval()
     accumulated_accuracy = model.accumulated_accuracy.eval()
+    tuning_iter = model.tuning_iter.eval()
+    accumulated_tuning_accuracy = model.accumulated_tuning_accuracy.eval()
     training_history_id = model.training_history_id.eval()
+
+    # variables required for tracking tuning set accuracy
+    previous_training_accuacy = \
+        (accumulated_tuning_accuracy / tuning_iter) \
+            if tuning_iter > 0 \
+            else 0.0
+    average_tuning_accuracy = 0.0
+    change_in_tuning_accuracy = 0.0
 
     # define the update ops for the training state variables
     ph_global_epoch = tf.placeholder(tf.int32)
     ph_global_step = tf.placeholder(tf.int32)
     ph_accumulated_loss = tf.placeholder(tf.float32)
     ph_accumulated_accuracy = tf.placeholder(tf.float32)
+    ph_accumulated_tuning_accuracy = tf.placeholder(tf.float32)
+    ph_tuning_iter = tf.placeholder(tf.int32)
     ph_training_history_id = tf.placeholder(tf.int32)
     update_epoch = tf.assign(model.global_epoch,
                              ph_global_epoch)
@@ -71,12 +83,15 @@ def train(model, db, collection, num_epochs, sess,
                             ph_accumulated_loss)
     update_accuracy = tf.assign(model.accumulated_accuracy,
                                 ph_accumulated_accuracy)
+    update_tuning_iter = tf.assign(model.tuning_iter, ph_tuning_iter)
+    update_tuning_accuracy = tf.assign(model.accumulated_tuning_accuracy,
+                                       ph_accumulated_tuning_accuracy)
     set_training_history_id = tf.assign(model.training_history_id,
                                         ph_training_history_id)
 
-    # for continuing training load the object; or set the id for a new one
+    # if we don't have a training history id, create new and get the id
     if training_history_id < 0:  # init to -1 in constructor for no history
-        history = hist.new_history(
+        training_history_id = hist.new_history(
             model.name,
             db,
             collection,
@@ -85,9 +100,7 @@ def train(model, db, collection, num_epochs, sess,
             model.config)
         sess.run(
             set_training_history_id,
-            {ph_training_history_id: history['id']})
-    else:
-        history = hist.load(training_history_id)
+            {ph_training_history_id: training_history_id})
 
     # summary variables for History
     epoch_time_takens = []
@@ -105,7 +118,7 @@ def train(model, db, collection, num_epochs, sess,
 
         # print the header with dividers for visual ease
         print_dividing_lines()
-        print('Epoch %s/%s\tloss\t\taccuracy\tavg(t)\tremaining'
+        print('Epoch %s/%s\tloss\t\taccuracy\tavg(t)\t\tremaining'
               % (epoch, num_epochs))
         print_dividing_lines()
 
@@ -171,12 +184,12 @@ def train(model, db, collection, num_epochs, sess,
                     epoch_start_average_accuracy = accumulated_accuracy / iter
                     first_report_made = True
                 hist.report_batch(
-                    history,
+                    training_history_id,
                     iter,
                     accumulated_loss / iter,
                     accumulated_accuracy / iter)
                 print('Step %s:\t'
-                      '%10.5f\t'
+                      '%8.5f\t'
                       '%6.4f%%\t'
                       '%s\t'
                       '%s' % (iter,
@@ -213,7 +226,8 @@ def train(model, db, collection, num_epochs, sess,
         epoch_time_taken = epoch_end - epoch_start
         epoch_time_takens.append(epoch_time_taken)
         hist.report_epoch(
-            history,
+            training_history_id,
+            epoch,
             epoch_change_average_loss,
             epoch_change_average_accuracy)
 
@@ -236,19 +250,31 @@ def train(model, db, collection, num_epochs, sess,
                                  global_step=iter,
                                  transfer=transfer)
 
-        # do save the training history though
-        history['epochs'] = int(epoch)
-        hist.save(history)
-
         # perform tuning on dev set if required and if its time
         if tuning_collection and iter % tune_every(num_epochs) == 0:
+            tuning_iter += 1
             tuning_accuracy = prediction.accuracy(model=model,
                                                   db=db,
                                                   collection=tuning_collection,
                                                   sess=sess,
                                                   load_ckpt=False,
-                                                  transfer=False)
-            hist.report_tuning(history, iter, tuning_accuracy)
+                                                  transfer=False,
+                                                  surpress_print=True)
+            accumulated_tuning_accuracy += tuning_accuracy
+            sess.run(
+                [update_tuning_iter, update_tuning_accuracy],
+                {ph_tuning_iter: tuning_iter,
+                 ph_accumulated_tuning_accuracy: accumulated_tuning_accuracy})
+            hist.report_tuning(training_history_id,
+                               tuning_iter,
+                               tuning_accuracy)
+            average_tuning_accuracy = accumulated_tuning_accuracy / tuning_iter
+            change_in_tuning_accuracy = \
+                average_tuning_accuracy - previous_training_accuacy
+            print('Average tuning accuracy: %5.3f%% (%s%5.3f%%)' %
+                  (average_tuning_accuracy,
+                   '+' if change_in_tuning_accuracy > 0 else '',
+                   change_in_tuning_accuracy))
 
         # END EPOCH
     # END EPOCHS
@@ -258,7 +284,7 @@ def train(model, db, collection, num_epochs, sess,
 
 
 def print_dividing_lines():
-    print('------\t\t------\t\t------\t\t------\t------')
+    print('------\t\t------\t\t------\t\t------\t\t------')
 
 
 def report(info):

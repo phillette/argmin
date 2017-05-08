@@ -126,7 +126,7 @@ class LSTMEncoder(Encoder):
 class BiLSTMEncoder(Encoder):
     def __init__(self, config):
         Encoder.__init__(self, config)
-        self.name = 'bi_rnn'
+        self.name = 'BiLSTMEnc'
 
     @decorators.define_scope
     def premises_encoding(self):

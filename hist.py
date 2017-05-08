@@ -107,6 +107,15 @@ def get_all():
     return list(db.all.find_all())
 
 
+def get_and_project(id, attr):
+    db = mongoi.HistoryDb()
+    try:
+        history_projected = next(db.all.find({'id': id}, {attr: 1}))
+    except:
+        raise ('Could not find history with id %s' % id)
+    return history_projected
+
+
 def get_config_keys(docs):
     config_dicts = [d['config'] for d in docs]
     config_keys = \
@@ -133,20 +142,22 @@ def get_many(ids):
     docs = []
     db = mongoi.HistoryDb()
     for id in ids:
+        id = int(id)  # in case they come as numpy ints
         try:
             docs.append(next(db.all.get(id)))
         except:
-            print('History with id %s not found' % id)
+            raise Exception('History with id %s not found' % id)
     return docs
 
 
 def get_one(id):
+    id = int(id)  # in case it comes as a numpy int
     db = mongoi.HistoryDb()
     try:
         history = next(db.all.get(id))
         return history
     except:
-        print('No history with id %s found' % id)
+        raise Exception('No history with id %s found' % id)
 
 
 def global_keys():
@@ -192,7 +203,7 @@ def new_history(model_name,
     }
     db = mongoi.HistoryDb()
     db.all.insert_one(history)
-    return history
+    return history['id']
 
 
 def new_id():
@@ -238,8 +249,11 @@ def print_core(docs):
     print('----\t----\t\t----\t----\t\t----')
     for doc in docs:
         print('%s\t%s\t%s\t%s\t\t%s' %
-              (doc['id'], doc['model_name'], doc['db'],
-               doc['collection'], doc['date_time']))
+              (doc['id'],
+               doc['model_name'],
+               doc['db'],
+               doc['collection'],
+               doc['date_time']))
 
 
 def print_globals(docs):
@@ -265,25 +279,24 @@ def print_globals(docs):
                ))
 
 
-def report_batch(history, iter, average_loss, average_accuracy):
-    history['iter'].append(int(iter))
-    history['loss'].append(float(average_loss))
-    history['accuracy'].append(float(average_accuracy))
+def report_batch(id, iter, average_loss, average_accuracy):
+    update_list(id, int(iter), 'iter')
+    update_list(id, float(average_loss), 'loss')
+    update_list(id, float(average_accuracy), 'accuracy')
 
 
-def report_epoch(history,
-                 change_average_loss,
-                 change_average_accuracy):
-    history['epoch_change_loss'].append(float(change_average_loss))
-    history['epoch_change_accuracy'].append(float(change_average_accuracy))
+def report_epoch(id, epoch, change_average_loss, change_average_accuracy):
+    update_attr(id, 'epochs', int(epoch))
+    update_list(id, float(change_average_loss), 'epoch_change_loss')
+    update_list(id, float(change_average_accuracy), 'epoch_change_accuracy')
 
 
-def report_tuning(history, iter, accuracy):
-    history['tuning_iter'].append(int(iter))
-    history['tuning_accuracy'].append(float(accuracy))
+def report_tuning(id, iter, accuracy):
+    update_list(id, int(iter), 'tuning_iter')
+    update_list(id, float(accuracy), 'tuning_accuracy')
 
 
-def save(history):  # try this just with "update"
+def save(history):
     db = mongoi.HistoryDb()
     db.all.update(history)
 
@@ -299,6 +312,18 @@ def scale_iters_to_epochs(history, iters_key):
     return iters / iters_per_epoch
 
 
+def runs():
+    print('Training histories:')
+    db = mongoi.HistoryDb()
+    docs = list(db.all.find_all())
+    if len(docs) == 0:
+        print('No runs found.')
+        return
+    print_core(docs)
+    print_globals(docs)
+    print_config(docs)
+
+
 def scaled_loss(history):
     return np.log(np.array(history['loss']) / history['batch_size'])
 
@@ -311,16 +336,17 @@ def summary_keys():
     ]
 
 
-def view():
-    print('Training histories:')
+def update_attr(id, attr, value):
     db = mongoi.HistoryDb()
-    docs = list(db.all.find_all())
-    if len(docs) == 0:
-        print('No runs found.')
-        return
-    print_core(docs)
-    print_globals(docs)
-    print_config(docs)
+    history = get_and_project(id, '_id')
+    db.all.update_one(history['_id'], {attr: value})
+
+
+def update_list(id, new_item, list_key):
+    history = get_and_project(id, list_key)
+    _list = history[list_key]
+    _list.append(new_item)
+    update_attr(id, list_key, _list)
 
 
 def visualize(id):
@@ -335,7 +361,7 @@ def visualize(id):
     tuning, = plt.plot(np.array(history['tuning_iter']),
                        np.array(history['tuning_accuracy']),
                        label='tuning accuracy')
-    plt.legend(handles=[loss, accuracy, tuning], loc=1)
+    plt.legend(handles=[loss, accuracy, tuning], loc=2)
     plt.subplot(1, 2, 2)
     epoch_loss, = plt.plot(
         np.arange(history['epochs']),
@@ -349,5 +375,17 @@ def visualize(id):
     plt.show()
 
 
+def fix_tuning_acc(id):
+    history = get_one(id)
+    if 'fixed_tuning' in history.keys():
+        raise Exception('Already fixed tuning for this record')
+    accumulated_accuracy = 0.0
+    for i in range(len(history['tuning_accuracy'])):
+        accuracy = history['accuracy'][i]
+        history['accuracy'][i] = (accumulated_accuracy + accuracy) / (i + 1)
+    history['fixed_tuning'] = 1
+    save(history)
+
+
 if __name__ == '__main__':
-    view()
+    runs()

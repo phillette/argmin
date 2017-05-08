@@ -7,7 +7,6 @@ import labeling
 
 """
 Process from start to finish:
-* Make sure the OOV_VECTORS dictionary has the entry for the db
 1. Import data into mongo, e.g.:
     mongoimport --db snli --collection train
     "/home/hanshan/PycharmProjects/argmin/data/....jsonl"
@@ -171,7 +170,7 @@ def find_max_length(db):
 
 
 if __name__ == '__main__':
-    db = 'snli'
+    db = 'mnli'
     #find_oov(db)
     remove_no_gold_label_samples(db)
     generate_friendly_ids(db)

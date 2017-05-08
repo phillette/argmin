@@ -160,13 +160,13 @@ class Repository:
             raise Exception('Item with _id "%s" not deleted' % id)
         return result
 
-    def find(self, attr_dict):
+    def find(self, attr_dict, projection=None):
         """
         Performs a search for records based on the criteria in the attribute dictionary.
         :param attr_dict: a dictionary of search attributes and values
         :return: generator with results
         """
-        return self.collection.find(attr_dict)
+        return self.collection.find(attr_dict, projection)
 
     def find_all(self):
         """

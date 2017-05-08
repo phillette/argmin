@@ -285,13 +285,15 @@ class BiRNNAlignment(Alignment):
         return concatenated_encoding
 
 
-class ChenAlignment(BiRNNAlignment):
+class ChenAlignNP(BiRNNAlignment):
     def __init__(self, config):
         BiRNNAlignment.__init__(self, config)
+        self.name = 'ChenAlignNP'  # NP = no projection
 
     @decorators.define_scope
     def align(self):
         # in the Chen model, we don't use a feedforward here
+        # we are also skipping over projection
 
         # [batch_size, timesteps, timesteps]
         eijs = tf.matmul(self.premises_encoding,
@@ -315,6 +317,45 @@ class ChenAlignment(BiRNNAlignment):
                            self.premises_encoding)
 
         return betas, alphas
+
+    @decorators.define_scope
+    def compare(self):
+        betas, alphas = self.align
+
+        # Chen's collection
+        # [batch_size, timesteps, 2 * hidden_size]
+        V1_input = tf.concat(
+            [self.premises_encoding,
+             betas,
+             tf.subtract(self.premises_encoding, betas),
+             tf.multiply(self.premises_encoding, betas)],
+            axis=2)
+        # [batch_size, timesteps, 2 * hidden_size]
+        V2_input = tf.concat(
+            [self.hypotheses_encoding,
+             alphas,
+             tf.subtract(self.hypotheses_encoding, alphas),
+             tf.multiply(self.hypotheses_encoding, alphas)],
+            axis=2)
+
+        # [2 * batch_size, timesteps, 2 * hidden_size]
+        ff_input = util.concat(V1_input, V2_input)
+        Vs1 = model_base.fully_connected_with_dropout(
+            inputs=ff_input,
+            num_outputs=self.hidden_size,
+            activation_fn=tf.nn.relu,
+            p_keep=self.p_keep)
+        Vs2 = model_base.fully_connected_with_dropout(
+            inputs=Vs1,
+            num_outputs=self.hidden_size,
+            activation_fn=tf.nn.relu,
+            p_keep=self.p_keep
+        )
+
+        # [batch_size, timesteps, hidden_size]
+        V1, V2 = util.split_after_concat(Vs2, self.batch_size)
+
+        return V1, V2
 
 
 if __name__ == '__main__':
