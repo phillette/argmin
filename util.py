@@ -86,6 +86,36 @@ def log_graph_path(model_name):
     return os.path.dirname('graphs/%s/%s' % (model_name, model_name))
 
 
+def optimistic_restore(sess, save_file):
+    """
+    This not working currently.
+    Investigation showed that saved_shapes is empty.
+    It may have to do with the nature of the files I save.
+    There may be a new way to save checkpoints that can actually
+    work with this.
+    """
+    reader = tf.train.NewCheckpointReader(save_file)
+    saved_shapes = reader.get_variable_to_shape_map()
+    print('saved_shapes')
+    print(saved_shapes)
+    var_names = sorted([(var.name, var.name.split(':')[0])
+                        for var in tf.global_variables()
+                        if var.name.split(':')[0] in saved_shapes])
+    print(var_names)
+    restore_vars = []
+    name2var = dict(zip(map(lambda x: x.name.split(':')[0],
+                            tf.global_variables()),
+                        tf.global_variables()))
+    with tf.variable_scope('', reuse=True):
+        for var_name, saved_var_name in var_names:
+            current_var = name2var[saved_var_name]
+            var_shape = current_var.get_shape().as_list()
+            if var_shape == saved_shapes[saved_var_name]:
+                restore_vars.append(current_var)
+    saver = tf.train.Saver(restore_vars)
+    saver.restore(sess, save_file)
+
+
 def roll_batch(x, old_dims):
     return tf.reshape(x, old_dims)
 

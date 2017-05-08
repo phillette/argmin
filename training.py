@@ -271,10 +271,11 @@ def train(model, db, collection, num_epochs, sess,
             average_tuning_accuracy = accumulated_tuning_accuracy / tuning_iter
             change_in_tuning_accuracy = \
                 average_tuning_accuracy - previous_training_accuacy
+            previous_training_accuacy = average_tuning_accuracy
             print('Average tuning accuracy: %5.3f%% (%s%5.3f%%)' %
-                  (average_tuning_accuracy,
+                  (average_tuning_accuracy * 100,
                    '+' if change_in_tuning_accuracy > 0 else '',
-                   change_in_tuning_accuracy))
+                   change_in_tuning_accuracy * 100))
 
         # END EPOCH
     # END EPOCHS

@@ -359,7 +359,7 @@ class ChenAlignNP(BiRNNAlignment):
 
 
 if __name__ == '__main__':
-    config = model_base.base_config()
+    config = model_base.config()
     model = Alignment(config)
     import numpy as np
     premises = np.random.rand(4, 12, 300)

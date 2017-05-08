@@ -47,7 +47,7 @@ def compare(ids=None, param_to_compare='model_name'):
             iter_key='iter'
         )
         lines_accuracy.append(line_i_accuracy)
-    plt.legend(handles=lines_accuracy, loc=2)
+    plt.legend(handles=lines_accuracy, loc=4)
     plt.xlabel(comparison_x_label(param_to_compare, 'accuracy'))
     plt.ylabel('training set accuracy')
     # tuning_accuracy
@@ -78,7 +78,10 @@ def comparison_label(history, param_to_compare):
 
 
 def comparison_x(history, param_to_compare, value_to_compare, iter_key):
-    return scale_iters_to_epochs(history, iter_key)
+    if iter_key == 'tuning_iter':
+        return np.array(history['tuning_iter'])
+    else:
+        return np.array(scale_iters_to_epochs(history, iter_key))
 
 
 def comparison_x_label(param_to_compare, value_to_compare):
@@ -136,6 +139,15 @@ def get_doc_dicts(docs, config_keys):
             dict[key] = doc['config'][key]
         dicts.append(dict)
     return dicts
+
+
+def iters_per_epoch(history):
+    return batching.num_iters(
+        db=history['db'],
+        collection=history['collection'],
+        batch_size=history['batch_size'],
+        subset_size=history['subset_size']
+    )
 
 
 def get_many(ids):
@@ -296,22 +308,6 @@ def report_tuning(id, iter, accuracy):
     update_list(id, float(accuracy), 'tuning_accuracy')
 
 
-def save(history):
-    db = mongoi.HistoryDb()
-    db.all.update(history)
-
-
-def scale_iters_to_epochs(history, iters_key):
-    iters = np.array(history[iters_key])
-    iters_per_epoch = batching.num_iters(
-        db=history['db'],
-        collection=history['collection'],
-        batch_size=history['batch_size'],
-        subset_size=history['subset_size']
-    )
-    return iters / iters_per_epoch
-
-
 def runs():
     print('Training histories:')
     db = mongoi.HistoryDb()
@@ -322,6 +318,19 @@ def runs():
     print_core(docs)
     print_globals(docs)
     print_config(docs)
+
+
+def save(history):
+    db = mongoi.HistoryDb()
+    db.all.update(history)
+
+
+def scale_epochs_to_iters(history, iters_key):
+    return list(i * iters_per_epoch(history) for i in history[iters_key])
+
+
+def scale_iters_to_epochs(history, iters_key):
+    return list(i / iters_per_epoch(history) for i in history[iters_key])
 
 
 def scaled_loss(history):
@@ -358,9 +367,10 @@ def visualize(id):
     accuracy, = plt.plot(np.array(history['iter']),
                          history['accuracy'],
                          label='accuracy')
-    tuning, = plt.plot(np.array(history['tuning_iter']),
-                       np.array(history['tuning_accuracy']),
-                       label='tuning accuracy')
+    tuning, = plt.plot(
+        np.array(scale_epochs_to_iters(history, 'tuning_iter')),
+        np.array(history['tuning_accuracy']),
+        label='tuning accuracy')
     plt.legend(handles=[loss, accuracy, tuning], loc=2)
     plt.subplot(1, 2, 2)
     epoch_loss, = plt.plot(
@@ -388,4 +398,4 @@ def fix_tuning_acc(id):
 
 
 if __name__ == '__main__':
-    runs()
+    compare([24, 28])

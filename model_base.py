@@ -11,12 +11,12 @@ def fully_connected_with_dropout(inputs, num_outputs, activation_fn, p_keep):
     return dropped_out
 
 
-def base_config(embed_size=300,
-                learning_rate=1e-3,
-                grad_clip_norm=0.0,
-                hidden_size=200,
-                lamda=0.0,
-                p_keep=0.8):
+def config(embed_size=300,
+           learning_rate=1e-3,
+           grad_clip_norm=0.0,
+           hidden_size=200,
+           lamda=0.0,
+           p_keep=0.8):
     return {
         'embed_size': embed_size,
         'learning_rate': learning_rate,

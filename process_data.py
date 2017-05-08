@@ -97,6 +97,18 @@ def generate_label_encodings(db):
     print('Completed successfully.')
 
 
+def generate_sparse_encodings(db):
+    print('Generating sparse labels for %s...' % db)
+    for collection in mongoi.COLLECTIONS[db]:
+        print('Working on collection: %s' % collection)
+        repository = mongoi.get_repository(db, collection)
+        for doc in repository.find_all():
+            sparse_encoding = labeling.LABEL_TO_ENCODING[doc['gold_label']]
+            repository.update_one(doc['_id'],
+                                  {'sparse_encoding': sparse_encoding})
+    print('Completed successfully.')
+
+
 def encode(label):
     encoding = np.zeros((1, 3), dtype='float64')
     encoding[0, labeling.LABEL_TO_ENCODING[label]] = 1
