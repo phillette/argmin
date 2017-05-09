@@ -285,10 +285,15 @@ class BiRNNAlignment(Alignment):
         return concatenated_encoding
 
 
-class ChenAlignNP(BiRNNAlignment):
+class ChenAlignA(BiRNNAlignment):
+    """
+    Decisions in A:
+    - no projection
+    - not using LSTM in compare stage, ff instead
+    """
     def __init__(self, config):
         BiRNNAlignment.__init__(self, config)
-        self.name = 'ChenAlignNP'  # NP = no projection
+        self.name = 'ChenAlignA'
 
     @decorators.define_scope
     def align(self):
@@ -296,66 +301,65 @@ class ChenAlignNP(BiRNNAlignment):
         # we are also skipping over projection
 
         # [batch_size, timesteps, timesteps]
-        eijs = tf.matmul(self.premises_encoding,
-                         tf.transpose(self.hypotheses_encoding,
-                                      perm=[0, 2, 1]),
-                         name='eijs')
-
-        # [batch_size, timesteps, timesteps]
-        eijs_softmaxed_for_premises = tf.nn.softmax(eijs)
-        eijs_softmaxed_for_hypotheses = tf.nn.softmax(
-            tf.transpose(
-                eijs,
-                perm=[0, 2, 1]))
+        alignment_matrix = tf.matmul(
+            self.premises_encoding,
+            tf.transpose(self.hypotheses_encoding,
+                         perm=[0, 2, 1]),
+            name='alignment_matrix')
 
         # [batch_size, timesteps, hidden_size]
-        betas = tf.matmul(eijs_softmaxed_for_premises,
-                          self.hypotheses_encoding)
+        premises_soft_aligment = tf.matmul(
+            tf.nn.softmax(alignment_matrix),
+            self.hypotheses_encoding)
+        hypotheses_soft_alignment = tf.matmul(
+            tf.nn.softmax(tf.transpose(alignment_matrix,
+                                       perm=[0, 2, 1])),
+            self.premises_encoding)
 
-        # [batch_size, timesteps, hidden_size]
-        alphas = tf.matmul(eijs_softmaxed_for_hypotheses,
-                           self.premises_encoding)
+        # "Collection" phase
 
-        return betas, alphas
+        # [batch_size, timesteps, 4 * hidden_size]
+        premises_mimics = tf.concat(
+            [self.premises_encoding,
+             premises_soft_aligment,
+             self.premises_encoding - premises_soft_aligment,
+             tf.multiply(self.premises_encoding, premises_soft_aligment)],
+            axis=2)
+        # [batch_size, timesteps, 4 * hidden_size]
+        hypotheses_mimics = tf.concat(
+            [self.hypotheses_encoding,
+             hypotheses_soft_alignment,
+             self.hypotheses_encoding - hypotheses_soft_alignment,
+             tf.multiply(self.hypotheses_encoding, hypotheses_soft_alignment)],
+            axis=2)
+
+        return premises_mimics, hypotheses_mimics
 
     @decorators.define_scope
     def compare(self):
-        betas, alphas = self.align
+        # [batch_size, timesteps, 4 * hidden_size]
+        premises_mimics, hypotheses_mimics = self.align
 
-        # Chen's collection
-        # [batch_size, timesteps, 2 * hidden_size]
-        V1_input = tf.concat(
-            [self.premises_encoding,
-             betas,
-             tf.subtract(self.premises_encoding, betas),
-             tf.multiply(self.premises_encoding, betas)],
-            axis=2)
-        # [batch_size, timesteps, 2 * hidden_size]
-        V2_input = tf.concat(
-            [self.hypotheses_encoding,
-             alphas,
-             tf.subtract(self.hypotheses_encoding, alphas),
-             tf.multiply(self.hypotheses_encoding, alphas)],
-            axis=2)
+        # [2 * batch_size, timesteps, 4 * hidden_size]
+        ff_input = util.concat(premises_mimics, hypotheses_mimics)
 
-        # [2 * batch_size, timesteps, 2 * hidden_size]
-        ff_input = util.concat(V1_input, V2_input)
-        Vs1 = model_base.fully_connected_with_dropout(
+        # [2 * batch_size, timesteps, hidden_size]
+        h1 = model_base.fully_connected_with_dropout(
             inputs=ff_input,
             num_outputs=self.hidden_size,
             activation_fn=tf.nn.relu,
             p_keep=self.p_keep)
-        Vs2 = model_base.fully_connected_with_dropout(
-            inputs=Vs1,
+        h2 = model_base.fully_connected_with_dropout(
+            inputs=h1,
             num_outputs=self.hidden_size,
             activation_fn=tf.nn.relu,
             p_keep=self.p_keep
         )
 
         # [batch_size, timesteps, hidden_size]
-        V1, V2 = util.split_after_concat(Vs2, self.batch_size)
+        v1, v2 = util.split_after_concat(h2, self.batch_size)
 
-        return V1, V2
+        return v1, v2
 
 
 if __name__ == '__main__':

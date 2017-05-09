@@ -115,7 +115,7 @@ def get_and_project(id, attr):
     try:
         history_projected = next(db.all.find({'id': id}, {attr: 1}))
     except:
-        raise ('Could not find history with id %s' % id)
+        raise Exception('Could not find history with id %s' % id)
     return history_projected
 
 
