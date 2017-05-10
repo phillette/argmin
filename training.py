@@ -265,10 +265,10 @@ def train(model, db, collection, num_epochs, sess,
                 [update_tuning_iter, update_tuning_accuracy],
                 {ph_tuning_iter: tuning_iter,
                  ph_accumulated_tuning_accuracy: accumulated_tuning_accuracy})
+            average_tuning_accuracy = accumulated_tuning_accuracy / tuning_iter
             hist.report_tuning(training_history_id,
                                tuning_iter,
-                               tuning_accuracy)
-            average_tuning_accuracy = accumulated_tuning_accuracy / tuning_iter
+                               average_tuning_accuracy)
             change_in_tuning_accuracy = \
                 average_tuning_accuracy - previous_training_accuacy
             previous_training_accuacy = average_tuning_accuracy
