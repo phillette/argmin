@@ -241,15 +241,18 @@ def plot(history, param_to_compare, value_to_compare, iter_key):
 
 
 def print_config(docs):
-    print('----\t----\t----\t\t----\t----\t\t----')
-    print('id\talpha\thidden_size\tp_keep\tgrad_clip_norm\tlambda')
-    print('----\t----\t----\t\t----\t----\t\t----')
+    print('----\t----\t----\t\t----\t----\t----\t\t----')
+    print('id\talpha\thidden_size\tp_keep\tp_keep_rnn\tgrad_clip_norm\tlambda')
+    print('----\t----\t----\t\t----\t----\t----\t\t----')
     for doc in docs:
-        print('%s\t%s\t%s\t\t%s\t%s\t\t%s' %
+        print('%s\t%s\t%s\t\t%s\t%s\t%s\t\t%s' %
               (doc['id'],
                doc['config']['learning_rate'],
                doc['config']['hidden_size'],
                doc['config']['p_keep'],
+               doc['config']['p_keep_rnn']
+                   if 'p_keep_rnn' in doc['config'].keys()
+                   else 'na',
                doc['config']['grad_clip_norm'],
                doc['config']['lambda']
                ))

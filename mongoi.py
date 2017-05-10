@@ -71,11 +71,18 @@ class RepositoryFacade:
             collections = COLLECTIONS[db]
         self.connection = MongoClient(server, port)
         exec('self.db = self.connection.%s' % db)
+        # Maybe I don't want to do this? Maybe explicit is better?
         for collection in collections:
             exec('self.%s = Repository(self.db.%s)' % (collection, collection))
 
     def repository(self, collection):
         return getattr(self, collection)
+
+
+class AharoniDb(RepositoryFacade):
+    def __init__(self):
+        RepositoryFacade.__init__(self, db='aharoni')
+        # ?
 
 
 class CarstensDb(RepositoryFacade):
@@ -87,13 +94,10 @@ class CarstensDb(RepositoryFacade):
         self.test = Repository(self.db.test)
 
 
-class SNLIDb(RepositoryFacade):
-    """ Repository Facade for the SNLI 1.0 data set. """
+class DundeeDb(RepositoryFacade):
     def __init__(self):
-        RepositoryFacade.__init__(self, db='snli')
-        self.train = Repository(self.db.train)
-        self.dev = Repository(self.db.dev)
-        self.test = Repository(self.db.test)
+        RepositoryFacade.__init__(self, db='dundee')
+        # ?
 
 
 class MNLIDb(RepositoryFacade):
@@ -103,6 +107,26 @@ class MNLIDb(RepositoryFacade):
         self.train = Repository(self.db.train)
         self.dev_matched = Repository(self.db.dev_matched)
         self.dev_mismatched = Repository(self.db.dev_mismatched)
+        self.test = Repository(self.db.test)
+
+
+class NodeDb(RepositoryFacade):
+    """ Repository Facade for the NoDe argument mining data set. """
+    def __init__(self):
+        RepositoryFacade.__init__(self, db='node')
+        self.debate_train = Repository(self.db.debate_train)
+        self.debate_test = Repository(self.db.debate_test)
+        #self.angry = Repository(self.db.angry)
+        #self.wiki_train = Repository(self.db.wiki_train)
+        #self.wiki_test = Repository(self.db.wiki_test)
+
+
+class SNLIDb(RepositoryFacade):
+    """ Repository Facade for the SNLI 1.0 data set. """
+    def __init__(self):
+        RepositoryFacade.__init__(self, db='snli')
+        self.train = Repository(self.db.train)
+        self.dev = Repository(self.db.dev)
         self.test = Repository(self.db.test)
 
 
