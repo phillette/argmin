@@ -347,12 +347,12 @@ def summary_keys():
 
 def update_attr(id, attr, value):
     db = mongoi.HistoryDb()
-    history = get_and_project(id, '_id')
+    history = get_and_project(int(id), '_id')
     db.all.update_one(history['_id'], {attr: value})
 
 
 def update_list(id, new_item, list_key):
-    history = get_and_project(id, list_key)
+    history = get_and_project(int(id), list_key)
     _list = history[list_key]
     _list.append(new_item)
     update_attr(id, list_key, _list)
