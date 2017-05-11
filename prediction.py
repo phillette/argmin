@@ -158,16 +158,3 @@ class ResultExaminer:
         self.results.iloc[ids] = [predicted_labels,
                                   confidences,
                                   correct_predictions]
-
-
-if __name__ == '__main__':
-    config = model_base.Config(learning_rate=1e-4,
-                               p_keep_rnn=1.0,
-                               p_keep_input=1.0,
-                               p_keep_ff=1.0,
-                               grad_clip_norm=5.0,
-                               lamda=0.0)
-    model = aligned.AlignmentParikh(config, 100)
-    with tf.Session() as sess:
-        sess.run(tf.global_variables_initializer())
-        re = evaluate(model, sess)

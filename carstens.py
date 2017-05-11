@@ -90,7 +90,3 @@ def train_test_split(test_set_size=558):
         else:
             db.train.insert_one(doc)
     print('Completed successfully.')
-
-
-if __name__ == '__main__':
-    train_test_split()

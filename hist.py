@@ -398,7 +398,3 @@ def fix_tuning_acc(id):
         history['accuracy'][i] = (accumulated_accuracy + accuracy) / (i + 1)
     history['fixed_tuning'] = 1
     save(history)
-
-
-if __name__ == '__main__':
-    compare([24, 28])

@@ -20,7 +20,3 @@ def import_snli():
 
 def fill_empty_genres():
     pass
-
-
-if __name__ == '__main__':
-    import_snli()

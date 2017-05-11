@@ -1,9 +1,12 @@
+"""MongoDB interface."""
 from pymongo import MongoClient
 from bson.binary import Binary
 import _pickle as cPickle
 import numpy as np
+import errors
 
 
+# list of collections in each db
 COLLECTIONS = {
     'snli': ['train', 'dev', 'test'],
     'mnli': ['train', 'dev_matched', 'dev_mismatched'],
@@ -14,6 +17,7 @@ COLLECTIONS = {
 }
 
 
+# got to be a better way to do this
 def get_db(db_name):
     if db_name == 'snli':
         return SNLIDb()
@@ -31,9 +35,9 @@ def get_db(db_name):
         raise Exception('Unexpected db_name: %s' % db_name)
 
 
-def get_repository(db, collection):
-    db = get_db(db)
-    return db.repository(collection)
+def get_repository(db_name, collection_name):
+    db = get_db(db_name)
+    return db.repository(collection_name)
 
 
 def array_to_string(array):
@@ -62,63 +66,57 @@ class RepositoryFacade:
     def __init__(self,
                  server='localhost',
                  port=27017,
-                 db=None,
-                 collections=None):
+                 db_name=None):
         """
         :param server: MongoDB server address
         :param port: MongoDB server port
         :param db: the name of the database to access
         :param collections: a list of collections for which repositories will be initialized
         """
-        if not collections:
-            collections = COLLECTIONS[db]
         self.connection = MongoClient(server, port)
-        exec('self.db = self.connection.%s' % db)
-        # Maybe I don't want to do this? Maybe explicit is better?
-        for collection in collections:
-            exec('self.%s = Repository(self.db.%s)' % (collection, collection))
+        exec('self.db = self.connection.%s' % db_name)
 
-    def repository(self, collection):
-        return getattr(self, collection)
+    def repository(self, collection_name):
+        return getattr(self, collection_name)
 
 
 class AharoniDb(RepositoryFacade):
     def __init__(self):
-        RepositoryFacade.__init__(self, db='aharoni')
+        RepositoryFacade.__init__(self, db_name='aharoni')
         # ?
 
 
 class CarstensDb(RepositoryFacade):
     """Repository Facade for the Carstens and Toni (2015) data set. """
     def __init__(self):
-        RepositoryFacade.__init__(self, db='carstens')
-        self.all = Repository(self.db.all)
-        self.train = Repository(self.db.train)
-        self.test = Repository(self.db.test)
+        RepositoryFacade.__init__(self, db_name='carstens')
+        self.all = Repository('carstens', self.db.all)
+        self.train = Repository('carstens', self.db.train)
+        self.test = Repository('carstens', self.db.test)
 
 
 class DundeeDb(RepositoryFacade):
     def __init__(self):
-        RepositoryFacade.__init__(self, db='dundee')
+        RepositoryFacade.__init__(self, db_name='dundee')
         # ?
 
 
 class MNLIDb(RepositoryFacade):
     """ Repository Facade for the MNLI 0.9 data set. """
     def __init__(self):
-        RepositoryFacade.__init__(self, db='mnli')
-        self.train = Repository(self.db.train)
-        self.dev_matched = Repository(self.db.dev_matched)
-        self.dev_mismatched = Repository(self.db.dev_mismatched)
-        self.test = Repository(self.db.test)
+        RepositoryFacade.__init__(self, db_name='mnli')
+        self.train = Repository('mnli', self.db.train)
+        self.dev_matched = Repository('mnli', self.db.dev_matched)
+        self.dev_mismatched = Repository('mnli', self.db.dev_mismatched)
+        self.test = Repository('mnli', self.db.test)
 
 
 class NodeDb(RepositoryFacade):
     """ Repository Facade for the NoDe argument mining data set. """
     def __init__(self):
-        RepositoryFacade.__init__(self, db='node')
-        self.debate_train = Repository(self.db.debate_train)
-        self.debate_test = Repository(self.db.debate_test)
+        RepositoryFacade.__init__(self, db_name='node')
+        self.debate_train = Repository('node', self.db.debate_train)
+        self.debate_test = Repository('node', self.db.debate_test)
         #self.angry = Repository(self.db.angry)
         #self.wiki_train = Repository(self.db.wiki_train)
         #self.wiki_test = Repository(self.db.wiki_test)
@@ -127,26 +125,26 @@ class NodeDb(RepositoryFacade):
 class SNLIDb(RepositoryFacade):
     """ Repository Facade for the SNLI 1.0 data set. """
     def __init__(self):
-        RepositoryFacade.__init__(self, db='snli')
-        self.train = Repository(self.db.train)
-        self.dev = Repository(self.db.dev)
-        self.test = Repository(self.db.test)
+        RepositoryFacade.__init__(self, db_name='snli')
+        self.train = Repository('snli', self.db.train)
+        self.dev = Repository('snli', self.db.dev)
+        self.test = Repository('snli', self.db.test)
 
 
 class XNLIDb(RepositoryFacade):
     """ Repository Facade for Cross-NLI data set. """
     def __init__(self):
-        RepositoryFacade.__init__(self, db='xnli')
-        self.train = Repository(self.db.train)
-        self.dev_matched = Repository(self.db.dev_matched)
-        self.dev_mismatched = Repository(self.db.dev_mismatched)
-        self.test = Repository(self.db.test)
+        RepositoryFacade.__init__(self, db_name='xnli')
+        self.train = Repository('xnli', self.db.train)
+        self.dev_matched = Repository('xnli', self.db.dev_matched)
+        self.dev_mismatched = Repository('xnli', self.db.dev_mismatched)
+        self.test = Repository('xnli', self.db.test)
 
 
 class HistoryDb(RepositoryFacade):
     def __init__(self):
-        RepositoryFacade.__init__(self, db='history')
-        self.all = Repository(self.db.all)
+        RepositoryFacade.__init__(self, db_name='history')
+        self.all = Repository('history', self.db.all)
 
 
 class Repository:
@@ -155,8 +153,18 @@ class Repository:
     The functions of this class abstract away pymongo syntax and provide a custom interface.
     The pymongo interface is still available on the Facade class in the db variable.
     """
-    def __init__(self, collection):
-        self.collection = collection
+    def __init__(self, db_name, collection_name):
+        self.db_name = db_name
+        self.collection = collection_name
+
+    def all(self):
+        """Return all docs in the collection.
+
+        Returns:
+          PyMongo cursor (a generator) which yields
+            all docs in the collection.
+        """
+        return self.collection.find()
 
     def batch(self):
         """
@@ -174,6 +182,23 @@ class Repository:
         :return: integer
         """
         return self.collection.count()
+
+    def delete(self, doc):
+        """Deletes the doc from the collection.
+
+        Args:
+          doc: the doc to delete.
+        Returns:
+          Result object.
+        Raises:
+          NotDeletedError: if the item could not be deleted for
+            whatever reason.
+        """
+        result = self.collection.delete_many(doc['_id'])
+        if result.deleted_count != 1:
+            raise errors.NotDeleteError(self.db_name,
+                                        self.collection.name,
+                                        doc['_id'])
 
     def delete_one(self, id):
         """
@@ -196,6 +221,7 @@ class Repository:
         return self.collection.find(attr_dict, projection)
 
     def find_all(self):
+        # note: deprecated - all() is a nicer name, more succinct.
         """
         Get a cursor for all documents in the collection
         :return: cursor for all documents in the collection
@@ -241,6 +267,11 @@ class Repository:
         return self.collection.aggregate([{'$sample': {'size': size}}])
 
     def update(self, doc):
+        """Update the doc, saving attibute states into the db.
+
+        Args:
+          doc: the document to update.
+        """
         self.collection.save(doc)
 
     def update_one(self, _id, attr_value_dict):
@@ -271,7 +302,3 @@ def test_array_insert_and_fetch():
     result = np.array_equal(A, B)
     print('Test passed: %s' % result)
     assert result
-
-
-if __name__ == '__main__':
-    test_array_insert_and_fetch()

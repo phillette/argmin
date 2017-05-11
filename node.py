@@ -91,7 +91,3 @@ def scrape_file(file_path):
         sample['topic'] = child.attrib['topic']
         data.append(sample)
     return data
-
-
-if __name__ == '__main__':
-    import_debate()

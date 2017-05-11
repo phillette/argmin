@@ -360,20 +360,3 @@ class ChenAlignA(BiRNNAlignment):
         v1, v2 = util.split_after_concat(h2, self.batch_size)
 
         return v1, v2
-
-
-if __name__ == '__main__':
-    config = model_base.config()
-    model = Alignment(config)
-    import numpy as np
-    premises = np.random.rand(4, 12, 300)
-    hypotheses = np.random.rand(4, 12, 300)
-    labels = np.random.rand(4, 3)
-    feed_dict = {model.premises: premises,
-                 model.hypotheses: hypotheses,
-                 model.Y: labels}
-    with tf.Session() as sess:
-        sess.run(tf.global_variables_initializer())
-        weights = model._all_weights()
-        for weight in weights:
-            print('%s: %s' % (weight.name, sess.run(tf.shape(weight))))

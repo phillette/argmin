@@ -24,7 +24,3 @@ But I would want to remove the urls it would seem.
 
 def blah():
     pass
-
-
-if __name__ == '__main__':
-    pass

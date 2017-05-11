@@ -302,9 +302,3 @@ def pretty_time(secs):
         return '%4.2f hrs' % (secs / 60 / 60)
     else:
         return '%3.2f days' % (secs / 60 / 60 / 24)
-
-
-if __name__ == '__main__':
-    h = util.load_pickle(
-        'histories/bi_rnn_alignment_dev_100_5.00E-04_28-Apr-2017_14-53-21.pkl')
-    h.visualize()

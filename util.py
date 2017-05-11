@@ -2,6 +2,10 @@ import tensorflow as tf
 import os
 import pickle
 import functools
+import errors
+
+
+PICKLE_DIR = 'pickles/'
 
 
 def add_bias(tensor, dtype=tf.float64, axis=1):
@@ -85,9 +89,12 @@ def load_checkpoint_at_step(model_name, global_step, saver, sess):
 
 
 def load_pickle(file_name):
-    with open(file_name, 'rb') as file:
-        obj = pickle.load(file)
-        return obj
+    try:
+        with open(PICKLE_DIR + file_name, 'rb') as file:
+            obj = pickle.load(file)
+            return obj
+    except FileNotFoundError:
+        raise errors.PickleNotFoundError(file_name)
 
 
 def log_graph_path(model_name):
@@ -134,7 +141,7 @@ def save_checkpoint(model, saver, sess, global_step, transfer=False):
 
 
 def save_pickle(obj, file_name):
-    with open(file_name, 'wb') as file:
+    with open(PICKLE_DIR + file_name, 'wb') as file:
         pickle.dump(obj, file)
 
 
