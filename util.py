@@ -19,7 +19,8 @@ def ckpt_path(model_name, transfer=False):
 
 
 def clip_gradients(grads_and_vars, norm=3.0, axes=0):
-    return [(tf.clip_by_norm(gv[0], clip_norm=norm, axes=axes), gv[1]) for gv in grads_and_vars]
+    return [(tf.clip_by_norm(gv[0], clip_norm=norm, axes=axes), gv[1])
+            for gv in grads_and_vars]
 
 
 def concat(premises, hypotheses):
@@ -40,7 +41,8 @@ def concat(premises, hypotheses):
 
 
 def dropout_vector(keep_prob, shape):
-    return tf.where(condition=tf.random_uniform(shape, 0.0, 1.0, tf.float64) > 1 - keep_prob,
+    return tf.where(condition=tf.random_uniform(
+        shape, 0.0, 1.0, tf.float64) > 1 - keep_prob,
                     x=tf.ones(shape, tf.float64),
                     y=tf.zeros(shape, tf.float64))
 
@@ -76,8 +78,10 @@ def load_checkpoint(model, saver, sess, transfer=False):
         raise Exception('Checkpoint "%s" not found' % path)
 
 
-def load_ckpt(model_name, global_step, saver, sess):
-    saver.restore(sess, '%s-%s' % (model_name, global_step))
+def load_checkpoint_at_step(model_name, global_step, saver, sess):
+    saver.restore(sess, 'checkpoints/%s/%s-%s' % (model_name,
+                                                  model_name,
+                                                  global_step))
 
 
 def load_pickle(file_name):
