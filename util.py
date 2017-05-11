@@ -76,6 +76,10 @@ def load_checkpoint(model, saver, sess, transfer=False):
         raise Exception('Checkpoint "%s" not found' % path)
 
 
+def load_ckpt(model_name, global_step, saver, sess):
+    saver.restore(sess, '%s-%s' % (model_name, global_step))
+
+
 def load_pickle(file_name):
     with open(file_name, 'rb') as file:
         obj = pickle.load(file)
