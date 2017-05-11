@@ -9,7 +9,8 @@ COLLECTIONS = {
     'mnli': ['train', 'dev_matched', 'dev_mismatched'],
     'xnli': ['train', 'dev_matched', 'dev_mismatched'],
     'carstens': ['all', 'train', 'test'],
-    'history': ['all']
+    'history': ['all'],
+    'node': ['debate_train', 'debate_test']
 }
 
 
@@ -24,6 +25,8 @@ def get_db(db_name):
         return XNLIDb()
     elif db_name == 'history':
         return HistoryDb()
+    elif db_name == 'node':
+        return NodeDb()
     else:
         raise Exception('Unexpected db_name: %s' % db_name)
 

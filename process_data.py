@@ -55,6 +55,7 @@ def find_oov(db):
     for word in set(oov_words):
         oov_vectors[word] = np.random.rand(1, 300)
     util.save_pickle(oov_vectors, 'oov_vectors_%s.pkl' % db)
+    print('Completed successfully.')
 
 
 def remove_no_gold_label_samples(db):
@@ -182,9 +183,9 @@ def find_max_length(db):
 
 
 if __name__ == '__main__':
-    db = 'mnli'
+    db = 'node'
     #find_oov(db)
-    remove_no_gold_label_samples(db)
+    #remove_no_gold_label_samples(db)
     generate_friendly_ids(db)
     generate_label_encodings(db)
     generate_sentence_matrices(db)
