@@ -42,6 +42,16 @@ class OOV:
         # record of the last supplied id so the next one is unique
         self._last_id = 0
 
+    def is_oov(self, token_text):
+        """Determine if a token is oov.
+
+        Args:
+          token_text: the text of the token.
+        Returns:
+          True if the token is found in the dictionary, else False.
+        """
+        return token_text in self.tokens_to_ids.keys()
+
     def generate_random_vectors(self, size, orientation):
         """Generates random vectors for each oov token.
 
@@ -66,8 +76,8 @@ class OOV:
             self.ids_to_random_vectors[self.tokens_to_ids[token]] \
                 = random_vector
 
-    def new_token_id(self):
-        """Generates a new unique token id."""
+    def _new_token_id(self):
+        # generates a new unique token id
         new_id = self._last_id + 1
         self._last_id += 1
         return new_id
@@ -97,7 +107,7 @@ class OOV:
         # we need to check if it has been reported or not to avoid
         # duplicating entries.
         if token_text not in self.tokens_to_ids.keys():
-            new_id = self.new_token_id()
+            new_id = self._new_token_id()
             self.tokens_to_ids[token_text] = new_id
             self.ids_to_tokens[new_id] = token_text
             self.token_counts['all'] += 1
@@ -167,7 +177,7 @@ def generate_oov(db_name):
     return oov
 
 
-def load_oov(db_name):
+def load(db_name):
     """Loads the pickled OOV object.
 
     Args:

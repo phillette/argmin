@@ -5,7 +5,7 @@ import numpy as np
 import util
 import labeling
 import errors
-import oov
+import oov as OOV
 
 
 """
@@ -28,51 +28,27 @@ Wrap this entire process in a function called pre_process(db_name).
 """
 
 
-"""
-NOTE:
-There is terrible inefficiency in looping over the entire collection
-as many times as there are things to do to the samples. I should fix
-this by rewriting the functions to operate on one sample, and then
-perhaps have another function that iterates and applies one, or a list
-of functions to each sample, in order. Then, to wrap the whole process
-I could call the looping function with an ordered list of operation
-functions to apply to each sample.
-"""
-
-
-def remove_no_gold_label_samples(db_name):
-    """Removes samples without gold labels.
-
-    This is specifically for SNLI, where a number of samples had
-    no gold label, instead just a '-'. We do not want to train with
-    these samples so we remove them.
-
-    Question: does MNLI have them, too? I've kept the db_name argument
-    in any case.
+def encode(label):
+    """Encode a label to a y-vector.
 
     Args:
-      db_name: the name of the database (dataset) to work on.
+      label: the text of the label to encode.
+    Returns:
+      numpy array representing one-hot vector of shape (1, 3)
+        which encodes the label.
     Raises:
-      DbNotFoundError: if the db_name is not in mongoi.COLLECTIONS.keys(),
-        which is intended to provide the list of collections to operate
-        on.
+      LabelNotFoundError: if the label is not found in the
+        labeling.LABEL_TO_ENCODING dictionary. This may happen
+        if a new data set is loaded and the particular labels
+        they use have not been added to the dictionary.
     """
-    if db_name not in mongoi.COLLECTIONS.keys():
-        raise errors.DbNotFoundError(db_name)
-    print('Removing no gold label samples from %s...' % db_name)
+    if label not in labeling.LABEL_TO_ENCODING.keys():
+        raise errors.LabelNotFoundError(label)
 
-    for collection_name in mongoi.COLLECTIONS[db_name]:
-        print('Deleting no gold labels from collection: "%s"' % collection_name)
-        deleted_count = 0
-        repository = mongoi.get_repository(db_name, collection_name)
-        for sample in repository.find_all():
-            if sample['gold_label'] == '-':
-                repository.delete(sample)
-                deleted_count += 1
-        print('Deleted %s documents' % deleted_count)
-        print('Remaining count in collection: %s' % repository.count())
+    encoding = np.zeros((1, 3), dtype='float64')
+    encoding[0, labeling.LABEL_TO_ENCODING[label]] = 1
 
-    print('Finished successfully.')
+    return encoding
 
 
 def generate_friendly_ids(db_name):
@@ -100,7 +76,7 @@ def generate_friendly_ids(db_name):
     for collection_name in mongoi.COLLECTIONS[db_name]:
         print('Working on collection: %s' % collection_name)
         repository = mongoi.get_repository(db_name, collection_name)
-        for sample in repository.find_all():
+        for sample in repository.all():
             sample['id'] = id
             repository.update(sample)
             id += 1
@@ -168,70 +144,114 @@ def generate_sparse_encodings(db_name):
     print('Completed successfully.')
 
 
-def encode(label):
-    """Encode a label to a y-vector.
+def generate_sentence_matrices(db_name, oov):
+    """Generate sentence matrices save to mongo.
 
     Args:
-      label: the text of the label to encode.
-    Returns:
-      numpy array representing one-hot vector of shape (1, 3)
-        which encodes the label.
+      db_name: the name of the db to operate on.
+      oov: oov.OOV object with all oov information and vectors.
     Raises:
-      LabelNotFoundError: if the label is not found in the
-        labeling.LABEL_TO_ENCODING dictionary. This may happen
-        if a new data set is loaded and the particular labels
-        they use have not been added to the dictionary.
+      DbNotFoundError: if the db_name is not in mongoi.COLLECTIONS.keys(),
+        which is intended to provide the list of collections to operate
+        on.
     """
-    if label not in labeling.LABEL_TO_ENCODING.keys():
-        raise errors.LabelNotFoundError(label)
+    if db_name not in mongoi.COLLECTIONS.keys():
+        raise errors.DbNotFoundError(db_name)
+    print('Generating sentence matrices for %s...' % db_name)
 
-    encoding = np.zeros((1, 3), dtype='float64')
-    encoding[0, labeling.LABEL_TO_ENCODING[label]] = 1
-
-    return encoding
-
-
-def generate_sentence_matrices(db):
-    print('Generating sentence matrices for %s...' % db)
     nlp = spacy.load('en')
     null_vector = util.load_pickle('NULL_glove_vector.pkl')
-    oov_vectors = load_oov_vectors(db)
-    for collection in mongoi.COLLECTIONS[db]:
-        print('Working on collection: %s' % collection)
-        repository = mongoi.get_repository(db, collection)
-        for doc in repository.find_all():
-            premise = sentence_matrix(doc['sentence1'],
-                                      nlp,
-                                      null_vector,
-                                      oov_vectors)
-            hypothesis = sentence_matrix(doc['sentence2'],
-                                         nlp,
-                                         null_vector,
-                                         oov_vectors)
-            repository.update_one(doc['_id'],
-                                  {'premise':
-                                       mongoi.array_to_string(premise),
-                                   'hypothesis':
-                                       mongoi.array_to_string(hypothesis)})
+    for collection_name in mongoi.COLLECTIONS[db_name]:
+        print('Working on collection: %s' % collection_name)
+        repository = mongoi.get_repository(db_name, collection_name)
+        for sample in repository.all():
+            premise = _sentence_matrix(sample['sentence1'],
+                                       nlp,
+                                       null_vector,
+                                       oov)
+            hypothesis = _sentence_matrix(sample['sentence2'],
+                                          nlp,
+                                          null_vector,
+                                          oov)
+            sample['premise'] = mongoi.array_to_string(premise)
+            sample['hypothesis'] = mongoi.array_to_string(hypothesis)
+            repository.update(sample)
+
     print('Completed successfully.')
 
 
-def sentence_matrix(sentence, nlp, null_vector, oov_vectors):
-    doc = nlp(sentence)
-    matrix = np.vstack(
-        list(
-            get_vector(t, oov_vectors).reshape((1, 300)) for t in doc
-        ))
-    matrix = np.vstack([null_vector, matrix])
-    return matrix
-
-
-def get_vector(token, oov_vectors):
-    if token.text in oov_vectors.keys():
-        return oov_vectors[token.text]
+def _get_vector(token, oov):
+    if oov.is_oov(token.text):
+        return oov.ids_to_random_vectors[oov.tokens_to_ids[token.text]]
     else:
         return token.vector
 
 
-def load_oov_vectors(db):
-    return util.load_pickle('oov_vectors_%s.pkl' % db)
+def pre_process(db_name):
+    """Perform all pre-processing for the db.
+
+    Args:
+      db_name: the db to operate on.
+    Raises:
+      DbNotFoundError: if the db_name is not in mongoi.COLLECTIONS.keys(),
+        which is intended to provide the list of collections to operate
+        on.
+    """
+    if db_name not in mongoi.COLLECTIONS.keys():
+        raise errors.DbNotFoundError(db_name)
+    print('Performing all pre-processing for %s' % db_name)
+
+    remove_no_gold_label_samples(db_name)
+    generate_friendly_ids(db_name)
+    generate_label_encodings(db_name)  # should probably get rid of this
+    generate_sparse_encodings(db_name)
+    oov = OOV.generate_oov(db_name)
+    oov.generate_random_vectors()
+    generate_sentence_matrices(db_name, oov)
+
+    print('All pre-processing completed.')
+
+
+def remove_no_gold_label_samples(db_name):
+    """Removes samples without gold labels.
+
+    This is specifically for SNLI, where a number of samples had
+    no gold label, instead just a '-'. We do not want to train with
+    these samples so we remove them.
+
+    Question: does MNLI have them, too? I've kept the db_name argument
+    in any case.
+
+    Args:
+      db_name: the name of the database (dataset) to work on.
+    Raises:
+      DbNotFoundError: if the db_name is not in mongoi.COLLECTIONS.keys(),
+        which is intended to provide the list of collections to operate
+        on.
+    """
+    if db_name not in mongoi.COLLECTIONS.keys():
+        raise errors.DbNotFoundError(db_name)
+    print('Removing no gold label samples from %s...' % db_name)
+
+    for collection_name in mongoi.COLLECTIONS[db_name]:
+        print('Deleting no gold labels from collection: "%s"' % collection_name)
+        deleted_count = 0
+        repository = mongoi.get_repository(db_name, collection_name)
+        for sample in repository.all():
+            if sample['gold_label'] == '-':
+                repository.delete(sample)
+                deleted_count += 1
+        print('Deleted %s documents' % deleted_count)
+        print('Remaining count in collection: %s' % repository.count())
+
+    print('Finished successfully.')
+
+
+def _sentence_matrix(sentence, nlp, null_vector, oov):
+    doc = nlp(sentence)
+    matrix = np.vstack(
+        list(
+            _get_vector(t, oov).reshape((1, 300)) for t in doc
+        ))
+    matrix = np.vstack([null_vector, matrix])
+    return matrix
