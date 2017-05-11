@@ -102,6 +102,7 @@ logs/
 checkpoints/
 data/
 histories/
+pickles/
 main.py
 scratch.py
 ng.py
