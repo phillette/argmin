@@ -3,10 +3,14 @@ import decorators
 import util
 
 
-def fully_connected_with_dropout(inputs, num_outputs, activation_fn, p_keep):
-    fully_connected = tf.contrib.layers.fully_connected(inputs,
-                                                        num_outputs,
-                                                        activation_fn)
+def fully_connected_with_dropout(inputs,
+                                 num_outputs,
+                                 activation_fn,
+                                 p_keep):
+    fully_connected = tf.contrib.layers.fully_connected(
+        inputs,
+        num_outputs,
+        activation_fn)
     dropped_out = tf.nn.dropout(fully_connected, p_keep)
     return dropped_out
 

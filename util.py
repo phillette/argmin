@@ -145,6 +145,14 @@ def save_pickle(obj, file_name):
         pickle.dump(obj, file)
 
 
+def scale_epoch_to_iter(epoch, iters_per_epoch):
+    return epoch * iters_per_epoch
+
+
+def scale_iter_to_epoch(iters, iters_per_epoch):
+    return iters / iters_per_epoch
+
+
 def split_after_concat(tensor, batch_size):
     """
     In some circumstances we need to concatenate the premises and hypotheses

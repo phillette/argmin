@@ -151,3 +151,169 @@ class BiLSTMEncoder(Encoder):
         # [batch_size, timesteps, 2 * rnn_size]
         concatenated_encoding = tf.concat(_hypotheses_encoding[0], 2)
         return concatenated_encoding
+
+
+class SimpleEncoder(model_base.Model):
+    """My attempt at a simple encoding model."""
+
+    def __init__(self, config):
+        model_base.Model.__init__(self, config)
+        self.name = 'SimpleEncoder'
+        self.premises_encoding
+        self.hypotheses_encoding
+        self.premises_projection
+        self.hypotheses_projection
+        self.attended_premises
+        self.attended_hypotheses
+        self.final_premises_encoding
+        self.final_hypotheses_encoding
+        self.logits
+        self.loss
+        self.optimize
+        self.predicted_labels
+        self.correct_predictions
+        self.accuracy
+        self.confidences
+        self.summary
+
+    @decorators.define_scope
+    def premises_encoding(self):
+        """Encode the premises via BiRNN."""
+        # [batch_size, timesteps, embed_size]
+        encodings = bi_rnn(
+            self.premises,
+            self.embed_size,
+            'premise_bi_rnn',
+            self.p_keep)
+        # [batch_size, timesteps, 2 * embed_size]
+        concatenated_encoding = tf.concat(encodings[0], 2)
+        return concatenated_encoding
+
+    @decorators.define_scope
+    def hypotheses_encoding(self):
+        """Encode the hypotheses via BiRNN."""
+        # [batch_size, timesteps, embed_size]
+        encodings = bi_rnn(
+            self.hypotheses,
+            self.embed_size,
+            'hypothesis_bi_rnn',
+            self.p_keep)
+        # [batch_size, timesteps, 2 * embed_size]
+        concatenated_encoding = tf.concat(encodings[0], 2)
+        return concatenated_encoding
+
+    @decorators.define_scope
+    def project(self):
+        ff_input = tf.concat([self.premises_encoding,
+                              self.hypotheses_encoding],
+                             axis=0)
+        projection = model_base.fully_connected_with_dropout(
+            inputs=ff_input,
+            num_outputs=self.hidden_size,
+            activation_fn=None,  # projection layer should not have activation!
+            p_keep=1.0)  # no need to drop here
+
+        return projection
+
+    @decorators.define_scope('project')
+    def premises_projection(self):
+        """Project the premises encoding."""
+        projected_premises, _ = util.split_after_concat(self.project,
+                                                        self.batch_size)
+        return projected_premises
+
+    @decorators.define_scope('project')
+    def hypotheses_projection(self):
+        """Project the hypotheses encoding."""
+        _, projected_hypotheses = util.split_after_concat(self.project,
+                                                          self.batch_size)
+        return projected_hypotheses
+
+    @decorators.define_scope
+    def attended_premises(self):
+        """Get attention weighted vectors for premises."""
+        # [batch_size, timesteps, timesteps]
+        attention_weights_premises = tf.matmul(
+            self.premises_projection,
+            tf.transpose(self.premises_projection,
+                         perm=[0, 2, 1]),
+            name='attention_weights_premises')
+
+        # []
+        soft_attention_premises = tf.nn.softmax(attention_weights_premises)
+
+        # []
+        attended = tf.matmul(
+            soft_attention_premises,
+            self.premises_projection)
+        attended.set_shape([None,
+                            None,
+                            self.hidden_size])
+
+        return attended
+
+    @decorators.define_scope
+    def attended_hypotheses(self):
+        """Get attention weighted vectors for hypotheses."""
+        # [batch_size, timesteps, timesteps]
+        attention_weights_hypotheses = tf.matmul(
+            self.hypotheses_projection,
+            tf.transpose(self.hypotheses_projection,
+                         perm=[0, 2, 1]),
+            name='attention_weights_hypotheses')
+
+        soft_attention_hypotheses = tf.nn.softmax(attention_weights_hypotheses)
+
+        attended = tf.matmul(
+            soft_attention_hypotheses,
+            self.hypotheses_projection)
+        attended.set_shape([None,
+                            None,
+                            self.hidden_size])
+
+        return attended
+
+    @decorators.define_scope
+    def final_premises_encoding(self):
+        """Encode the premises from attended vectors via BiRNN."""
+        # [batch_size, timesteps, hidden_size]
+        encodings = bi_rnn(
+            self.attended_premises,
+            self.hidden_size,
+            'final_premises_encoding_bi_rnn',
+            self.p_keep)
+        # [batch_size, timesteps, 2 * embed_size]
+        concatenated_encoding = tf.concat(encodings[0], 2)
+        return concatenated_encoding
+
+    @decorators.define_scope
+    def final_hypotheses_encoding(self):
+        """Encode the hypotheses from attended vectors via BiRNN."""
+        # [batch_size, timesteps, hidden_size]
+        encodings = bi_rnn(
+            self.attended_hypotheses,
+            self.hidden_size,
+            'final_hypotheses_encoding_bi_rnn',
+            self.p_keep)
+        # [batch_size, timesteps, 2 * embed_size]
+        concatenated_encoding = tf.concat(encodings[0], 2)
+        return concatenated_encoding
+
+    @decorators.define_scope
+    def logits(self):
+        # what about attending over the vectors here?
+        ff_input = tf.concat([self.final_premises_encoding,
+                              self.final_hypotheses_encoding],
+                             axis=2)
+        h1 = model_base.fully_connected_with_dropout(
+            inputs=ff_input,
+            num_outputs=self.hidden_size,
+            activation_fn=tf.tanh,
+            p_keep=self.p_keep)
+        h2 = model_base.fully_connected_with_dropout(
+            inputs=h1,
+            num_outputs=self.hidden_size,
+            activation_fn=tf.tanh,
+            p_keep=self.p_keep)
+        _logits = tf.contrib.layers.fully_connected(h2, 3, None)
+        return _logits

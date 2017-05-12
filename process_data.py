@@ -203,7 +203,7 @@ def pre_process(db_name):
 
     remove_no_gold_label_samples(db_name)
     generate_friendly_ids(db_name)
-    generate_label_encodings(db_name)  # should probably get rid of this
+    generate_label_encodings(db_name)  # should probably get rid of this???
     generate_sparse_encodings(db_name)
     oov = OOV.generate_oov(db_name)
     oov.generate_random_vectors()

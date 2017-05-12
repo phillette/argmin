@@ -374,7 +374,7 @@ def visualize(id):
         np.array(scale_epochs_to_iters(history, 'tuning_iter')),
         np.array(history['tuning_accuracy']),
         label='tuning accuracy')
-    plt.legend(handles=[loss, accuracy, tuning], loc=2)
+    plt.legend(handles=[loss, accuracy, tuning], loc=3)
     plt.subplot(1, 2, 2)
     epoch_loss, = plt.plot(
         np.arange(history['epochs']),

@@ -3,19 +3,31 @@ import batching
 import numpy as np
 import util
 import tensorflow as tf
-import aligned
 import mongoi
 import pandas as pd
-import model_base
 import stats
 import labeling
 
 
-def accuracy(model, db, collection, sess,
-             load_ckpt=True, transfer=False,
-             batch_size=32, subset_size=None,
+def load_ckpt_at_epoch(model, epoch, db_name, collection_name,
+                       batch_size, subset_size, sess, saver):
+    iters_per_epoch = batching.num_iters(db_name,
+                                         collection_name,
+                                         batch_size,
+                                         subset_size)
+    global_step = util.scale_epoch_to_iter(epoch, iters_per_epoch)
+    util.load_checkpoint_at_step(model.name, global_step, saver, sess)
+
+
+def accuracy(model,
+             db,
+             collection,
+             sess,
+             batch_size=32,
+             subset_size=None,
              surpress_print=False):
     # make sure sess.run(tf.global_variables_initializer()) has been called
+    # make sure the checkpoint is loaded too if necessary
     batch_gen = batching.get_batch_gen(db,
                                        collection,
                                        batch_size=batch_size)
@@ -23,10 +35,7 @@ def accuracy(model, db, collection, sess,
                                    collection=collection,
                                    batch_size=batch_size,
                                    subset_size=subset_size)
-    saver = tf.train.Saver()
-    if load_ckpt:
-        util.load_checkpoint(model, saver, sess, transfer)
-    average_accuracy = 0
+    average_accuracy = 0.0
     for iter in range(num_iters):
         batch = next(batch_gen)
         batch_accuracy = sess.run(model.accuracy,
