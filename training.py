@@ -257,8 +257,6 @@ def train(model, db, collection, num_epochs, sess,
                                                   db=db,
                                                   collection=tuning_collection,
                                                   sess=sess,
-                                                  load_ckpt=False,
-                                                  transfer=False,
                                                   surpress_print=True)
             accumulated_tuning_accuracy += tuning_accuracy
             sess.run(
