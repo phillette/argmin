@@ -10,7 +10,6 @@ import errors
 COLLECTIONS = {
     'snli': ['train', 'dev', 'test'],
     'mnli': ['train', 'dev_matched', 'dev_mismatched'],
-    'xnli': ['train', 'dev_matched', 'dev_mismatched'],
     'carstens': ['all', 'train', 'test'],
     'history': ['all'],
     'node': ['debate_train', 'debate_test']
@@ -25,8 +24,6 @@ def get_db(db_name):
         return CarstensDb()
     elif db_name == 'mnli':
         return MNLIDb()
-    elif db_name == 'xnli':
-        return XNLIDb()
     elif db_name == 'history':
         return HistoryDb()
     elif db_name == 'node':
@@ -87,7 +84,20 @@ class AharoniDb(RepositoryFacade):
 
 
 class CarstensDb(RepositoryFacade):
-    """Repository Facade for the Carstens and Toni (2015) data set. """
+    """Repository Facade for the Carstens and Toni (2015) data set.
+
+    Access to specific collections in this db are provided by
+    Repository class attributes.
+
+    http://www.doc.ic.ac.uk/~lc1310/
+
+    Attributes:
+      all: Repository for the collection containing all the data samples.
+      train: Repository containing randomly selected 3,500 samples
+        designated as training data.
+      test: Repository containing randomly selected 558 samples
+        designated as test data.
+    """
     def __init__(self):
         RepositoryFacade.__init__(self, db_name='carstens')
         self.all = Repository('carstens', self.db.all)
@@ -102,17 +112,40 @@ class DundeeDb(RepositoryFacade):
 
 
 class MNLIDb(RepositoryFacade):
-    """ Repository Facade for the MNLI 0.9 data set. """
+    """ Repository Facade for the MNLI 0.9 data set.
+
+    Access to specific collections in this db are provided by
+    Repository class attributes.
+
+    https://www.nyu.edu/projects/bowman/multinli/
+
+    Attributes:
+      train: Repository for the train collection.
+      dev_matched: Repository for the dev collection that includes
+        only genres in the training set.
+      dev_mismatched: Repository for teh dev collection that only
+        includes genres not in the training set.
+    """
     def __init__(self):
         RepositoryFacade.__init__(self, db_name='mnli')
         self.train = Repository('mnli', self.db.train)
         self.dev_matched = Repository('mnli', self.db.dev_matched)
         self.dev_mismatched = Repository('mnli', self.db.dev_mismatched)
-        self.test = Repository('mnli', self.db.test)
+        #self.test = Repository('mnli', self.db.test)
 
 
 class NodeDb(RepositoryFacade):
-    """ Repository Facade for the NoDe argument mining data set. """
+    """ Repository Facade for the NoDe argument mining data set.
+
+    Access to specific collections in this db are provided by
+    Repository class attributes.
+
+    http://www-sop.inria.fr/NoDE/
+
+    Attributes:
+      debate_train: Repository for the DebatePedia train collection.
+      debate_test: Repository for the DebatePedia test collection.
+    """
     def __init__(self):
         RepositoryFacade.__init__(self, db_name='node')
         self.debate_train = Repository('node', self.db.debate_train)
@@ -123,22 +156,23 @@ class NodeDb(RepositoryFacade):
 
 
 class SNLIDb(RepositoryFacade):
-    """ Repository Facade for the SNLI 1.0 data set. """
+    """ Repository Facade for the SNLI 1.0 data set.
+
+    Access to specific collections in this db are provided by
+    Repository class attributes.
+
+    https://nlp.stanford.edu/projects/snli/
+
+    Attributes:
+      train: Repository for the train collection.
+      dev: Repository for the dev collection.
+      test: Repository for the test collection.
+    """
     def __init__(self):
         RepositoryFacade.__init__(self, db_name='snli')
         self.train = Repository('snli', self.db.train)
         self.dev = Repository('snli', self.db.dev)
         self.test = Repository('snli', self.db.test)
-
-
-class XNLIDb(RepositoryFacade):
-    """ Repository Facade for Cross-NLI data set. """
-    def __init__(self):
-        RepositoryFacade.__init__(self, db_name='xnli')
-        self.train = Repository('xnli', self.db.train)
-        self.dev_matched = Repository('xnli', self.db.dev_matched)
-        self.dev_mismatched = Repository('xnli', self.db.dev_mismatched)
-        self.test = Repository('xnli', self.db.test)
 
 
 class HistoryDb(RepositoryFacade):

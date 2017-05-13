@@ -6,6 +6,16 @@ import numpy as np
 import util
 
 
+"""
+NOTE: would like to have a global oov so that crossing datasets
+      that have the same oov can share the vectors for consistency.
+      I don't know how often that would be encountered.
+      But it may also be better for memory management if individual
+      oov vectors were stored in separate pickles and loaded on
+      the fly as necessary.
+"""
+
+
 class OOV:
     """Wraps all OOV information for a given dataset.
 
@@ -117,7 +127,7 @@ class OOV:
         if sample_id not in self.samples[collection_name].keys():
             self.samples[collection_name][sample_id] = []
             self.sample_counts['all'] += 1
-            self.sample_counts['collection'] += 1
+            self.sample_counts[collection_name] += 1
         self.samples[collection_name][sample_id]\
             .append(self.tokens_to_ids[token_text])
 
@@ -156,6 +166,7 @@ def generate_oov(db_name):
     zero_vector = np.zeros(300,)
 
     for collection_name in mongoi.COLLECTIONS[db_name]:
+        print('Working on collection %s...' % collection_name)
         repository = mongoi.get_repository(db_name, collection_name)
         for sample in repository.find_all():
             premise = nlp(sample['sentence1'])
