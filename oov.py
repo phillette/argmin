@@ -62,7 +62,7 @@ class OOV:
         """
         return token_text in self.tokens_to_ids.keys()
 
-    def generate_random_vectors(self, size, orientation):
+    def generate_random_vectors(self, size=300, orientation='row'):
         """Generates random vectors for each oov token.
 
         Vectors are randomly initialized according to the size and
