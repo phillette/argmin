@@ -35,19 +35,19 @@ def accuracy(model,
                                    collection=collection,
                                    batch_size=batch_size,
                                    subset_size=subset_size)
-    average_accuracy = 0.0
+    accumulated_accuracy = 0.0
     for iter in range(num_iters):
         batch = next(batch_gen)
         batch_accuracy = sess.run(model.accuracy,
                                   util.feed_dict(model,
                                                  batch))
-        average_accuracy += batch_accuracy
+        accumulated_accuracy += batch_accuracy
     if not surpress_print:
         print('%s %s set accuracy = %s%%'
               % (db,
                  collection,
-                 round(average_accuracy / num_iters * 100, 2)))
-    return average_accuracy / num_iters
+                 round(accumulated_accuracy / num_iters * 100, 2)))
+    return accumulated_accuracy / num_iters
 
 
 def evaluate(model, sess, db='snli', collection='test', transfer=False):

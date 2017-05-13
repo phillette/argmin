@@ -294,6 +294,35 @@ class ChenAlignA(BiRNNAlignment):
     def __init__(self, config):
         BiRNNAlignment.__init__(self, config)
         self.name = 'ChenAlignA'
+        self.weights_to_scale_factor = {
+            self._weights(
+                'premises_encoding/premise_bi_rnn/fw/basic_lstm_cell')
+            : self.p_keep_rnn,
+            self._weights(
+                'premises_encoding/premise_bi_rnn/bw/basic_lstm_cell')
+            : self.p_keep_rnn,
+            self._weights(
+                'hypotheses_encoding/hypothesis_bi_rnn/fw/basic_lstm_cell')
+            : self.p_keep_rnn,
+            self._weights(
+                'hypotheses_encoding/hypothesis_bi_rnn/bw/basic_lstm_cell')
+            : self.p_keep_rnn,
+            self._weights(
+                'compare/fully_connected')
+            : self.p_keep,
+            self._weights(
+                'compare/fully_connected_1')
+            : self.p_keep,
+            self._weights(
+                'logits/fully_connected')
+            : self.p_keep,
+            self._weights(
+                'logits/fully_connected_1')
+            : self.p_keep,
+            self._weights(
+                'logits/fully_connected_2')
+            : self.p_keep
+        }
 
     @decorators.define_scope
     def align(self):

@@ -20,14 +20,16 @@ def config(embed_size=300,
            grad_clip_norm=0.0,
            hidden_size=200,
            lamda=0.0,
-           p_keep=0.8):
+           p_keep=0.8,
+           p_keep_rnn=1.0):
     return {
         'embed_size': embed_size,
         'learning_rate': learning_rate,
         'grad_clip_norm': grad_clip_norm,
         'hidden_size': hidden_size,
         'lambda': lamda,
-        'p_keep': p_keep
+        'p_keep': p_keep,
+        'p_keep_rnn': p_keep_rnn
     }
 
 
@@ -77,6 +79,7 @@ class Model:
             dtype=tf.int32,
             trainable=False,
             name='training_history_id')
+        self.weights_to_scale_factor = {}
         self.premises
         self.hypotheses
         self.Y
@@ -143,6 +146,13 @@ class Model:
             tf.float64,
             [None, None, self.embed_size],
             name='premises')
+
+    def scale_weights(self, sess):
+        """Scale dropped out weights for prediction."""
+        for weight in self.weights_to_scale_factor.keys():
+            sess.run(tf.multiply(
+                weight,
+                self.weights_to_scale_factor[weight]))
 
     @decorators.define_scope
     def summary(self):
