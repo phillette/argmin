@@ -6,11 +6,11 @@ import mongoi
 Steps for MNLI preprocessing as follows.
 1) mongoimport MNLI data
 2) run process_data.pre_process('mnli')
-3) run import_snli() below
+3) run import_snli_samples() below
 """
 
 
-def import_snli():
+def import_snli_samples():
     """Import 77,350 SNLI data samples into MNLI."""
     print('Importing 77,350 SNLI samples into MNLI...')
 
