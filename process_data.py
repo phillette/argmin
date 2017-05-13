@@ -74,7 +74,7 @@ def generate_friendly_ids(db_name):
 
     id = 1
     for collection_name in mongoi.COLLECTIONS[db_name]:
-        print('Working on collection: %s' % collection_name)
+        print('Working on collection: %s...' % collection_name)
         repository = mongoi.get_repository(db_name, collection_name)
         for sample in repository.all():
             sample['id'] = id
@@ -103,7 +103,7 @@ def generate_label_encodings(db_name):
     print('Generating label encodings for %s...' % db_name)
 
     for collection_name in mongoi.COLLECTIONS[db_name]:
-        print('Working on collection: %s' % collection_name)
+        print('Working on collection: %s...' % collection_name)
         repository = mongoi.get_repository(db_name, collection_name)
         for sample in repository.all():
             encoding = encode(sample['gold_label'])
@@ -162,7 +162,7 @@ def generate_sentence_matrices(db_name, oov):
     nlp = spacy.load('en')
     null_vector = util.load_pickle('NULL_glove_vector.pkl')
     for collection_name in mongoi.COLLECTIONS[db_name]:
-        print('Working on collection: %s' % collection_name)
+        print('Working on collection: %s...' % collection_name)
         repository = mongoi.get_repository(db_name, collection_name)
         for sample in repository.all():
             premise = _sentence_matrix(sample['sentence1'],
@@ -234,7 +234,7 @@ def remove_no_gold_label_samples(db_name):
     print('Removing no gold label samples from %s...' % db_name)
 
     for collection_name in mongoi.COLLECTIONS[db_name]:
-        print('Deleting no gold labels from collection: "%s"' % collection_name)
+        print('Deleting no gold labels from collection: %s...' % collection_name)
         deleted_count = 0
         repository = mongoi.get_repository(db_name, collection_name)
         for sample in repository.all():
