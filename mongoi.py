@@ -182,12 +182,18 @@ class HistoryDb(RepositoryFacade):
 
 
 class Repository:
+    """Repository pattern interface for a MongoDB collection.
+
+    The functions of this class abstract away pymongo syntax
+    and provide a custom interface designed for convenience.
+
+    Attributes:
+      db_name: the name of the database the collection is in.
+      collection: the Pymongo collection that can be queried against.
     """
-    Interface for a MongoDB collection.
-    The functions of this class abstract away pymongo syntax and provide a custom interface.
-    The pymongo interface is still available on the Facade class in the db variable.
-    """
+
     def __init__(self, db_name, collection_name):
+        """Create a new Repository."""
         self.db_name = db_name
         self.collection = collection_name
 
@@ -228,7 +234,7 @@ class Repository:
           NotDeletedError: if the item could not be deleted for
             whatever reason.
         """
-        result = self.collection.delete_many(doc['_id'])
+        result = self.collection.delete_many({'_id': doc['_id']})
         if result.deleted_count != 1:
             raise errors.NotDeleteError(self.db_name,
                                         self.collection.name,

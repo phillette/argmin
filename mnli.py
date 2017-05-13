@@ -2,11 +2,13 @@
 import mongoi
 
 
-# With MNLI already established, run the following commands in mongo:
-# > use mnli
-# > then all we need to do is copy 77,350 samples from SNLI
-# With SNLI already processed, this means just iterate and add,
-# remembering to add the genre attribute.
+"""
+Steps for MNLI preprocessing as follows.
+1) mongoimport MNLI data
+2) run process_data.pre_process('mnli')
+3) run import_snli() below
+"""
+
 
 def import_snli():
     """Import 77,350 SNLI data samples into MNLI."""
