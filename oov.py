@@ -163,7 +163,6 @@ def generate_oov(db_name):
     print('Finding OOV tokens for db %s' % db_name)
     oov = OOV(db_name)
     nlp = spacy.load('en')
-    zero_vector = np.zeros(300,)
 
     for collection_name in mongoi.COLLECTIONS[db_name]:
         print('Working on collection %s...' % collection_name)
@@ -172,12 +171,12 @@ def generate_oov(db_name):
             premise = nlp(sample['sentence1'])
             hypothesis = nlp(sample['sentence2'])
             for token in premise:
-                if np.array_equal(token.vector, zero_vector):
+                if token.is_oov:
                     oov.report_token(token.text,
                                      collection_name,
                                      sample['id'])
             for token in hypothesis:
-                if np.array_equal(token.vector, zero_vector):
+                if token.is_oov:
                     oov.report_token(token.text,
                                      collection_name,
                                      sample['id'])
