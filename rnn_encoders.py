@@ -320,7 +320,7 @@ class SimpleEncoder(model_base.Model):
     @decorators.define_scope
     def loss(self):
         labels = tf.argmax(self.Y, axis=1)
-        labels.set_shape([self.batch_size, 1])
+        labels = tf.reshape(labels, [32, 1])
         cross_entropy = tf.reduce_sum(
             tf.nn.sparse_softmax_cross_entropy_with_logits(
                 labels=labels,
