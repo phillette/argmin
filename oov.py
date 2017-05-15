@@ -96,7 +96,7 @@ class OOV:
         """Prints all count info to the terminal."""
         print('OOV counts for db %s as follows...' % self.db_name)
         print('Overall %s tokens are OOV' % self.token_counts['all'])
-        print('Overall %s samples are OOV' % self.sample_counts['all'])
+        print('Overall %s samples have OOV' % self.sample_counts['all'])
         print('Collection breakdown as follows...')
         for collection_name in mongoi.COLLECTIONS[self.db_name]:
             print('%s tokens are OOV in %s' %
