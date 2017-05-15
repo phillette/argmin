@@ -90,3 +90,19 @@ def train_test_split(test_set_size=558):
         else:
             db.train.insert_one(doc)
     print('Completed successfully.')
+
+
+def random_train_test_split(test_set_size=558):
+    print('Creating random train-test split for carstens...')
+    num_samples = stats.COLLECTION_SIZE['carstens']['all']
+    all_ids = np.arange(num_samples)
+    test_ids = np.random.choice(a=all_ids,
+                                size=test_set_size,
+                                replace=False)
+    db = mongoi.get_db('carstens')
+    for doc in db.all.all():
+        if doc['id'] in test_ids:
+            db.test.add(doc)
+        else:
+            db.train.add(doc)
+    print('Completed successfully.')

@@ -197,6 +197,14 @@ class Repository:
         self.db_name = db_name
         self.collection = collection_name
 
+    def add(self, doc):
+        """Add a document to the collection.
+
+        Args:
+          doc: the doc to add
+        """
+        self.collection.insert_one(doc)
+
     def all(self):
         """Return all docs in the collection.
 
