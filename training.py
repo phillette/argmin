@@ -85,10 +85,6 @@ def train(model, db, collection, num_epochs, sess,
     iter_time_takens = []  # averaging these over the whole process
                            # not just epochs
 
-    report('Global initialization successful. '
-           'Model state: epoch = %s; iter = %s'
-           % (epoch, iter))
-
     # START EPOCHS
     while epoch < num_epochs:
         # we init to zero, and update after each, so this is correct
@@ -114,17 +110,14 @@ def train(model, db, collection, num_epochs, sess,
         # get the batch generator for this epoch
         # NOTE: a generator generator could genericize this,
         #       untying it from this structure
-        report('Getting batch_gen...')
         batch_gen = batching.get_batch_gen(db=db,
                                            collection=collection,
                                            batch_size=batch_size)
-        report('Successfully got batch_gen.')
 
         # START ITERS
         while iter < epoch_last_iter:
             # global_step is initialized to zero - iterating here is correct
             iter += 1
-            report('iter: %s' % iter)
 
             # take the time before starting
             iter_start = time.time()
@@ -132,17 +125,18 @@ def train(model, db, collection, num_epochs, sess,
             # get the next batch and run the ops
             # NOTE: taking a feed_dict function as an argument
             #       could genericize this
-            report('Getting next batch...')
             batch = next(batch_gen)
-            report('Successfully got batch. Printing details.')
-            report(batch.details())
-            report('Running ops...')
+
+            # get the right optimization op
+            optimize_op = model.optimize
+            if transfer:
+                optimize_op = model.optimize_transfer
+
             batch_loss, batch_accuracy, _ \
                 = sess.run([model.loss,
                             model.accuracy,
-                            model.optimize],
+                            optimize_op],
                            util.feed_dict(model, batch))
-            report('Ops ran successfully.')
 
             # accumulate the loss and accuracy
             accumulated_loss += batch_loss
