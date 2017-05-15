@@ -20,14 +20,18 @@ COLLECTION_SIZE = {
         'test': 9824
     },
     'mnli': {
-        'train': 392702,
-        'dev_matched': 1,
-        'dev_mismatched': 1
+        'train': 470052,
+        'dev_matched': 9815,
+        'dev_mismatched': 9832
     },
     'carstens': {
         'all': 4058,
         'train': 3500,
         'test': 558
+    },
+    'node': {
+        'debate_train': 159,
+        'debate_test': 161
     }
 }
 NO_GOLD_LABEL_COUNTS = {
