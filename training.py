@@ -67,28 +67,6 @@ def train(model, db, collection, num_epochs, sess,
     average_tuning_accuracy = 0.0
     change_in_tuning_accuracy = 0.0
 
-    # define the update ops for the training state variables
-    ph_global_epoch = tf.placeholder(tf.int32)
-    ph_global_step = tf.placeholder(tf.int32)
-    ph_accumulated_loss = tf.placeholder(tf.float32)
-    ph_accumulated_accuracy = tf.placeholder(tf.float32)
-    ph_accumulated_tuning_accuracy = tf.placeholder(tf.float32)
-    ph_tuning_iter = tf.placeholder(tf.int32)
-    ph_training_history_id = tf.placeholder(tf.int32)
-    update_epoch = tf.assign(model.global_epoch,
-                             ph_global_epoch)
-    update_iter = tf.assign(model.global_step,
-                            ph_global_step)
-    update_loss = tf.assign(model.accumulated_loss,
-                            ph_accumulated_loss)
-    update_accuracy = tf.assign(model.accumulated_accuracy,
-                                ph_accumulated_accuracy)
-    update_tuning_iter = tf.assign(model.tuning_iter, ph_tuning_iter)
-    update_tuning_accuracy = tf.assign(model.accumulated_tuning_accuracy,
-                                       ph_accumulated_tuning_accuracy)
-    set_training_history_id = tf.assign(model.training_history_id,
-                                        ph_training_history_id)
-
     # if we don't have a training history id, create new and get the id
     if training_history_id < 0:  # init to -1 in constructor for no history
         training_history_id = hist.new_history(
@@ -99,8 +77,8 @@ def train(model, db, collection, num_epochs, sess,
             subset_size,
             model.config)
         sess.run(
-            set_training_history_id,
-            {ph_training_history_id: training_history_id})
+            model.set_training_history_id,
+            {model.new_training_history_id: training_history_id})
 
     # summary variables for History
     epoch_time_takens = []
@@ -210,16 +188,19 @@ def train(model, db, collection, num_epochs, sess,
                     * 100
 
             # update the training state variables on the model
-            sess.run([update_iter, update_loss, update_accuracy],
-                     {ph_global_step: iter,
-                      ph_accumulated_loss: accumulated_loss,
-                      ph_accumulated_accuracy: accumulated_accuracy})
+            sess.run([model.update_iter,
+                      model.update_loss,
+                      model.update_accuracy],
+                     {model.new_global_step: iter,
+                      model.new_accumulated_loss: accumulated_loss,
+                      model.new_accumulated_accuracy: accumulated_accuracy})
 
             # END ITER
         # END ITERS
 
         # save the global_epoch state to the model
-        sess.run(update_epoch, {ph_global_epoch: epoch})
+        sess.run(model.update_epoch,
+                 {model.new_global_epoch: epoch})
 
         # calculate epoch stats
         epoch_end = time.time()
@@ -260,9 +241,10 @@ def train(model, db, collection, num_epochs, sess,
                                                   surpress_print=True)
             accumulated_tuning_accuracy += tuning_accuracy
             sess.run(
-                [update_tuning_iter, update_tuning_accuracy],
-                {ph_tuning_iter: tuning_iter,
-                 ph_accumulated_tuning_accuracy: accumulated_tuning_accuracy})
+                [model.update_tuning_iter,
+                 model.update_tuning_accuracy],
+                {model.new_tuning_iter: tuning_iter,
+                 model.new_accumulated_tuning_accuracy: accumulated_tuning_accuracy})
             average_tuning_accuracy = accumulated_tuning_accuracy / tuning_iter
             hist.report_tuning(training_history_id,
                                tuning_iter,

@@ -42,44 +42,10 @@ class Model:
         self.hidden_size = config['hidden_size']
         self.lamda = config['lambda']
         self.p_keep = config['p_keep']
-        self.global_step = tf.Variable(
-            initial_value=0,
-            dtype=tf.int32,
-            trainable=False,
-            name='global_step')
-        self.global_epoch = tf.Variable(
-            initial_value=0,
-            dtype=tf.int32,
-            trainable=False,
-            name='global_epoch')
-        self.accumulated_loss = tf.Variable(
-            initial_value=0,
-            dtype=tf.float32,
-            trainable=False,
-            name='accumulated_loss')
-        self.accumulated_accuracy = tf.Variable(
-            initial_value=0,
-            dtype=tf.float32,
-            trainable=False,
-            name='accumulated_accuracy')
-        self.tuning_iter = tf.Variable(
-            initial_value=0,
-            dtype=tf.int32,
-            trainable=False,
-            name='tuning_iter'
-        )
-        self.accumulated_tuning_accuracy = tf.Variable(
-            initial_value=0.0,
-            dtype=tf.float32,
-            trainable=False,
-            name='accumulated_tuning_accuracy'
-        )
-        self.training_history_id = tf.Variable(
-            initial_value=-1,
-            dtype=tf.int32,
-            trainable=False,
-            name='training_history_id')
         self.weights_to_scale_factor = {}
+        self._training_variables()
+        self._training_placeholders()
+        self._training_ops()
         self.premises
         self.hypotheses
         self.Y
@@ -168,6 +134,77 @@ class Model:
             [None, 3],
             name='y')
 
+    def _training_variables(self):
+        self.global_step = tf.Variable(
+            initial_value=0,
+            dtype=tf.int32,
+            trainable=False,
+            name='global_step')
+        self.global_epoch = tf.Variable(
+            initial_value=0,
+            dtype=tf.int32,
+            trainable=False,
+            name='global_epoch')
+        self.accumulated_loss = tf.Variable(
+            initial_value=0,
+            dtype=tf.float32,
+            trainable=False,
+            name='accumulated_loss')
+        self.accumulated_accuracy = tf.Variable(
+            initial_value=0,
+            dtype=tf.float32,
+            trainable=False,
+            name='accumulated_accuracy')
+        self.tuning_iter = tf.Variable(
+            initial_value=0,
+            dtype=tf.int32,
+            trainable=False,
+            name='tuning_iter'
+        )
+        self.accumulated_tuning_accuracy = tf.Variable(
+            initial_value=0.0,
+            dtype=tf.float32,
+            trainable=False,
+            name='accumulated_tuning_accuracy'
+        )
+        self.training_history_id = tf.Variable(
+            initial_value=-1,
+            dtype=tf.int32,
+            trainable=False,
+            name='training_history_id')
+
+    def _training_placeholders(self):
+        self.new_global_epoch = tf.placeholder(tf.int32)
+        self.new_global_step = tf.placeholder(tf.int32)
+        self.new_accumulated_loss = tf.placeholder(tf.float32)
+        self.new_accumulated_accuracy = tf.placeholder(tf.float32)
+        self.new_accumulated_tuning_accuracy = tf.placeholder(tf.float32)
+        self.new_tuning_iter = tf.placeholder(tf.int32)
+        self.new_training_history_id = tf.placeholder(tf.int32)
+
+    def _training_ops(self):
+        self.update_epoch = tf.assign(
+            self.global_epoch,
+            self.new_global_epoch)
+        self.update_iter = tf.assign(
+            self.global_step,
+            self.new_global_step)
+        self.update_loss = tf.assign(
+            self.accumulated_loss,
+            self.new_accumulated_loss)
+        self.update_accuracy = tf.assign(
+            self.accumulated_accuracy,
+            self.new_accumulated_accuracy)
+        self.update_tuning_iter = tf.assign(
+            self.tuning_iter,
+            self.new_tuning_iter)
+        self.update_tuning_accuracy = tf.assign(
+            self.accumulated_tuning_accuracy,
+            self.new_accumulated_tuning_accuracy)
+        self.set_training_history_id = tf.assign(
+            self.training_history_id,
+            self.new_training_history_id)
+
     def _init_backend(self):
         self.loss
         self.optimize
@@ -189,3 +226,12 @@ class Model:
         return [v for
                 v in tf.get_collection(tf.GraphKeys.TRAINABLE_VARIABLES)
                 if v.name.endswith('weights:0')]
+
+    def _set_training_state(self, training_state, sess):
+        # global step
+        # global epoch
+        # accumulated loss
+        # accumulated accuracy
+        # tuning_iter
+        # accumulated_tuning_accuracy
+        pass
