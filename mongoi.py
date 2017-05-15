@@ -12,7 +12,7 @@ COLLECTIONS = {
     'mnli': ['train', 'dev_matched', 'dev_mismatched'],
     'carstens': ['all', 'train', 'test'],
     'history': ['all'],
-    'node': ['debate_train', 'debate_test']
+    'node': ['debate_train', 'debate_test', 'wiki_train', 'wiki_test']
 }
 
 
@@ -145,14 +145,15 @@ class NodeDb(RepositoryFacade):
     Attributes:
       debate_train: Repository for the DebatePedia train collection.
       debate_test: Repository for the DebatePedia test collection.
+      wiki_train: Repository for the Wikipedia train collection.
+      wiki_test: Repository for the Wikipedia test collection
     """
     def __init__(self):
         RepositoryFacade.__init__(self, db_name='node')
         self.debate_train = Repository('node', self.db.debate_train)
         self.debate_test = Repository('node', self.db.debate_test)
-        #self.angry = Repository(self.db.angry)
-        #self.wiki_train = Repository(self.db.wiki_train)
-        #self.wiki_test = Repository(self.db.wiki_test)
+        self.wiki_train = Repository('node', self.db.wiki_train)
+        self.wiki_test = Repository('node', self.db.wiki_test)
 
 
 class SNLIDb(RepositoryFacade):

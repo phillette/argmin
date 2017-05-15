@@ -26,8 +26,8 @@ FILE_NAMES = [
     # 12 Angry Men
     '12AngryMen_final_dataset.xml',
     # Wikipedia
-    'training_set_ESWC.xml',
-    'test_set_ESWC.xml'
+    'wiki_train.xml',
+    'wiki_test.xml'
 ]
 TEST_TOPICS = [
     'Groundzeromosque',
@@ -55,13 +55,26 @@ TRAIN_TOPICS = [
 
 
 def import_debate():
-    print('Import Node debate data into mongo...')
+    print('Importing Node debate data into mongo...')
     db = mongoi.NodeDb()
     train, test = scrape_debate()
     for doc in train:
         db.debate_train.insert_one(doc)
     for doc in test:
         db.debate_test.insert_one(doc)
+    print('Completed successfully.')
+
+
+def import_wiki():
+    """Import the Node Wiki data into mongo."""
+    print('Importing Node wiki data into mongo...')
+    db = mongoi.NodeDb()
+    train_data = scrape_file(DATA_DIR + FILE_NAMES[6])
+    test_data = scrape_file(DATA_DIR + FILE_NAMES[7])
+    for doc in train_data:
+        db.wiki_train.add(doc)
+    for doc in test_data:
+        db.wiki_test.add(doc)
     print('Completed successfully.')
 
 
@@ -88,6 +101,7 @@ def scrape_file(file_path):
         sample['gold_label'] = child.attrib['entailment']
         sample['sentence1'] = child[0].text
         sample['sentence2'] = child[1].text
-        sample['topic'] = child.attrib['topic']
+        if 'topic' in child.attrib.keys():
+            sample['topic'] = child.attrib['topic']
         data.append(sample)
     return data
