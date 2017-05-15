@@ -227,11 +227,18 @@ class Model:
                 v in tf.get_collection(tf.GraphKeys.TRAINABLE_VARIABLES)
                 if v.name.endswith('weights:0')]
 
-    def _set_training_state(self, training_state, sess):
-        # global step
-        # global epoch
-        # accumulated loss
-        # accumulated accuracy
-        # tuning_iter
-        # accumulated_tuning_accuracy
-        pass
+    def reset_training_state(self, sess):
+        sess.run([self.update_epoch,
+                  self.update_iter,
+                  self.update_loss,
+                  self.update_accuracy,
+                  self.update_tuning_iter,
+                  self.update_tuning_accuracy,
+                  self.set_training_history_id],
+                 {self.new_global_epoch: 0,
+                  self.new_global_step: 0,
+                  self.new_accumulated_loss: 0.0,
+                  self.new_accumulated_accuracy: 0.0,
+                  self.new_tuning_iter: 0,
+                  self.new_accumulated_tuning_accuracy: 0.0,
+                  self.new_training_history_id: -1})
