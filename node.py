@@ -52,6 +52,10 @@ TRAIN_TOPICS = [
     'Privatizingsocialsecurity',
     'Internetaccess'
 ]
+LABEL = {
+    'YES': 'entailment',
+    'NO': 'contradiction'
+}
 
 
 def import_debate():
@@ -72,8 +76,10 @@ def import_wiki():
     train_data = scrape_file(DATA_DIR + FILE_NAMES[6])
     test_data = scrape_file(DATA_DIR + FILE_NAMES[7])
     for doc in train_data:
+        doc['gold_label'] = LABEL[doc['gold_label']]
         db.wiki_train.add(doc)
     for doc in test_data:
+        doc['gold_label'] = LABEL[doc['gold_label']]
         db.wiki_test.add(doc)
     print('Completed successfully.')
 
