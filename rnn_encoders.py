@@ -315,5 +315,19 @@ class SimpleEncoder(model_base.Model):
             num_outputs=self.hidden_size,
             activation_fn=tf.tanh,
             p_keep=self.p_keep)
-        _logits = tf.contrib.layers.fully_connected(h2, 3, None)
-        return _logits
+        return tf.contrib.layers.fully_connected(h2, 3, None)
+
+    @decorators.define_scope
+    def loss(self):
+        labels = tf.argmax(self.Y, axis=1)
+        labels.set_shape([self.batch_size, 1])
+        cross_entropy = tf.reduce_sum(
+            tf.nn.sparse_softmax_cross_entropy_with_logits(
+                labels=labels,
+                logits=self.logits,
+                name='softmax_cross_entropy'))
+        penalty_term = tf.multiply(
+            tf.cast(self.lamda, tf.float64),
+            sum([tf.nn.l2_loss(w) for w in self._all_weights()]),
+            name='penalty_term')
+        return tf.add(cross_entropy, penalty_term, name='loss')
