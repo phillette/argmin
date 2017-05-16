@@ -20,7 +20,6 @@ class Alignment(model_base.Model):
         self.compare
         self.aggregate
         self.logits
-        self.loss
         self._init_backend()
 
     @decorators.define_scope

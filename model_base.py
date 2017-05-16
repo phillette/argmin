@@ -205,7 +205,8 @@ class Model:
     def _init_backend(self):
         self.loss
         self.optimize
-        self.optimize_transfer
+        self.optimize_representation
+        self.optimize_classification
         self.predicted_labels
         self.correct_predictions
         self.accuracy
