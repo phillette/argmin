@@ -323,6 +323,7 @@ class ChenAlignA(BiRNNAlignment):
                 'logits/fully_connected_2')
             : self.p_keep
         }
+        self.optimize_transfer
 
     @decorators.define_scope
     def align(self):

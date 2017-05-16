@@ -31,7 +31,9 @@ COLLECTION_SIZE = {
     },
     'node': {
         'debate_train': 159,
-        'debate_test': 161
+        'debate_test': 161,
+        'wiki_train': 228,
+        'wiki_test': 224
     }
 }
 NO_GOLD_LABEL_COUNTS = {
