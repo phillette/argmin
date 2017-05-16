@@ -6,12 +6,8 @@ import evaluation
 import util
 
 
-db = 'carstens'
-train = 'train'
-test = 'test'
-
-
-if __name__ == '__main__':
+def transfer(db='carstens', train='train', test='test',
+             global_step=17168):
     config = model_base.config(learning_rate=5e-4,
                                grad_clip_norm=0.0,
                                p_keep=0.8,
@@ -33,7 +29,7 @@ if __name__ == '__main__':
 
         print('Pre-transfer state:')
         util.load_checkpoint_at_step(model_name=model.name,
-                                     global_step=17168,
+                                     global_step=global_step,
                                      saver=tf.train.Saver(),
                                      sess=sess)
         model.reset_training_state(sess)
@@ -57,3 +53,7 @@ if __name__ == '__main__':
                        load_ckpt=False,
                        save_ckpt=False,
                        transfer=True)
+
+
+if __name__ == '__main__':
+    transfer()

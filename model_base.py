@@ -16,12 +16,14 @@ def fully_connected_with_dropout(inputs,
 
 
 def config(embed_size=300,
-           learning_rate=1e-3,
+           learning_rate=5e-4,
            grad_clip_norm=0.0,
            hidden_size=200,
            lamda=0.0,
            p_keep=0.8,
-           p_keep_rnn=1.0):
+           p_keep_rnn=1.0,
+           representation_learning_rate=5e-4,
+           classification_learning_rate=5e-4):
     return {
         'embed_size': embed_size,
         'learning_rate': learning_rate,
@@ -29,7 +31,9 @@ def config(embed_size=300,
         'hidden_size': hidden_size,
         'lambda': lamda,
         'p_keep': p_keep,
-        'p_keep_rnn': p_keep_rnn
+        'p_keep_rnn': p_keep_rnn,
+        'representation_learning_rate': representation_learning_rate,
+        'classification_learning_rate': classification_learning_rate
     }
 
 
@@ -42,6 +46,11 @@ class Model:
         self.hidden_size = config['hidden_size']
         self.lamda = config['lambda']
         self.p_keep = config['p_keep']
+        self.p_keep_rnn = config['p_keep_rnn']
+        self.representation_learning_rate \
+            = config['representation_learning_rate']
+        self.classification_learning_rate \
+            = config['classification_learning_rate']
         self.weights_to_scale_factor = {}
         self._training_variables()
         self._training_placeholders()
@@ -103,9 +112,46 @@ class Model:
         return optimizer.apply_gradients(grads_and_vars)
 
     @decorators.define_scope
-    def optimize_transfer(self):
-        optimizer = tf.train.AdamOptimizer(self.learning_rate)
-        weights_to_optimize = self._transfer_training_weights()
+    def optimize_classification(self):
+        """Perform optimization for classification.
+
+        Considering the network consists of two parts:
+        * representation learning
+        * classification
+        In transfer learning we can set different learning
+        rates for each part. This op is for classification.
+
+        This op depends on the _classification_weights()
+        function to define which weights in the model
+        apply to classification.
+        """
+        optimizer = tf.train.AdamOptimizer(self.classification_learning_rate)
+        weights_to_optimize = self._classification_weights()
+        grads_and_vars = optimizer.compute_gradients(
+            self.loss,
+            weights_to_optimize)
+        if self.grad_clip_norm > 0.0:
+            grads_and_vars = util.clip_gradients(grads_and_vars,
+                                                 norm=self.grad_clip_norm)
+        return optimizer.apply_gradients(grads_and_vars)
+
+    @decorators.define_scope
+    def optimize_representation(self):
+        """Perform optimization for representation learning.
+
+        Considering the network consists of two parts:
+        * representation learning
+        * classification
+        In transfer learning we can set different learning
+        rates for each part. This op is for representation
+        learning.
+
+        This op depends on the _representation_weights()
+        function to define which weights in the model
+        apply to representation learning.
+        """
+        optimizer = tf.train.AdamOptimizer(self.representation_learning_rate)
+        weights_to_optimize = self._representation_weights()
         grads_and_vars = optimizer.compute_gradients(
             self.loss,
             weights_to_optimize)
@@ -151,6 +197,11 @@ class Model:
                 v in tf.get_collection(tf.GraphKeys.TRAINABLE_VARIABLES)
                 if v.name.endswith('weights:0')]
 
+    def _classification_weights(self):
+        return [w for w
+                in self._all_weights()
+                if w.name.startswith('logits')]
+
     def _init_backend(self):
         self.loss
         self.optimize
@@ -160,6 +211,11 @@ class Model:
         self.accuracy
         self.confidences
         self.summary
+
+    def _representation_weights(self):
+        return [w for w
+                in self._all_weights()
+                if not w.name.startswith('logits')]
 
     def _training_ops(self):
         self.update_epoch = tf.assign(

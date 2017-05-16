@@ -127,16 +127,19 @@ def train(model, db, collection, num_epochs, sess,
             #       could genericize this
             batch = next(batch_gen)
 
-            # get the right optimization op
-            optimize_op = model.optimize
+            # ops to run
             if transfer:
-                optimize_op = model.optimize_transfer
-
-            batch_loss, batch_accuracy, _ \
-                = sess.run([model.loss,
-                            model.accuracy,
-                            optimize_op],
-                           util.feed_dict(model, batch))
+                batch_loss, batch_accuracy, _, _ \
+                    = sess.run([model.loss,
+                                model.accuracy,
+                                model.optimize_representation,
+                                model.optimize_classification])
+            else:
+                batch_loss, batch_accuracy, _ \
+                    = sess.run([model.loss,
+                                model.accuracy,
+                                model.optimize],
+                               util.feed_dict(model, batch))
 
             # accumulate the loss and accuracy
             accumulated_loss += batch_loss
