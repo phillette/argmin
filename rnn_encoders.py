@@ -53,7 +53,6 @@ class Encoder(model_base.Model):
         self.premises_encoding
         self.hypotheses_encoding
         self.logits
-        self.loss
         self._init_backend()
 
     @decorators.define_scope
@@ -88,11 +87,11 @@ class Encoder(model_base.Model):
             activation_fn=tf.tanh,
             p_keep=self.p_keep
         )
-        logits = tf.contrib.layers.fully_connected(
+        _logits = tf.contrib.layers.fully_connected(
             inputs=a3,
             num_outputs=3,
             activation_fn=None)
-        return logits
+        return _logits
 
 
 class LSTMEncoder(Encoder):

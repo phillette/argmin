@@ -80,16 +80,6 @@ class Model:
             name='hypotheses')
 
     @decorators.define_scope
-    def optimize(self):
-        optimizer = tf.train.AdamOptimizer(self.learning_rate)
-        grads_and_vars = optimizer.compute_gradients(self.loss,
-                                                     self._all_weights())
-        if self.grad_clip_norm > 0.0:
-            grads_and_vars = util.clip_gradients(grads_and_vars,
-                                                 norm=self.grad_clip_norm)
-        return optimizer.apply_gradients(grads_and_vars)
-
-    @decorators.define_scope
     def loss(self):
         cross_entropy = tf.reduce_sum(
             tf.nn.sparse_softmax_cross_entropy_with_logits(
@@ -101,6 +91,28 @@ class Model:
             sum([tf.nn.l2_loss(w) for w in self._all_weights()]),
             name='penalty_term')
         return tf.add(cross_entropy, penalty_term, name='loss')
+
+    @decorators.define_scope
+    def optimize(self):
+        optimizer = tf.train.AdamOptimizer(self.learning_rate)
+        grads_and_vars = optimizer.compute_gradients(self.loss,
+                                                     self._all_weights())
+        if self.grad_clip_norm > 0.0:
+            grads_and_vars = util.clip_gradients(grads_and_vars,
+                                                 norm=self.grad_clip_norm)
+        return optimizer.apply_gradients(grads_and_vars)
+
+    @decorators.define_scope
+    def optimize_transfer(self):
+        optimizer = tf.train.AdamOptimizer(self.learning_rate)
+        weights_to_optimize = self._transfer_training_weights()
+        grads_and_vars = optimizer.compute_gradients(
+            self.loss,
+            weights_to_optimize)
+        if self.grad_clip_norm > 0.0:
+            grads_and_vars = util.clip_gradients(grads_and_vars,
+                                                 norm=self.grad_clip_norm)
+        return optimizer.apply_gradients(grads_and_vars)
 
     @decorators.define_scope
     def predicted_labels(self):
@@ -133,6 +145,53 @@ class Model:
             tf.float64,
             [None, 3],
             name='y')
+
+    def _all_weights(self):
+        return [v for
+                v in tf.get_collection(tf.GraphKeys.TRAINABLE_VARIABLES)
+                if v.name.endswith('weights:0')]
+
+    def _init_backend(self):
+        self.loss
+        self.optimize
+        self.optimize_transfer
+        self.predicted_labels
+        self.correct_predictions
+        self.accuracy
+        self.confidences
+        self.summary
+
+    def _training_ops(self):
+        self.update_epoch = tf.assign(
+            self.global_epoch,
+            self.new_global_epoch)
+        self.update_iter = tf.assign(
+            self.global_step,
+            self.new_global_step)
+        self.update_loss = tf.assign(
+            self.accumulated_loss,
+            self.new_accumulated_loss)
+        self.update_accuracy = tf.assign(
+            self.accumulated_accuracy,
+            self.new_accumulated_accuracy)
+        self.update_tuning_iter = tf.assign(
+            self.tuning_iter,
+            self.new_tuning_iter)
+        self.update_tuning_accuracy = tf.assign(
+            self.accumulated_tuning_accuracy,
+            self.new_accumulated_tuning_accuracy)
+        self.set_training_history_id = tf.assign(
+            self.training_history_id,
+            self.new_training_history_id)
+
+    def _training_placeholders(self):
+        self.new_global_epoch = tf.placeholder(tf.int32)
+        self.new_global_step = tf.placeholder(tf.int32)
+        self.new_accumulated_loss = tf.placeholder(tf.float32)
+        self.new_accumulated_accuracy = tf.placeholder(tf.float32)
+        self.new_accumulated_tuning_accuracy = tf.placeholder(tf.float32)
+        self.new_tuning_iter = tf.placeholder(tf.int32)
+        self.new_training_history_id = tf.placeholder(tf.int32)
 
     def _training_variables(self):
         self.global_step = tf.Variable(
@@ -173,46 +232,8 @@ class Model:
             trainable=False,
             name='training_history_id')
 
-    def _training_placeholders(self):
-        self.new_global_epoch = tf.placeholder(tf.int32)
-        self.new_global_step = tf.placeholder(tf.int32)
-        self.new_accumulated_loss = tf.placeholder(tf.float32)
-        self.new_accumulated_accuracy = tf.placeholder(tf.float32)
-        self.new_accumulated_tuning_accuracy = tf.placeholder(tf.float32)
-        self.new_tuning_iter = tf.placeholder(tf.int32)
-        self.new_training_history_id = tf.placeholder(tf.int32)
-
-    def _training_ops(self):
-        self.update_epoch = tf.assign(
-            self.global_epoch,
-            self.new_global_epoch)
-        self.update_iter = tf.assign(
-            self.global_step,
-            self.new_global_step)
-        self.update_loss = tf.assign(
-            self.accumulated_loss,
-            self.new_accumulated_loss)
-        self.update_accuracy = tf.assign(
-            self.accumulated_accuracy,
-            self.new_accumulated_accuracy)
-        self.update_tuning_iter = tf.assign(
-            self.tuning_iter,
-            self.new_tuning_iter)
-        self.update_tuning_accuracy = tf.assign(
-            self.accumulated_tuning_accuracy,
-            self.new_accumulated_tuning_accuracy)
-        self.set_training_history_id = tf.assign(
-            self.training_history_id,
-            self.new_training_history_id)
-
-    def _init_backend(self):
-        self.loss
-        self.optimize
-        self.predicted_labels
-        self.correct_predictions
-        self.accuracy
-        self.confidences
-        self.summary
+    def _transfer_training_weights(self):
+        return self._all_weights()
 
     def _weights(self, scope):
         vars = tf.global_variables()
@@ -221,11 +242,6 @@ class Model:
             raise Exception('Could not find weights with name %s'
                             % weights_name)
         return next(v for v in vars if v.name == weights_name)
-
-    def _all_weights(self):
-        return [v for
-                v in tf.get_collection(tf.GraphKeys.TRAINABLE_VARIABLES)
-                if v.name.endswith('weights:0')]
 
     def reset_training_state(self, sess):
         sess.run([self.update_epoch,

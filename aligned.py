@@ -21,12 +21,7 @@ class Alignment(model_base.Model):
         self.aggregate
         self.logits
         self.loss
-        self.optimize
-        self.predicted_labels
-        self.correct_predictions
-        self.accuracy
-        self.confidences
-        self.summary
+        self._init_backend()
 
     @decorators.define_scope
     def premises_encoding(self):
@@ -323,7 +318,6 @@ class ChenAlignA(BiRNNAlignment):
                 'logits/fully_connected_2')
             : self.p_keep
         }
-        self.optimize_transfer
 
     @decorators.define_scope
     def align(self):
@@ -391,19 +385,10 @@ class ChenAlignA(BiRNNAlignment):
 
         return v1, v2
 
-    @decorators.define_scope
-    def optimize_transfer(self):
-        optimizer = tf.train.AdamOptimizer(self.learning_rate)
-        weights_to_optimize = [w for w
-                               in self._all_weights()
-                               if w.name.startswith('logits')]
-        grads_and_vars = optimizer.compute_gradients(
-            self.loss,
-            weights_to_optimize)
-        if self.grad_clip_norm > 0.0:
-            grads_and_vars = util.clip_gradients(grads_and_vars,
-                                                 norm=self.grad_clip_norm)
-        return optimizer.apply_gradients(grads_and_vars)
+    def _transfer_training_weights(self):
+        return [w for w
+                in self._all_weights()
+                if w.name.startswith('logits')]
 
 
 class ChenAlignB(ChenAlignA):

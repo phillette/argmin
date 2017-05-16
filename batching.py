@@ -81,7 +81,7 @@ class RandomGenerator:
 def get_batch_gen(db, collection, batch_size=None):
     # if a batch_size is not selected, default to the preferred
     if not batch_size:
-        batch_size = PREFERRED_BATCH_SIZES[db][collection]
+        batch_size = get_batch_size(db, collection)
     gen = RandomGenerator(db, collection, buffer_size=batch_size * 2)
     while True:
         ids = []
@@ -105,6 +105,11 @@ def get_batch_gen(db, collection, batch_size=None):
         pad_sentences(batch, pad_length)
         add_third_dimensions(batch)
         yield batch
+
+
+def get_batch_size(db, collection):
+    collection_size = stats.COLLECTION_SIZE[db][collection]
+    return min(np.floor(collection_size / 10), 32)
 
 
 def update_pad_length(pad_length, premise, hypothesis):
