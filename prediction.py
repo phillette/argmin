@@ -25,12 +25,14 @@ def accuracy(model,
              sess,
              batch_size=32,
              subset_size=None,
-             surpress_print=False):
+             surpress_print=False,
+             batch_gen_fn=batching.get_batch_gen,
+             feed_dict_fn=util.feed_dict):
     # make sure sess.run(tf.global_variables_initializer()) has been called
     # make sure the checkpoint is loaded too if necessary
-    batch_gen = batching.get_batch_gen(db,
-                                       collection,
-                                       batch_size=batch_size)
+    batch_gen = batch_gen_fn(db,
+                             collection,
+                             batch_size=batch_size)
     num_iters = batching.num_iters(db=db,
                                    collection=collection,
                                    batch_size=batch_size,
@@ -39,8 +41,8 @@ def accuracy(model,
     for iter in range(num_iters):
         batch = next(batch_gen)
         batch_accuracy = sess.run(model.accuracy,
-                                  util.feed_dict(model,
-                                                 batch))
+                                  feed_dict_fn(model,
+                                               batch))
         accumulated_accuracy += batch_accuracy
     if not surpress_print:
         print('%s %s set accuracy = %s%%'

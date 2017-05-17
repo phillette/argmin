@@ -21,7 +21,7 @@ def tune_every(num_epochs):
 def train(model, db, collection, num_epochs, sess,
           batch_size=4, subset_size=None, tuning_collection=None,
           load_ckpt=True, save_ckpt=True, transfer=False,
-          batch_gen_gen=batching.get_batch_gen,
+          batch_gen_fn=batching.get_batch_gen,
           feed_dict_fn=util.feed_dict):
     """
 
@@ -117,9 +117,9 @@ def train(model, db, collection, num_epochs, sess,
         # get the batch generator for this epoch
         # NOTE: a generator generator could genericize this,
         #       untying it from this structure
-        batch_gen = batch_gen_gen(db=db,
-                                  collection=collection,
-                                  batch_size=batch_size)
+        batch_gen = batch_gen_fn(db=db,
+                                 collection=collection,
+                                 batch_size=batch_size)
 
         # START ITERS
         while iter < epoch_last_iter:
@@ -238,11 +238,14 @@ def train(model, db, collection, num_epochs, sess,
         # perform tuning on dev set if required and if its time
         if tuning_collection and iter % tune_every(num_epochs) == 0:
             tuning_iter += 1
-            tuning_accuracy = prediction.accuracy(model=model,
-                                                  db=db,
-                                                  collection=tuning_collection,
-                                                  sess=sess,
-                                                  surpress_print=True)
+            tuning_accuracy = prediction.accuracy(
+                model=model,
+                db=db,
+                collection=tuning_collection,
+                sess=sess,
+                surpress_print=True,
+                batch_gen_fn=batch_gen_fn,
+                feed_dict_fn=feed_dict_fn)
             accumulated_tuning_accuracy += tuning_accuracy
             sess.run(
                 [model.update_tuning_iter,

@@ -94,7 +94,7 @@ def get_features():
 
 
 if __name__ == '__main__':
-    config = model_base.config(learning_rate=0.01,
+    config = model_base.config(learning_rate=5e-4,
                                hidden_size=200,
                                p_keep_input=0.8)
     model = aligned.LinearTChen(config)
@@ -110,5 +110,5 @@ if __name__ == '__main__':
                        load_ckpt=False,
                        save_ckpt=False,
                        transfer=False,
-                       batch_gen_gen=batching.get_batch_gen_transfer,
+                       batch_gen_fn=batching.get_batch_gen_transfer,
                        feed_dict_fn=util.feed_dict_transfer)
