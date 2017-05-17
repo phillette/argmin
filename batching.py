@@ -137,8 +137,6 @@ def get_batch_gen(db, collection, batch_size=None):
                 pad_length = update_pad_length(pad_length,
                                                premise,
                                                hypothesis)
-            else:
-                gen._raise_exception()
         premises = pad_sentences(premises, pad_length)
         hypotheses = pad_sentences(hypotheses, pad_length)
         batch = Batch(ids, premises, hypotheses, labels)
