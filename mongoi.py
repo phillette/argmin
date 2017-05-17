@@ -302,7 +302,7 @@ class Repository:
         :param id: the friendly id for the record.
         :return: a doc if found, else None.
         """
-        return self.collection.find({'id': id})
+        return next(self.collection.find({'id': id}), None)
 
     def insert_one(self, document):
         """
