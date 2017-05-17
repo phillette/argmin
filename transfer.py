@@ -89,7 +89,7 @@ def get_features():
             features = sess.run(model.aggregate,
                                 util.feed_dict(model, batch))
             doc = db.test.get(batch.ids[0])
-            doc['features'] = features
+            doc['features'] = mongoi.array_to_string(features)
             db.test.update(doc)
 
 
