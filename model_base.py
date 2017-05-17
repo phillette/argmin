@@ -206,6 +206,7 @@ class Model:
                 if w.name.startswith('logits')]
 
     def _init_backend(self):
+        self.logits
         self.loss
         self.optimize
         self.optimize_representation
