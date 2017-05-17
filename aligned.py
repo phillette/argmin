@@ -159,96 +159,6 @@ class Alignment(model_base.Model):
         return a3
 
 
-class AlignmentDeep(Alignment):
-    def __init__(self, config):
-        Alignment.__init__(self, config)
-        self.name = 'alignment_deep'
-
-    @decorators.define_scope
-    def align(self):
-        # [2 * batch_size, timesteps, hidden_size]
-        Fs1 = model_base.fully_connected_with_dropout(
-            inputs=self.project,
-            num_outputs=self.hidden_size,
-            activation_fn=tf.nn.relu,
-            p_keep=self.p_keep)
-        Fs2 = model_base.fully_connected_with_dropout(
-            inputs=Fs1,
-            num_outputs=self.hidden_size,
-            activation_fn=tf.nn.relu,
-            p_keep=self.p_keep
-        )
-        Fs3 = model_base.fully_connected_with_dropout(
-            inputs=Fs2,
-            num_outputs=self.hidden_size,
-            activation_fn=tf.nn.relu,
-            p_keep=self.p_keep
-        )
-
-        # [batch_size, timesteps, hidden_size]
-        F_premises, F_hypotheses = util.split_after_concat(
-            Fs3,
-            self.batch_size)
-
-        # [batch_size, timesteps, timesteps]
-        eijs = tf.matmul(F_premises,
-                         tf.transpose(F_hypotheses,
-                                      perm=[0, 2, 1]),
-                         name='eijs')
-
-        # [batch_size, timesteps, timesteps]
-        eijs_softmaxed = tf.nn.softmax(eijs)
-
-        # [batch_size, timesteps, hidden_size]
-        betas = tf.matmul(eijs_softmaxed,
-                          self.hypotheses_encoding)
-
-        # [batch_size, timesteps, hidden_size]
-        alphas = tf.matmul(tf.transpose(eijs_softmaxed,
-                                        perm=[0, 2, 1]),
-                           self.premises_encoding)
-
-        return betas, alphas
-
-    @decorators.define_scope
-    def compare(self):
-        betas, alphas = self.align
-
-        # [batch_size, timesteps, 2 * hidden_size]
-        V1_input = tf.concat([self.premises_encoding,
-                              betas],
-                             axis=2)
-        # [batch_size, timesteps, 2 * hidden_size]
-        V2_input = tf.concat([self.hypotheses_encoding,
-                              alphas],
-                             axis=2)
-
-        # [2 * batch_size, timesteps, 2 * hidden_size]
-        ff_input = util.concat(V1_input, V2_input)
-        Vs1 = model_base.fully_connected_with_dropout(
-            inputs=ff_input,
-            num_outputs=self.hidden_size,
-            activation_fn=tf.nn.relu,
-            p_keep=self.p_keep)
-        Vs2 = model_base.fully_connected_with_dropout(
-            inputs=Vs1,
-            num_outputs=self.hidden_size,
-            activation_fn=tf.nn.relu,
-            p_keep=self.p_keep
-        )
-        Vs3 = model_base.fully_connected_with_dropout(
-            inputs=Vs2,
-            num_outputs=self.hidden_size,
-            activation_fn=tf.nn.relu,
-            p_keep=self.p_keep
-        )
-
-        # [batch_size, timesteps, hidden_size]
-        V1, V2 = util.split_after_concat(Vs3, self.batch_size)
-
-        return V1, V2
-
-
 class BiRNNAlignment(Alignment):
     def __init__(self, config):
         self.p_keep_rnn = config['p_keep_rnn']
@@ -407,8 +317,14 @@ class LinearTChen(model_base.Model):
     @decorators.define_scope
     def logits(self):
         dropped_input = tf.nn.dropout(self.X, self.p_keep_input)
-        _logits = tf.contrib.layers.fully_connected(
+        h1 = tf.contrib.layers.fully_connected(
             inputs=dropped_input,
+            num_outputs=self.hidden_size,
+            activation_fn=tf.tanh)
+        h1_dropped = tf.nn.dropout(h1, self.p_keep)
+        _logits = tf.contrib.layers.fully_connected(
+            inputs=h1_dropped,
             num_outputs=3,
-            activation_fn=tf.sigmoid)
+            activation_fn=tf.sigmoid
+        )
         return _logits

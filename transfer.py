@@ -94,7 +94,7 @@ def get_features():
 
 
 if __name__ == '__main__':
-    config = model_base.config(learning_rate=5e-4,
+    config = model_base.config(learning_rate=1e-3,
                                hidden_size=200,
                                p_keep_input=0.8)
     model = aligned.LinearTChen(config)
@@ -104,7 +104,7 @@ if __name__ == '__main__':
                        db='carstens',
                        collection='train',
                        tuning_collection='test',
-                       num_epochs=100,
+                       num_epochs=200,
                        sess=sess,
                        batch_size=32,
                        load_ckpt=False,

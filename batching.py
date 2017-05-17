@@ -1,6 +1,7 @@
 import mongoi
 import numpy as np
 import stats
+import errors
 
 
 PREFERRED_BATCH_SIZES = {
@@ -16,11 +17,20 @@ PREFERRED_BATCH_SIZES = {
 
 
 class Batch:
+    """Wrapper for batch data."""
     def __init__(self, ids, premises, hypotheses, labels):
+        """Create a new Batch object.
+
+        Args:
+          ids: list of friendly ids for the samples in the batch
+          premises: list of premise matrices
+          hypotheses: list of hypothesis matrices
+          labels: list of label encodings
+        """
         self.ids = ids
-        self.premises = premises
-        self.hypotheses = hypotheses
-        self.labels = labels
+        self.premises = add_third_dimension(premises)
+        self.hypotheses = add_third_dimension(hypotheses)
+        self.labels = np.vstack(labels)
 
     def details(self):
         return 'Ids: %s\n' \
@@ -111,9 +121,9 @@ def get_batch_gen(db, collection, batch_size=None):
                 hypotheses.append(hypothesis)
                 labels.append(label)
                 pad_length = update_pad_length(pad_length, premise, hypothesis)
+        premises = pad_sentences(premises, pad_length)
+        hypotheses = pad_sentences(hypotheses, pad_length)
         batch = Batch(ids, premises, hypotheses, labels)
-        pad_sentences(batch, pad_length)
-        add_third_dimensions(batch)
         yield batch
 
 
@@ -157,11 +167,9 @@ def update_pad_length(pad_length, premise, hypothesis):
     return pad_length
 
 
-def pad_sentences(batch, pad_length):
-    batch.premises = list(pad_sentence(premise, pad_length)
-                          for premise in batch.premises)
-    batch.hypotheses = list(pad_sentence(hypothesis, pad_length)
-                            for hypothesis in batch.hypotheses)
+def pad_sentences(sentences, pad_length):
+    return list(pad_sentence(premise, pad_length)
+                for premise in sentences)
 
 
 def pad_sentence(sentence, pad_length):
@@ -175,14 +183,19 @@ def pad_sentence(sentence, pad_length):
     return sentence
 
 
-def add_third_dimensions(batch):
-    batch.premises = np.concatenate(list(M[np.newaxis, ...]
-                                         for M in batch.premises),
-                                    axis=0)
-    batch.hypotheses = np.concatenate(list(M[np.newaxis, ...]
-                                           for M in batch.hypotheses),
-                                      axis=0)
-    batch.labels = np.vstack(batch.labels)
+def add_third_dimension(sentence_matrices):
+    """Adds third 'batch' dimension to batch data.
+
+    Args:
+      sentence_matrices: a list of sentence matrices.
+    Raises:
+      EmptyListError: if the list of sentence matrices is empty.
+    """
+    if len(sentence_matrices) == 0:
+        raise errors.EmptyListError('sentence_matrices')
+    return np.concatenate(list(M[np.newaxis, ...]
+                               for M in sentence_matrices),
+                          axis=0)
 
 
 def num_iters(db, collection, batch_size=None, subset_size=None):

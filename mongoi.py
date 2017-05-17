@@ -263,9 +263,9 @@ class Repository:
         """
         result = self.collection.delete_many({'_id': doc['_id']})
         if result.deleted_count != 1:
-            raise errors.NotDeleteError(self.db_name,
-                                        self.collection.name,
-                                        doc['_id'])
+            raise errors.NotDeletedError(self.db_name,
+                                         self.collection.name,
+                                         doc['_id'])
 
     def delete_one(self, id):
         """

@@ -14,6 +14,17 @@ class DbNotFoundError(Error):
         self.db_name = db_name
 
 
+class EmptyListError(Error):
+    """A list, expected to have values, is empty.
+
+    Attributes:
+      variable_name: the name of the list variable.
+    """
+
+    def __init__(self, variable_name):
+        self.variable_name = variable_name
+
+
 class FriendlyIdNotFoundError(Error):
     """Friendly id not in keys on mongo document.
 
@@ -38,7 +49,7 @@ class LabelNotFoundError(Error):
         self.label = label
 
 
-class NotDeleteError(Error):
+class NotDeletedError(Error):
     """An item could not be deleted from mongo.
 
     Attributes:
