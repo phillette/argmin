@@ -62,6 +62,17 @@ def feed_dict(model, batch):
             model.Y: batch.labels}
 
 
+def feed_dict_transfer(model, batch):
+    """Feed dict for transfer learning models.
+
+    Args:
+      model: a transfer learning model.
+      batch: a transfer learning batch.
+    """
+    return {model.X: batch.X,
+            model.Y: batch.labels}
+
+
 def length(sequence):
     """
     Courtesy of Danijar Hafner:

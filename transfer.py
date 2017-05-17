@@ -94,4 +94,19 @@ def get_features():
 
 
 if __name__ == '__main__':
-    get_features()
+    config = model_base.config(learning_rate=0.01,
+                               hidden_size=200,
+                               p_keep_input=0.8)
+    model = aligned.LinearTChen(config)
+    with tf.Session() as sess:
+        sess.run(tf.global_variables_initializer())
+        training.train(model=model,
+                       db='carstens',
+                       collection='train',
+                       tuning_collection='test',
+                       num_epochs=100,
+                       sess=sess,
+                       batch_size=32,
+                       load_ckpt=False,
+                       save_ckpt=False,
+                       transfer=False)

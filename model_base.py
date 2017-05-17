@@ -8,9 +8,9 @@ def fully_connected_with_dropout(inputs,
                                  activation_fn,
                                  p_keep):
     fully_connected = tf.contrib.layers.fully_connected(
-        inputs,
-        num_outputs,
-        activation_fn)
+        inputs=inputs,
+        num_outputs=num_outputs,
+        activation_fn=activation_fn)
     dropped_out = tf.nn.dropout(fully_connected, p_keep)
     return dropped_out
 
@@ -22,6 +22,7 @@ def config(embed_size=300,
            lamda=0.0,
            p_keep=0.8,
            p_keep_rnn=1.0,
+           p_keep_input=1.0,
            representation_learning_rate=5e-4,
            classification_learning_rate=5e-4):
     return {
@@ -32,6 +33,7 @@ def config(embed_size=300,
         'lambda': lamda,
         'p_keep': p_keep,
         'p_keep_rnn': p_keep_rnn,
+        'p_keep_input': p_keep_input,
         'representation_learning_rate': representation_learning_rate,
         'classification_learning_rate': classification_learning_rate
     }
@@ -47,6 +49,7 @@ class Model:
         self.lamda = config['lambda']
         self.p_keep = config['p_keep']
         self.p_keep_rnn = config['p_keep_rnn']
+        self.p_keep_input = config['p_keep_input']
         self.representation_learning_rate \
             = config['representation_learning_rate']
         self.classification_learning_rate \

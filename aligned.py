@@ -389,3 +389,24 @@ class ChenAlignA(BiRNNAlignment):
         return [w for w
                 in self._all_weights()
                 if w.name.startswith('logits')]
+
+
+class LinearTChen(model_base.Model):
+    def __init__(self, config):
+        self.X = tf.placeholder(tf.float32, [None, 4 * config['hidden_size']])
+        model_base.Model.__init__(self, config)
+        self.name = 'LinearTChen'
+        self._init_backend()
+
+    @decorators.define_scope
+    def batch_size(self):
+        return tf.shape(self.X)[0]
+
+    @decorators.define_scope
+    def logits(self):
+        dropped_input = tf.nn.dropout(self.X, self.p_keep_input)
+        _logits = tf.contrib.layers.fully_connected(
+            inputs=dropped_input,
+            num_outputs=3,
+            activation_fn=tf.sigmoid)
+        return _logits

@@ -34,11 +34,14 @@ class Batch:
 
 
 class RandomGenerator:
-    def __init__(self, db_name='snli', collection='train', buffer_size=100):
+    def __init__(self, db_name='snli',
+                 collection='train',
+                 buffer_size=100,
+                 transfer=False):
         self._db_name = db_name
         self._collection = collection
         self._repository = mongoi.get_repository(db_name, collection)
-        self._gen = self._repository.batch()
+        self._gen = self._repository.batch(transfer)
         self._buffer_size = buffer_size
         self._db_yielded = 0
         self._i_yielded = 0
@@ -78,6 +81,13 @@ class RandomGenerator:
         raise Exception(info)
 
 
+class TransferBatch:
+    def __init__(self, ids, X, labels):
+        self.ids = ids
+        self.X = np.vstack(X)
+        self.labels = np.vstack(labels)
+
+
 def get_batch_gen(db, collection, batch_size=None):
     # if a batch_size is not selected, default to the preferred
     if not batch_size:
@@ -104,6 +114,31 @@ def get_batch_gen(db, collection, batch_size=None):
         batch = Batch(ids, premises, hypotheses, labels)
         pad_sentences(batch, pad_length)
         add_third_dimensions(batch)
+        yield batch
+
+
+def get_batch_gen_transfer(db, collection, batch_size=None):
+    # if a batch_size is not selected, default to the preferred
+    if not batch_size:
+        batch_size = get_batch_size(db, collection)
+    gen = RandomGenerator(db,
+                          collection,
+                          buffer_size=batch_size * 2,
+                          transfer=True)
+    while True:
+        ids = []
+        X = []
+        labels = []
+        for _ in range(batch_size):
+            if gen.alive():
+                doc = gen.next()
+                id = doc['id']
+                x = mongoi.string_to_array(doc['features'])
+                label = mongoi.string_to_array(doc['label_encoding'])
+                ids.append(id)
+                X.append(x)
+                labels.append(label)
+        batch = TransferBatch(ids, X, labels)
         yield batch
 
 

@@ -20,7 +20,13 @@ def tune_every(num_epochs):
 
 def train(model, db, collection, num_epochs, sess,
           batch_size=4, subset_size=None, tuning_collection=None,
-          load_ckpt=True, save_ckpt=True, transfer=False):
+          load_ckpt=True, save_ckpt=True, transfer=False,
+          batch_gen_gen=batching.get_batch_gen):
+    """
+
+    transfer flag effects: loading and saving ckpt, and which ops
+    are run for optimization.
+    """
 
     print('------\n'
           'Training %s on %s%s.%s for %s epochs '
@@ -110,9 +116,9 @@ def train(model, db, collection, num_epochs, sess,
         # get the batch generator for this epoch
         # NOTE: a generator generator could genericize this,
         #       untying it from this structure
-        batch_gen = batching.get_batch_gen(db=db,
-                                           collection=collection,
-                                           batch_size=batch_size)
+        batch_gen = batch_gen_gen(db=db,
+                                  collection=collection,
+                                  batch_size=batch_size)
 
         # START ITERS
         while iter < epoch_last_iter:

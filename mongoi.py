@@ -215,15 +215,33 @@ class Repository:
         """
         return self.collection.find()
 
-    def batch(self):
+    def batch(self, transfer=False):
+        """Get documents for batch.
+
+        For a normal batch we just want to project the attributes:
+        - id
+        - premise
+        - hypothesis
+        - label_encoding
+        For a transfer batch we just want:
+        - id
+        - features
+        - label_encoding
+
+        Args:
+          transfer: whether or not this batch is for transfer learning.
+        Returns:
+          Cursor (generator) for all documents, projected with just the
+            attributes needed.
         """
-        Gets all documents for a batch - projecting just _id, premises, hypotheses, and label.
-        :return: generator
-        """
-        return self.collection.find({}, {'id': 1,
-                                         'premise': 1,
-                                         'hypothesis': 1,
-                                         'label_encoding': 1})
+        if transfer:
+            projection = {'id': 1, 'features': 1, 'label_encoding': 1}
+        else:
+            projection = {'id': 1,
+                          'premise': 1,
+                          'hypothesis': 1,
+                          'label_encoding': 1}
+        return self.collection.find({}, projection)
 
     def count(self):
         """
