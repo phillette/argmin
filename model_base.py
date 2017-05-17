@@ -209,13 +209,15 @@ class Model:
         self.logits
         self.loss
         self.optimize
-        self.optimize_representation
-        self.optimize_classification
         self.predicted_labels
         self.correct_predictions
         self.accuracy
         self.confidences
         self.summary
+
+    def _init_transfer_optimization(self):
+        self.optimize_representation
+        self.optimize_classification
 
     def _representation_weights(self):
         return [w for w

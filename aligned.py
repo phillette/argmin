@@ -393,7 +393,9 @@ class ChenAlignA(BiRNNAlignment):
 
 class LinearTChen(model_base.Model):
     def __init__(self, config):
-        self.X = tf.placeholder(tf.float32, [None, 4 * config['hidden_size']])
+        self.X = tf.placeholder(tf.float64,
+                                [None, 4 * config['hidden_size']],
+                                name='X')
         model_base.Model.__init__(self, config)
         self.name = 'LinearTChen'
         self._init_backend()

@@ -109,4 +109,5 @@ if __name__ == '__main__':
                        batch_size=32,
                        load_ckpt=False,
                        save_ckpt=False,
-                       transfer=False)
+                       transfer=False,
+                       batch_gen_gen=batching.get_batch_gen_transfer)
