@@ -21,7 +21,8 @@ def tune_every(num_epochs):
 def train(model, db, collection, num_epochs, sess,
           batch_size=4, subset_size=None, tuning_collection=None,
           load_ckpt=True, save_ckpt=True, transfer=False,
-          batch_gen_gen=batching.get_batch_gen):
+          batch_gen_gen=batching.get_batch_gen,
+          feed_dict_fn=util.feed_dict):
     """
 
     transfer flag effects: loading and saving ckpt, and which ops
@@ -139,13 +140,13 @@ def train(model, db, collection, num_epochs, sess,
                     = sess.run([model.loss,
                                 model.accuracy,
                                 model.optimize_representation,
-                                model.optimize_classification])
+                                model.optimize_classification])  # feed_dict?
             else:
                 batch_loss, batch_accuracy, _ \
                     = sess.run([model.loss,
                                 model.accuracy,
                                 model.optimize],
-                               util.feed_dict(model, batch))
+                               feed_dict_fn(model, batch))
 
             # accumulate the loss and accuracy
             accumulated_loss += batch_loss
