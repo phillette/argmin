@@ -110,4 +110,5 @@ if __name__ == '__main__':
                        load_ckpt=False,
                        save_ckpt=False,
                        transfer=False,
-                       batch_gen_gen=batching.get_batch_gen_transfer)
+                       batch_gen_gen=batching.get_batch_gen_transfer,
+                       feed_dict_fn=util.feed_dict_transfer)
