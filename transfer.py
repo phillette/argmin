@@ -6,6 +6,33 @@ import evaluation
 import util
 import batching
 import mongoi
+import numpy as np
+
+
+def extract_chen_representation():
+    print('Extracting Carstens Chen representation...')
+    db = mongoi.CarstensDb()
+    X = []
+    y = []
+    print('Working on train...')
+    for doc in db.train.all():
+        X.append(mongoi.string_to_array(doc['features']))
+        y.append(mongoi.string_to_array(doc['sparse_label_encoding']))
+    X = np.vstack(X)
+    y = np.vstack(y)
+    util.save_pickle(X, 'carstens_train_X.pkl')
+    util.save_pickle(y, 'carstens_train_y.pkl')
+    X = []
+    y = []
+    print('Working on test...')
+    for doc in db.test.all():
+        X.append(mongoi.string_to_array(doc['features']))
+        y.append(mongoi.string_to_array(doc['sparse_label_encoding']))
+    X = np.vstack(X)
+    y = np.vstack(y)
+    util.save_pickle(X, 'carstens_test_X.pkl')
+    util.save_pickle(y, 'carstens_test_y.pkl')
+    print('Completed successfully.')
 
 
 def transfer(db='carstens', train='train', test='test',
