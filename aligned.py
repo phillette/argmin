@@ -138,6 +138,7 @@ class Alignment(model_base.Model):
                                   avg_hypotheses,
                                   max_hypotheses],
                                  axis=1)
+        # [batch_size, 4 * hidden_size] (that's 2 * hidden_size per sentence)
         concatenated.set_shape([None, 4 * self.hidden_size])
 
         return concatenated

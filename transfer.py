@@ -4,6 +4,8 @@ import model_base
 import training
 import evaluation
 import util
+import batching
+import mongoi
 
 
 def transfer(db='carstens', train='train', test='test',
@@ -55,5 +57,41 @@ def transfer(db='carstens', train='train', test='test',
                        transfer=True)
 
 
+def get_features():
+    config = model_base.config()
+    model = aligned.ChenAlignA(config)
+    db = mongoi.CarstensDb()
+    with tf.Session() as sess:
+        sess.run(tf.global_variables_initializer())
+        util.load_checkpoint_at_step(model_name=model.name,
+                                     global_step=154512,  # 9th epoch
+                                     saver=tf.train.Saver(),
+                                     sess=sess)
+
+        # train
+        batch_gen = batching.get_batch_gen('carstens', 'train', 1)
+        num_iters = batching.num_iters('carstens', 'train', 1)
+        for _ in range(num_iters):
+            batch = next(batch_gen)
+            # [batch_size, 4 * hidden_size]
+            features = sess.run(model.aggregate,
+                                util.feed_dict(model, batch))
+            doc = db.train.get(batch.ids[0])
+            doc['features'] = features
+            db.train.update(doc)
+
+        # test
+        batch_gen = batching.get_batch_gen('carstens', 'test', 1)
+        num_iters = batching.num_iters('carstens', 'test', 1)
+        for _ in range(num_iters):
+            batch = next(batch_gen)
+            # [batch_size, 4 * hidden_size]
+            features = sess.run(model.aggregate,
+                                util.feed_dict(model, batch))
+            doc = db.test.get(batch.ids[0])
+            doc['features'] = features
+            db.test.update(doc)
+
+
 if __name__ == '__main__':
-    transfer()
+    get_features()
