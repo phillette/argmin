@@ -8,9 +8,9 @@ LONGEST_SENTENCES = {
         'test': 265
     },
     'mnli': {
-        'train': 0,
-        'dev_matched': 9815,
-        'dev_mismatched': 9832
+        'train': -1,
+        'dev_matched': -1,
+        'dev_mismatched': -1
     }
 }
 COLLECTION_SIZE = {

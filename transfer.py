@@ -17,7 +17,7 @@ def extract_chen_representation():
     print('Working on train...')
     for doc in db.train.all():
         X.append(mongoi.string_to_array(doc['features']))
-        y.append(mongoi.string_to_array(doc['sparse_label_encoding']))
+        y.append(doc['sparse_encoding'])
     X = np.vstack(X)
     y = np.vstack(y)
     util.save_pickle(X, 'carstens_train_X.pkl')
@@ -27,7 +27,7 @@ def extract_chen_representation():
     print('Working on test...')
     for doc in db.test.all():
         X.append(mongoi.string_to_array(doc['features']))
-        y.append(mongoi.string_to_array(doc['sparse_label_encoding']))
+        y.append(doc['sparse_encoding'])
     X = np.vstack(X)
     y = np.vstack(y)
     util.save_pickle(X, 'carstens_test_X.pkl')
