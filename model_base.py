@@ -58,6 +58,7 @@ class Model:
         self._training_variables()
         self._training_placeholders()
         self._training_ops()
+        self.in_training = False
         self.premises
         self.hypotheses
         self.Y

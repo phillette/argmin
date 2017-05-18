@@ -26,6 +26,13 @@ def bi_rnn(sentences, hidden_size, scope,
         sequence_length=sequence_length,
         dtype=tf.float64,
         scope=scope)
+    # output is [batch_sie, timesteps, hidden_size]
+    # in a tuple, seems [0] is forward and [1] is backward
+    # output_states: LSTMTupleSTate, again a tuple of them,
+    # [0] probably forward [1] probably back.
+    # the state itself has two vectors c and h. They are identical
+    # being of size [batch_size, hidden_size]. One of them is the
+    # final state vector, but I don't rightly know which...
     return output, output_states
 
 
@@ -52,43 +59,42 @@ class Encoder(model_base.Model):
         self.name = 'encoder'
         self.premises_encoding
         self.hypotheses_encoding
-        self.logits
         self._init_backend()
 
     @decorators.define_scope
     def premises_encoding(self):
-        return self.premises
+        raise NotImplementedError()
 
     @decorators.define_scope
     def hypotheses_encoding(self):
-        return self.hypotheses
+        raise NotImplementedError()
 
     @decorators.define_scope
     def logits(self):
-        concatenated_encodings = tf.concat(
-            [self.premises_encoding, self.hypotheses_encoding],
+        self.ff_input = tf.concat(
+            [self.premises_encoding,
+             tf.abs(tf.subtract(self.premises_encoding,
+                                self.hypotheses_encoding)),
+             self.hypotheses_encoding],
             axis=1,
             name='concatenated_encodings')
-        a1 = model_base.fully_connected_with_dropout(
-            inputs=concatenated_encodings,
+        if self.in_training:
+            self.ff_input = tf.nn.dropout(self.ff_input,
+                                     self.p_keep_input)
+        h1 = tf.contrib.layers.fully_connected(
+            inputs=self.ff_input,
             num_outputs=self.hidden_size,
-            activation_fn=tf.tanh,
-            p_keep=self.p_keep
-        )
-        a2 = model_base.fully_connected_with_dropout(
-            inputs=a1,
+            activation_fn=tf.tanh)
+        if self.in_training:
+            h1 = tf.nn.dropout(h1, self.p_keep)
+        h2 = tf.contrib.layers.fully_connected(
+            inputs=h1,
             num_outputs=self.hidden_size,
-            activation_fn=tf.tanh,
-            p_keep=self.p_keep
-        )
-        a3 = model_base.fully_connected_with_dropout(
-            inputs=a2,
-            num_outputs=self.hidden_size,
-            activation_fn=tf.tanh,
-            p_keep=self.p_keep
-        )
+            activation_fn=tf.tanh)
+        if self.in_training:
+            h2 = tf.nn.dropout(h2, self.p_keep)
         _logits = tf.contrib.layers.fully_connected(
-            inputs=a3,
+            inputs=h2,
             num_outputs=3,
             activation_fn=None)
         return _logits
@@ -130,26 +136,24 @@ class BiLSTMEncoder(Encoder):
     @decorators.define_scope
     def premises_encoding(self):
         # [batch_size, timesteps, rnn_size]
-        _premises_encoding = bi_rnn(
+        _, output_states = bi_rnn(
             self.premises,
             self.embed_size,
             'premise_bi_rnn',
             self.p_keep)
-        # [batch_size, timesteps, 2 * rnn_size]
-        concatenated_encoding = tf.concat(_premises_encoding[0], 2)
-        return concatenated_encoding
+        return tf.concat([v.h for v in output_states],
+                         axis=1)
 
     @decorators.define_scope
     def hypotheses_encoding(self):
         # [batch_size, timesteps, rnn_size]
-        _hypotheses_encoding = bi_rnn(
+        _, output_states = bi_rnn(
             self.hypotheses,
             self.embed_size,
             'hypothesis_bi_rnn',
             self.p_keep)
-        # [batch_size, timesteps, 2 * rnn_size]
-        concatenated_encoding = tf.concat(_hypotheses_encoding[0], 2)
-        return concatenated_encoding
+        return tf.concat([v.h for v in output_states],
+                         axis=1)
 
 
 class SimpleEncoder(model_base.Model):

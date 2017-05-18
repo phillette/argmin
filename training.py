@@ -42,6 +42,8 @@ def train(model, db, collection, num_epochs, sess,
 
     # num_epochs is a target - we keep the state in global_epoch
 
+    model.in_training = True
+
     # NOTE: make sure sess.run(tf.global_variables_initializer())
     #       has already been run
 
@@ -266,6 +268,8 @@ def train(model, db, collection, num_epochs, sess,
 
         # END EPOCH
     # END EPOCHS
+
+    model.in_training = False
 
     # clean up writer object
     writer.close()
