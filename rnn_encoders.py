@@ -78,17 +78,15 @@ class Encoder(model_base.Model):
              self.hypotheses_encoding],
             axis=1,
             name='concatenated_encodings')
-        if self.in_training:
-            self.ff_input = tf.nn.dropout(self.ff_input,
-                                     self.p_keep_input)
+        self.ff_input = tf.nn.dropout(self.ff_input,
+                                      self.p_keep_input)
         h1 = tf.contrib.layers.fully_connected(
             inputs=self.ff_input,
             num_outputs=self.hidden_size,
             activation_fn=tf.tanh)
-        if self.in_training:
-            h1 = tf.nn.dropout(h1, self.p_keep)
+        self.h1 = tf.nn.dropout(h1, self.p_keep)
         h2 = tf.contrib.layers.fully_connected(
-            inputs=h1,
+            inputs=self.h1,
             num_outputs=self.hidden_size,
             activation_fn=tf.tanh)
         if self.in_training:
