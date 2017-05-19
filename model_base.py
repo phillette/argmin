@@ -3,24 +3,12 @@ import decorators
 import util
 
 
-def fully_connected_with_dropout(inputs,
-                                 num_outputs,
-                                 activation_fn,
-                                 p_keep):
-    fully_connected = tf.contrib.layers.fully_connected(
-        inputs=inputs,
-        num_outputs=num_outputs,
-        activation_fn=activation_fn)
-    dropped_out = tf.nn.dropout(fully_connected, p_keep)
-    return dropped_out
-
-
 def config(embed_size=300,
            learning_rate=5e-4,
            grad_clip_norm=0.0,
            hidden_size=200,
            lamda=0.0,
-           p_keep=0.8,
+           p_keep_ff=0.8,
            p_keep_rnn=1.0,
            p_keep_input=1.0,
            representation_learning_rate=5e-4,
@@ -31,7 +19,7 @@ def config(embed_size=300,
         'grad_clip_norm': grad_clip_norm,
         'hidden_size': hidden_size,
         'lambda': lamda,
-        'p_keep': p_keep,
+        'p_keep_ff': p_keep_ff,
         'p_keep_rnn': p_keep_rnn,
         'p_keep_input': p_keep_input,
         'representation_learning_rate': representation_learning_rate,
@@ -39,26 +27,71 @@ def config(embed_size=300,
     }
 
 
+def fully_connected_with_dropout(inputs,
+                                 num_outputs,
+                                 activation_fn,
+                                 p_keep,
+                                 scale_factor):
+    fully_connected = tf.contrib.layers.fully_connected(
+        inputs=inputs,
+        num_outputs=num_outputs,  # need to dynamically set this...
+        activation_fn=activation_fn)
+    dropped_out = tf.nn.dropout(fully_connected, p_keep)
+    factored = tf.multiply(dropped_out, scale_factor)
+    return factored
+
+
+def keep_probability(p_keep, training_flag):
+    """Op to get dropout keep probability.
+
+    Args:
+      p_keep: real number probability of keeping a neuron.
+      training_flag: if in training 1.0 if not 0.0.
+
+    Returns:
+      Tensor (scalar) of keep probability usable for dropout op.
+    """
+    return tf.subtract(
+        1.0,
+        tf.multiply(
+            training_flag,
+            tf.subtract(1.0, p_keep)))
+
+
+def post_dropout_factor(p_keep, training_flag):
+    return tf.subtract(
+        1.,
+        tf.multiply(
+            tf.subtract(1., training_flag),
+            tf.subtract(1., p_keep)))
+
+
 class Model:
     def __init__(self, config):
+        self.training_flag = tf.placeholder(tf.float32, [])
+        self.p_keep = {}
+        self.scale_factor = {}
         self.config = config
+        # I reckon I could clean these up with a function
         self.embed_size = config['embed_size']
         self.learning_rate = config['learning_rate']
         self.grad_clip_norm = config['grad_clip_norm']
         self.hidden_size = config['hidden_size']
         self.lamda = config['lambda']
-        self.p_keep = config['p_keep']
+        self.p_keep_ff = config['p_keep_ff']
         self.p_keep_rnn = config['p_keep_rnn']
         self.p_keep_input = config['p_keep_input']
         self.representation_learning_rate \
             = config['representation_learning_rate']
         self.classification_learning_rate \
             = config['classification_learning_rate']
-        self.weights_to_scale_factor = {}
+        self.weights_to_scale_factor = {}  # redundant
         self._training_variables()
         self._training_placeholders()
         self._training_ops()
-        self.in_training = False
+        self.in_training = False  # dunno about this one
+        # new dropout stuff
+        self._init_dropout()
         self.premises
         self.hypotheses
         self.Y
@@ -215,6 +248,19 @@ class Model:
         self.accuracy
         self.confidences
         self.summary
+
+    def _init_dropout(self):
+        for key in [k for k
+                    in self.config.keys()
+                    if k.startswith('p_keep')]:
+            self.p_keep[key.split('p_keep')[1]] = \
+                keep_probability(
+                    p_keep=self.config[key],
+                    training_flag=self.training_flag)
+            self.scale_factor[key.split('p_keep')[1]] = \
+                post_dropout_factor(
+                    p_keep=self.config[key],
+                    training_flag=self.training_flag)
 
     def _init_transfer_optimization(self):
         self.optimize_representation

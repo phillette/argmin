@@ -44,7 +44,8 @@ class Alignment(model_base.Model):
             inputs=concatenated,
             num_outputs=self.hidden_size,
             activation_fn=None,
-            p_keep=self.p_keep)
+            p_keep=self.p_keep['ff'],
+            scale_factor=self.scale_factor['ff'])
 
         return projected
 
