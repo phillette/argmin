@@ -5,20 +5,21 @@ import util
 
 
 def bi_rnn(sentences, hidden_size, scope,
-           p_keep=0.8, cell=tf.contrib.rnn.BasicLSTMCell):
+           dropout_config, dropout_key='rnn',
+           cell=tf.contrib.rnn.BasicLSTMCell):
     sequence_length = util.length(sentences)
     forward_cell = cell(
-        hidden_size,
+        int(hidden_size / dropout_config.raw[dropout_key]),
         forget_bias=1.0)
     forward_cell = tf.contrib.rnn.DropoutWrapper(
         cell=forward_cell,
-        output_keep_prob=p_keep)
+        output_keep_prob=dropout_config.ops[dropout_key])
     backward_cell = cell(
-        hidden_size,
+        int(hidden_size / dropout_config.raw[dropout_key]),
         forget_bias=1.0)
     backward_cell = tf.contrib.rnn.DropoutWrapper(
         cell=backward_cell,
-        output_keep_prob=p_keep)
+        output_keep_prob=dropout_config.ops[dropout_key])
     output, output_states = tf.nn.bidirectional_dynamic_rnn(
         cell_fw=forward_cell,
         cell_bw=backward_cell,
@@ -70,29 +71,42 @@ class Encoder(model_base.Model):
         raise NotImplementedError()
 
     @decorators.define_scope
-    def logits(self):
-        self.ff_input = tf.concat(
+    def classifier_input(self):
+        input = tf.concat(
             [self.premises_encoding,
-             tf.abs(tf.subtract(self.premises_encoding,
-                                self.hypotheses_encoding)),
-             self.hypotheses_encoding],
+             self.hypotheses_encoding,
+             tf.abs(tf.subtract(
+                 self.premises_encoding,
+                 self.hypotheses_encoding)),
+             tf.multiply(
+                 self.premises_encoding,
+                 self.hypotheses_encoding)],
             axis=1,
             name='concatenated_encodings')
-        self.ff_input = tf.nn.dropout(self.ff_input,
-                                      self.p_keep_input)
+        dropped_input = tf.nn.dropout(
+            x=input,
+            keep_prob=self.dropout_config.ops['input'])
+        return dropped_input
+
+    @decorators.define_scope
+    def logits(self):
         h1 = tf.contrib.layers.fully_connected(
-            inputs=self.ff_input,
-            num_outputs=self.hidden_size,
+            inputs=self.classifier_input,
+            # looking at this now I think this should be in another config...
+            num_outputs=int(self.hidden_size / self.dropout_config.raw['ff']),
             activation_fn=tf.tanh)
-        self.h1 = tf.nn.dropout(h1, self.p_keep)
+        h1_dropped = tf.nn.dropout(
+            x=h1,
+            keep_prob=self.dropout_config.ops['ff'])
         h2 = tf.contrib.layers.fully_connected(
-            inputs=self.h1,
-            num_outputs=self.hidden_size,
+            inputs=h1_dropped,
+            num_outputs=int(self.hidden_size / self.dropout_config.raw['ff']),
             activation_fn=tf.tanh)
-        if self.in_training:
-            h2 = tf.nn.dropout(h2, self.p_keep)
+        h2_dropped = tf.nn.dropout(
+            x=h2,
+            keep_prob=self.dropout_config.ops['ff'])
         _logits = tf.contrib.layers.fully_connected(
-            inputs=h2,
+            inputs=h2_dropped,
             num_outputs=3,
             activation_fn=None)
         return _logits
@@ -135,10 +149,10 @@ class BiLSTMEncoder(Encoder):
     def premises_encoding(self):
         # [batch_size, timesteps, rnn_size]
         _, output_states = bi_rnn(
-            self.premises,
-            self.embed_size,
-            'premise_bi_rnn',
-            self.p_keep)
+            sentences=self.premises,
+            hidden_size=self.embed_size,
+            scope='premise_bi_rnn',
+            dropout_config=self.dropout_config)
         return tf.concat([v.h for v in output_states],
                          axis=1)
 
@@ -146,10 +160,10 @@ class BiLSTMEncoder(Encoder):
     def hypotheses_encoding(self):
         # [batch_size, timesteps, rnn_size]
         _, output_states = bi_rnn(
-            self.hypotheses,
-            self.embed_size,
-            'hypothesis_bi_rnn',
-            self.p_keep)
+            sentences=self.hypotheses,
+            hidden_size=self.embed_size,
+            scope='hypothesis_bi_rnn',
+            dropout_config=self.dropout_config)
         return tf.concat([v.h for v in output_states],
                          axis=1)
 

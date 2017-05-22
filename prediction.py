@@ -41,8 +41,10 @@ def accuracy(model,
     for iter in range(num_iters):
         batch = next(batch_gen)
         batch_accuracy = sess.run(model.accuracy,
-                                  feed_dict_fn(model,
-                                               batch))
+                                  feed_dict_fn(
+                                      model=model,
+                                      batch=batch,
+                                      in_training=False))
         accumulated_accuracy += batch_accuracy
     if not surpress_print:
         print('%s %s set accuracy = %s%%'

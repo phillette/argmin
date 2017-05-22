@@ -56,21 +56,25 @@ def factors(n):
                 ([i, n//i] for i in range(1, int(n**0.5) + 1) if n % i == 0)))
 
 
-def feed_dict(model, batch):
+def feed_dict(model, batch, in_training):
+    training_flag = 1. if in_training else 0.
     return {model.premises: batch.premises,
             model.hypotheses: batch.hypotheses,
-            model.Y: batch.labels}
+            model.Y: batch.labels,
+            model.training_flag: training_flag}
 
 
-def feed_dict_transfer(model, batch):
+def feed_dict_transfer(model, batch, training_flag):
     """Feed dict for transfer learning models.
 
     Args:
       model: a transfer learning model.
       batch: a transfer learning batch.
+      training_flag: float equal to 1 if in training otherwise 0.
     """
     return {model.X: batch.X,
-            model.Y: batch.labels}
+            model.Y: batch.labels,
+            model.training_flag: training_flag}
 
 
 def length(sequence):
