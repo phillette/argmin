@@ -259,7 +259,7 @@ def print_config(docs):
                    if 'p_keep_rnn' in doc['config'].keys()
                    else 'na',
                doc['config']['grad_clip_norm'],
-               doc['config']['lambda']))
+               doc['config']['lambda'] if 'lambda' in doc['config'].keys() else doc['config']['lamda']))
 
 
 def print_core(docs):

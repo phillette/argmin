@@ -1,3 +1,4 @@
+"""Models that use Alignment between sentences."""
 import tensorflow as tf
 import model_base
 import decorators
@@ -10,7 +11,18 @@ tf.set_random_seed(1984)
 
 
 class Alignment(model_base.Model):
+    """Alignment model a la Parikh (2016).
+
+    http://arxiv.org/pdf/1606.01933v1.pdf.
+    """
+
     def __init__(self, config):
+        """Create a new Alignment model.
+
+        Args:
+          config: model_base.config dictionary.
+        """
+        config['activation_fn'] = 'relu'
         model_base.Model.__init__(self, config)
         self.name = 'alignment'
         self.premises_encoding
@@ -23,16 +35,39 @@ class Alignment(model_base.Model):
 
     @decorators.define_scope
     def premises_encoding(self):
-        # [batch_size, timesteps, embed_size]
+        """The final encoding of premises.
+
+        This op is introduced as an extensible part of
+        the model - e.g. adding an BiLSTM to the front.
+
+        Returns:
+          Tensor of dimension [batch_size, timesteps, embed_size]
+        """
         return self.premises
 
     @decorators.define_scope
     def hypotheses_encoding(self):
-        # [batch_size, timesteps, embed_size]
+        """The final encoding of the hypotheses.
+
+        This op is introduced as an extensible part of
+        the model - e.g. adding an BiLSTM to the front.
+
+        Returns:
+          Tensor of dimension [batch_size, timesteps, embed_size]
+        """
         return self.hypotheses
 
     @decorators.define_scope
     def project(self):
+        """Project the word vectors into a hidden_size-dimensional space.
+
+        Concatenates the premises and hypotheses in the batch into
+        a single tensor. This is required in the next step and is
+        therefore convenient not to split it up upon returning here.
+
+        Returns:
+          Tensor of shape [2 * batch_size, timesteps, hidden_size].
+        """
         # [2 * batch_size, timesteps, embed_size]
         concatenated = util.concat(
             premises=self.premises_encoding,
@@ -41,32 +76,58 @@ class Alignment(model_base.Model):
         # [2 * batch_size, timesteps, hidden_size]
         projected = model_base.fully_connected_with_dropout(
             inputs=concatenated,
-            num_outputs=int(self.hidden_size / self.config['p_keep_ff']),
+            num_outputs=self.projection_size,
             activation_fn=None,
             dropout_config=self.dropout_config,
-            dropout_key='ff')
+            dropout_key='input',  # decided to consider this as input, not ff.
+            scale_output_size=False)  # don't scale up the projection matrix.
 
         return projected
 
     @decorators.define_scope
     def align(self):
+        """Align relevant parts of the two sentences.
+
+        First pass the projected vectors through a function, F,
+        (a feedforward neural network).
+
+        Then perform a matrix multiplication of the result vectors
+        (premises vector matrix dot the transpose of the hypotheses)
+        to perform similarity matching, yielding raw relevance
+        scores (eijs).
+
+        Then apply softmax to smooth these relevance scores,
+        remembering the orientation needs to be transposed for
+        the hypotheses.
+
+        The relevance scores are then applied to the vectors from
+        the opposite sentence to scale them.
+
+        QUESTIONS:
+        - How many layers do we really need at the start of
+          this part of the model? Parikh's paper reports two.
+
+        Returns:
+          alphas, betas: both tensors of shape
+            [batch_size, timesteps, hidden_size].
+        """
         # [2 * batch_size, timesteps, hidden_size]
-        Fs1 = model_base.fully_connected_with_dropout(
+        F1 = model_base.fully_connected_with_dropout(
             inputs=self.project,
-            num_outputs=int(self.hidden_size / self.config['p_keep_ff']),
+            num_outputs=self.hidden_size,
             activation_fn=tf.nn.relu,
             dropout_config=self.dropout_config,
             dropout_key='ff')
-        Fs2 = model_base.fully_connected_with_dropout(
-            inputs=Fs1,
-            num_outputs=int(self.hidden_size / self.config['p_keep_ff']),
+        F2 = model_base.fully_connected_with_dropout(
+            inputs=F1,
+            num_outputs=self.hidden_size,
             activation_fn=tf.nn.relu,
             dropout_config=self.dropout_config,
             dropout_key='ff')
 
         # [batch_size, timesteps, hidden_size]
         F_premises, F_hypotheses = util.split_after_concat(
-            tensor=Fs2,
+            tensor=F2,
             batch_size=self.batch_size)
 
         # [batch_size, timesteps, timesteps]
@@ -94,39 +155,77 @@ class Alignment(model_base.Model):
 
     @decorators.define_scope
     def compare(self):
+        """Compute comparison vectors between the sentences.
+
+        The comparison vectors are non-linear combinations
+        of the original sentences and their aligned opposite
+        vectors (the alphas and betas from the align step).
+
+        We start by concatenating the original vectors with
+        the alphas and betas. We then pass these through a
+        function, G, again a (two layer) feedforward network.
+
+        Returns:
+          V1, V2: comparison vectors, both tensors of shape
+            [batch_size, timesteps, hidden_size].
+        """
         betas, alphas = self.align
 
         # [batch_size, timesteps, 2 * hidden_size]
-        V1_input = tf.concat([self.premises_encoding,
-                              betas],
-                             axis=2)
+        premises_input = tf.concat(
+            [self.premises_encoding,
+             betas],
+            axis=2)
         # [batch_size, timesteps, 2 * hidden_size]
-        V2_input = tf.concat([self.hypotheses_encoding,
-                              alphas],
-                             axis=2)
+        hypotheses_input = tf.concat(
+            [self.hypotheses_encoding,
+             alphas],
+            axis=2)
 
         # [2 * batch_size, timesteps, 2 * hidden_size]
-        ff_input = util.concat(V1_input, V2_input)
-        Vs1 = model_base.fully_connected_with_dropout(
-            inputs=ff_input,
-            num_outputs=int(self.hidden_size / self.config['p_keep_ff']),
+        concatenated_input = util.concat(
+            premises=premises_input,
+            hypotheses=hypotheses_input)
+        dropped_input = tf.nn.dropout(
+            x=concatenated_input,
+            keep_prob=self.dropout_config.ops['input'])
+
+        G1 = model_base.fully_connected_with_dropout(
+            inputs=dropped_input,
+            num_outputs=self.hidden_size,
             activation_fn=tf.nn.relu,
             dropout_config=self.dropout_config,
             dropout_key='ff')
-        Vs2 = model_base.fully_connected_with_dropout(
-            inputs=Vs1,
-            num_outputs=int(self.hidden_size / self.config['p_keep_ff']),
+        G2 = model_base.fully_connected_with_dropout(
+            inputs=G1,
+            num_outputs=self.hidden_size,
             activation_fn=tf.nn.relu,
             dropout_config=self.dropout_config,
             dropout_key='ff')
 
         # [batch_size, timesteps, hidden_size]
-        V1, V2 = util.split_after_concat(Vs2, self.batch_size)
+        V1, V2 = util.split_after_concat(G2, self.batch_size)
 
         return V1, V2
 
     @decorators.define_scope
     def aggregate(self):
+        """Aggregate the comparison vectors.
+
+        This step combines the comparison vectors (V1 and V2)
+        and prepares them to be passed to the classifier.
+
+        In Parikh's original paper aggregation is performed as
+        a sum of each vector.
+
+        Here I follow the aggregation method introduced by
+        Chen 2016 (http://arxiv.org/pdf/1609.06038v3.pdf):
+        to concatenate the averages and maxs of the two sets
+        of comparison vectors.
+
+        Returns:
+          Tensor of shape [batch_size, 4 * self.hidden_size]
+        """
         # [batch_size, timesteps, hidden_size]
         V1, V2 = self.compare
 
@@ -141,7 +240,8 @@ class Alignment(model_base.Model):
                                   max_hypotheses],
                                  axis=1)
         # [batch_size, 4 * hidden_size] (that's 2 * hidden_size per sentence)
-        concatenated.set_shape([None, 4 * int(self.hidden_size / self.config['p_keep_ff'])])
+        concatenated.set_shape(
+            [None, 4 * int(self.hidden_size / self.config['p_keep_ff'])])
         dropped = tf.nn.dropout(
             x=concatenated,
             keep_prob=self.dropout_config.ops['input'])
@@ -150,24 +250,8 @@ class Alignment(model_base.Model):
 
     @decorators.define_scope
     def classifier_input(self):
+        """Define the vectors to pass to the classifer."""
         return self.aggregate
-
-    @decorators.define_scope
-    def logits(self):
-        a1 = model_base.fully_connected_with_dropout(
-            inputs=self.classifier_input,
-            num_outputs=self.hidden_size,
-            activation_fn=tf.nn.relu,
-            dropout_config=self.dropout_config,
-            dropout_key='ff')
-        a2 = model_base.fully_connected_with_dropout(
-            inputs=a1,
-            num_outputs=self.hidden_size,
-            activation_fn=tf.nn.relu,
-            dropout_config=self.dropout_config,
-            dropout_key='ff')
-        a3 = tf.contrib.layers.fully_connected(a2, 3, None)
-        return a3
 
 
 class BiRNNAlignment(Alignment):

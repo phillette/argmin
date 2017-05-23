@@ -5,9 +5,10 @@ import dropout
 
 
 def config(embed_size=300,
+           hidden_size=200,
+           projection_size=200,
            learning_rate=5e-4,
            grad_clip_norm=0.0,
-           hidden_size=200,
            lamda=0.0,
            p_keep_ff=0.8,
            p_keep_rnn=1.0,
@@ -15,12 +16,14 @@ def config(embed_size=300,
            representation_learning_rate=5e-4,
            classifier_learning_rate=5e-4,
            linear_logits_output=3,
-           linear_classifier_learning_rate=0.01):
+           linear_classifier_learning_rate=0.01,
+           activation_fn='tanh'):
     return {
         'embed_size': embed_size,
+        'hidden_size': hidden_size,
+        'projection_size': projection_size,
         'learning_rate': learning_rate,
         'grad_clip_norm': grad_clip_norm,
-        'hidden_size': hidden_size,
         'lamda': lamda,
         'p_keep_ff': p_keep_ff,
         'p_keep_rnn': p_keep_rnn,
@@ -28,22 +31,34 @@ def config(embed_size=300,
         'representation_learning_rate': representation_learning_rate,
         'classifier_learning_rate': classifier_learning_rate,
         'linear_logits_output': linear_logits_output,
-        'linear_classifier_learning_rate': linear_classifier_learning_rate}
+        'linear_classifier_learning_rate': linear_classifier_learning_rate,
+        'activation_fn': activation_fn}
 
 
 def fully_connected_with_dropout(inputs,
                                  num_outputs,
                                  activation_fn,
                                  dropout_config,
-                                 dropout_key='ff'):
+                                 dropout_key='ff',
+                                 scale_output_size=True):
+    layer_output_size = num_outputs
+    if scale_output_size:
+        layer_output_size = int(num_outputs / dropout_config.raw[dropout_key])
     fully_connected = tf.contrib.layers.fully_connected(
         inputs=inputs,
-        num_outputs=int(num_outputs / dropout_config.raw[dropout_key]),
+        num_outputs=layer_output_size,
         activation_fn=activation_fn)
     dropped_out = tf.nn.dropout(
         x=fully_connected,
         keep_prob=dropout_config.ops[dropout_key])
     return dropped_out
+
+
+def _activation_fn(fn_name):
+    if fn_name == 'tanh':
+        return tf.tanh
+    elif fn_name == 'relu':
+        return tf.nn.relu
 
 
 class Model:
@@ -58,6 +73,7 @@ class Model:
             training_flag=self.training_flag)
         for key in config.keys():
             setattr(self, key, config[key])
+        self.activation_fn = _activation_fn(config['activation_fn'])
         self._training_variables()
         self._training_placeholders()
         self._training_ops()
@@ -117,6 +133,23 @@ class Model:
             sum([tf.nn.l2_loss(w) for w in self._all_weights()]),
             name='penalty_term')
         return tf.add(cross_entropy, penalty_term, name='loss')
+
+    @decorators.define_scope
+    def logits(self):
+        a1 = fully_connected_with_dropout(
+            inputs=self.classifier_input,
+            num_outputs=self.hidden_size,
+            activation_fn=self.activation_fn,
+            dropout_config=self.dropout_config,
+            dropout_key='ff')
+        a2 = fully_connected_with_dropout(
+            inputs=a1,
+            num_outputs=self.hidden_size,
+            activation_fn=self.activation_fn,
+            dropout_config=self.dropout_config,
+            dropout_key='ff')
+        a3 = tf.contrib.layers.fully_connected(a2, 3, None)
+        return a3
 
     @decorators.define_scope
     def loss(self):

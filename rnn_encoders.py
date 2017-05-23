@@ -4,6 +4,10 @@ import model_base
 import util
 
 
+# control randomization for reproducibility
+tf.set_random_seed(1984)
+
+
 def bi_rnn(sentences, hidden_size, scope,
            dropout_config, dropout_key='rnn',
            cell=tf.contrib.rnn.BasicLSTMCell):
@@ -90,6 +94,8 @@ class Encoder(model_base.Model):
 
     @decorators.define_scope
     def logits(self):
+        # this currently overloads model_base.Model.logits;
+        # it is probably redundant now.
         h1 = tf.contrib.layers.fully_connected(
             inputs=self.classifier_input,
             # looking at this now I think this should be in another config...
