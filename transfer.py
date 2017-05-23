@@ -9,6 +9,85 @@ import mongoi
 import numpy as np
 
 
+TRANSFER_MODELS = ['ChenAlignA', 'BiLSTMEnc']
+FINAL_PARAM_STEPS = {
+    'ChenAlignA': {
+        'snli': -1,
+        'mnli': -1
+    },
+    'BiLSTMEnc': {
+        'snli': 120176,  # 7 epochs
+        'mnli': -1
+    }}
+COLLECTIONS = {
+    'carstens': {
+        'train': 'train',
+        'tune': 'test'
+    }
+}
+
+
+def final_param_path(model_name, transfer_from):
+    """Get file path to pre-trained params.
+
+    With the path in hand, call util.load_checkpoint_at_step.
+
+    Args:
+      model_name: full model name (defined on the model).
+      transfer_from: the db name to transfer from \in {snli, mnli}.
+
+    Returns:
+      String of relative file path to the folder with the checkpoint files.
+
+    Raises:
+      ValueError if transfer_from or model_name are unexpected.
+    """
+    if model_name not in TRANSFER_MODELS:
+        raise ValueError('Unexpected model_name: %s' % model_name)
+    if transfer_from not in ['snli', 'mnli']:
+        raise ValueError('Unexpected transfer_from value: %s' % transfer_from)
+
+    path = 'checkpoints/final/%s_%s/%s' % (model_name,
+                                           transfer_from,
+                                           model_name)
+    return path
+
+
+def transfer_train(model,
+                   transfer_from,
+                   transfer_to,
+                   full_or_linear):
+    """Perform transfer learning training.
+
+    Loads the relevant parameters and performs transfer
+    training.
+
+    Args:
+      model: the model to train.
+      transfer_from: the name of the db training was performed on.
+      transfer_to: the name of the db to transfer to.
+      full_or_linear: whether to use a full classifier or just a
+        linear classifier.
+    """
+    with tf.Session() as sess:
+        sess.run(tf.global_variables_initializer())
+        param_path = final_param_path(model.name, transfer_from)
+        step_to_load = FINAL_PARAM_STEPS[model.name][transfer_from]
+        util.load_checkpoint_at_step(
+            model_name=model.name,
+            global_step=step_to_load,
+            saver=tf.train.Saver(),
+            sess=sess,
+            path=param_path)
+        # report train and test results with no further training?
+        # needs to be a reset of training variables on the model???
+        # do the training process...
+
+
+
+
+
+
 def extract_chen_representation():
     print('Extracting Carstens Chen representation...')
     db = mongoi.CarstensDb()
@@ -39,7 +118,7 @@ def transfer(db='carstens', train='train', test='test',
              global_step=17168):
     config = model_base.config(learning_rate=5e-4,
                                grad_clip_norm=0.0,
-                               p_keep=0.8,
+                               p_keep_ff=0.8,
                                p_keep_rnn=1.0,
                                hidden_size=200)
     model = aligned.ChenAlignA(config)

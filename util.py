@@ -91,8 +91,9 @@ def length(sequence):
     return length
 
 
-def load_checkpoint(model, saver, sess, transfer=False):
-    path = ckpt_path(model.name, transfer)
+def load_checkpoint(model, saver, sess, transfer=False, path=None):
+    if not path:
+        path = ckpt_path(model.name, transfer)
     ckpt = tf.train.get_checkpoint_state(os.path.dirname(path))
     if ckpt and ckpt.model_checkpoint_path:
         saver.restore(sess, ckpt.model_checkpoint_path)
@@ -100,10 +101,11 @@ def load_checkpoint(model, saver, sess, transfer=False):
         raise Exception('Checkpoint "%s" not found' % path)
 
 
-def load_checkpoint_at_step(model_name, global_step, saver, sess):
-    saver.restore(sess, 'checkpoints/%s/%s-%s' % (model_name,
-                                                  model_name,
-                                                  global_step))
+def load_checkpoint_at_step(model_name, global_step, saver, sess, path=None):
+    if not path:
+        path = ckpt_path(model_name, False)
+    path += '-%s' % global_step
+    saver.restore(sess, path)
 
 
 def load_pickle(file_name):

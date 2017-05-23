@@ -21,7 +21,7 @@ def config(embed_size=300,
         'learning_rate': learning_rate,
         'grad_clip_norm': grad_clip_norm,
         'hidden_size': hidden_size,
-        'lambda': lamda,
+        'lamda': lamda,
         'p_keep_ff': p_keep_ff,
         'p_keep_rnn': p_keep_rnn,
         'p_keep_input': p_keep_input,
@@ -57,7 +57,7 @@ class Model:
             config=self.config,
             training_flag=self.training_flag)
         for key in config.keys():
-            exec('self.%s = config[%s]' % (key, key))
+            setattr(self, key, config[key])
         self._training_variables()
         self._training_placeholders()
         self._training_ops()
@@ -187,8 +187,9 @@ class Model:
         pertain to the linear classifier. By default those in the
         linear_logits scope will be selected.
         """
-        optimizer = tf.train.AdamOptimizer(self.config['linear_learning_rate'])
+        optimizer = tf.train.AdamOptimizer(self.linear_classifier_learning_rate)
         grads_and_vars = optimizer.compute_gradients(
+            self.linear_loss,
             self._linear_classifier_params())
         if self.grad_clip_norm > 0.0:
             grads_and_vars = util.clip_gradients(
@@ -282,7 +283,7 @@ class Model:
         self.optimize_classifier
         self.linear_logits
         self.linear_loss
-        self.optimize_linear_logits
+        self.optimize_linear_classifier
         self.predicted_labels
         self.correct_predictions
         self.accuracy

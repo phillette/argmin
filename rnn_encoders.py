@@ -27,7 +27,7 @@ def bi_rnn(sentences, hidden_size, scope,
         sequence_length=sequence_length,
         dtype=tf.float64,
         scope=scope)
-    # output is [batch_sie, timesteps, hidden_size]
+    # output is [batch_size, timesteps, hidden_size]
     # in a tuple, seems [0] is forward and [1] is backward
     # output_states: LSTMTupleSTate, again a tuple of them,
     # [0] probably forward [1] probably back.
@@ -148,24 +148,26 @@ class BiLSTMEncoder(Encoder):
     @decorators.define_scope
     def premises_encoding(self):
         # [batch_size, timesteps, rnn_size]
-        _, output_states = bi_rnn(
+        output, _ = bi_rnn(
             sentences=self.premises,
             hidden_size=self.embed_size,
             scope='premise_bi_rnn',
             dropout_config=self.dropout_config)
-        return tf.concat([v.h for v in output_states],
-                         axis=1)
+        concatenated = tf.concat(output, axis=2)
+        max_pooled = tf.reduce_max(concatenated, axis=1)
+        return max_pooled
 
     @decorators.define_scope
     def hypotheses_encoding(self):
         # [batch_size, timesteps, rnn_size]
-        _, output_states = bi_rnn(
+        output, _ = bi_rnn(
             sentences=self.hypotheses,
             hidden_size=self.embed_size,
             scope='hypothesis_bi_rnn',
             dropout_config=self.dropout_config)
-        return tf.concat([v.h for v in output_states],
-                         axis=1)
+        concatenated = tf.concat(output, axis=2)
+        max_pooled = tf.reduce_max(concatenated, axis=1)
+        return max_pooled
 
 
 class SimpleEncoder(model_base.Model):
