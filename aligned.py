@@ -19,7 +19,6 @@ class Alignment(model_base.Model):
         self.align
         self.compare
         self.aggregate
-        self.logits
         self._init_backend()
 
     @decorators.define_scope
@@ -42,10 +41,10 @@ class Alignment(model_base.Model):
         # [2 * batch_size, timesteps, hidden_size]
         projected = model_base.fully_connected_with_dropout(
             inputs=concatenated,
-            num_outputs=self.hidden_size,
+            num_outputs=int(self.hidden_size / self.config['p_keep_ff']),
             activation_fn=None,
-            p_keep=self.p_keep['ff'],
-            scale_factor=self.scale_factor['ff'])
+            dropout_config=self.dropout_config,
+            dropout_key='ff')
 
         return projected
 
@@ -53,16 +52,17 @@ class Alignment(model_base.Model):
     def align(self):
         # [2 * batch_size, timesteps, hidden_size]
         Fs1 = model_base.fully_connected_with_dropout(
-             inputs=self.project,
-             num_outputs=self.hidden_size,
-             activation_fn=tf.nn.relu,
-             p_keep=self.p_keep)
+            inputs=self.project,
+            num_outputs=int(self.hidden_size / self.config['p_keep_ff']),
+            activation_fn=tf.nn.relu,
+            dropout_config=self.dropout_config,
+            dropout_key='ff')
         Fs2 = model_base.fully_connected_with_dropout(
             inputs=Fs1,
-            num_outputs=self.hidden_size,
+            num_outputs=int(self.hidden_size / self.config['p_keep_ff']),
             activation_fn=tf.nn.relu,
-            p_keep=self.p_keep
-        )
+            dropout_config=self.dropout_config,
+            dropout_key='ff')
 
         # [batch_size, timesteps, hidden_size]
         F_premises, F_hypotheses = util.split_after_concat(
@@ -108,16 +108,17 @@ class Alignment(model_base.Model):
         # [2 * batch_size, timesteps, 2 * hidden_size]
         ff_input = util.concat(V1_input, V2_input)
         Vs1 = model_base.fully_connected_with_dropout(
-             inputs=ff_input,
-             num_outputs=self.hidden_size,
-             activation_fn=tf.nn.relu,
-             p_keep=self.p_keep)
+            inputs=ff_input,
+            num_outputs=int(self.hidden_size / self.config['p_keep_ff']),
+            activation_fn=tf.nn.relu,
+            dropout_config=self.dropout_config,
+            dropout_key='ff')
         Vs2 = model_base.fully_connected_with_dropout(
             inputs=Vs1,
-            num_outputs=self.hidden_size,
+            num_outputs=int(self.hidden_size / self.config['p_keep_ff']),
             activation_fn=tf.nn.relu,
-            p_keep=self.p_keep
-        )
+            dropout_config=self.dropout_config,
+            dropout_key='ff')
 
         # [batch_size, timesteps, hidden_size]
         V1, V2 = util.split_after_concat(Vs2, self.batch_size)
@@ -140,22 +141,31 @@ class Alignment(model_base.Model):
                                   max_hypotheses],
                                  axis=1)
         # [batch_size, 4 * hidden_size] (that's 2 * hidden_size per sentence)
-        concatenated.set_shape([None, 4 * self.hidden_size])
+        concatenated.set_shape([None, 4 * int(self.hidden_size / self.config['p_keep_ff'])])
+        dropped = tf.nn.dropout(
+            x=concatenated,
+            keep_prob=self.dropout_config.ops['input'])
 
-        return concatenated
+        return dropped
+
+    @decorators.define_scope
+    def classifier_input(self):
+        return self.aggregate
 
     @decorators.define_scope
     def logits(self):
         a1 = model_base.fully_connected_with_dropout(
-            inputs=self.aggregate,
+            inputs=self.classifier_input,
             num_outputs=self.hidden_size,
             activation_fn=tf.nn.relu,
-            p_keep=self.p_keep)
+            dropout_config=self.dropout_config,
+            dropout_key='ff')
         a2 = model_base.fully_connected_with_dropout(
             inputs=a1,
             num_outputs=self.hidden_size,
             activation_fn=tf.nn.relu,
-            p_keep=self.p_keep)
+            dropout_config=self.dropout_config,
+            dropout_key='ff')
         a3 = tf.contrib.layers.fully_connected(a2, 3, None)
         return a3
 
@@ -173,7 +183,8 @@ class BiRNNAlignment(Alignment):
             sentences=self.premises,
             hidden_size=self.embed_size,
             scope='premise_bi_rnn',
-            p_keep=self.p_keep_rnn)
+            dropout_config=self.dropout_config,
+            dropout_key='rnn')
         # [batch_size, timesteps, 2 * rnn_size]
         concatenated_encoding = tf.concat(_premises_encoding[0], 2)
         return concatenated_encoding
@@ -185,7 +196,8 @@ class BiRNNAlignment(Alignment):
             sentences=self.hypotheses,
             hidden_size=self.embed_size,
             scope='hypothesis_bi_rnn',
-            p_keep=self.p_keep_rnn)
+            dropout_config=self.dropout_config,
+            dropout_key='rnn')
         # [batch_size, timesteps, 2 * rnn_size]
         concatenated_encoding = tf.concat(_hypotheses_encoding[0], 2)
         return concatenated_encoding
@@ -200,35 +212,6 @@ class ChenAlignA(BiRNNAlignment):
     def __init__(self, config):
         BiRNNAlignment.__init__(self, config)
         self.name = 'ChenAlignA'
-        self.weights_to_scale_factor = {
-            self._weights(
-                'premises_encoding/premise_bi_rnn/fw/basic_lstm_cell')
-            : self.p_keep_rnn,
-            self._weights(
-                'premises_encoding/premise_bi_rnn/bw/basic_lstm_cell')
-            : self.p_keep_rnn,
-            self._weights(
-                'hypotheses_encoding/hypothesis_bi_rnn/fw/basic_lstm_cell')
-            : self.p_keep_rnn,
-            self._weights(
-                'hypotheses_encoding/hypothesis_bi_rnn/bw/basic_lstm_cell')
-            : self.p_keep_rnn,
-            self._weights(
-                'compare/fully_connected')
-            : self.p_keep,
-            self._weights(
-                'compare/fully_connected_1')
-            : self.p_keep,
-            self._weights(
-                'logits/fully_connected')
-            : self.p_keep,
-            self._weights(
-                'logits/fully_connected_1')
-            : self.p_keep,
-            self._weights(
-                'logits/fully_connected_2')
-            : self.p_keep
-        }
 
     @decorators.define_scope
     def align(self):
@@ -283,49 +266,16 @@ class ChenAlignA(BiRNNAlignment):
             inputs=ff_input,
             num_outputs=self.hidden_size,
             activation_fn=tf.nn.relu,
-            p_keep=self.p_keep)
+            dropout_config=self.dropout_config,
+            dropout_key='ff')
         h2 = model_base.fully_connected_with_dropout(
             inputs=h1,
             num_outputs=self.hidden_size,
             activation_fn=tf.nn.relu,
-            p_keep=self.p_keep
-        )
+            dropout_config=self.dropout_config,
+            dropout_key='ff')
 
         # [batch_size, timesteps, hidden_size]
         v1, v2 = util.split_after_concat(h2, self.batch_size)
 
         return v1, v2
-
-    def _transfer_training_weights(self):
-        return [w for w
-                in self._all_weights()
-                if w.name.startswith('logits')]
-
-
-class LinearTChen(model_base.Model):
-    def __init__(self, config):
-        self.X = tf.placeholder(tf.float64,
-                                [None, 4 * config['hidden_size']],
-                                name='X')
-        model_base.Model.__init__(self, config)
-        self.name = 'LinearTChen'
-        self._init_backend()
-
-    @decorators.define_scope
-    def batch_size(self):
-        return tf.shape(self.X)[0]
-
-    @decorators.define_scope
-    def logits(self):
-        dropped_input = tf.nn.dropout(self.X, self.p_keep_input)
-        h1 = tf.contrib.layers.fully_connected(
-            inputs=dropped_input,
-            num_outputs=self.hidden_size,
-            activation_fn=tf.tanh)
-        h1_dropped = tf.nn.dropout(h1, self.p_keep)
-        _logits = tf.contrib.layers.fully_connected(
-            inputs=h1_dropped,
-            num_outputs=3,
-            activation_fn=tf.sigmoid
-        )
-        return _logits

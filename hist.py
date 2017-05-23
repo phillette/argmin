@@ -17,11 +17,13 @@ def batch_size_info(history):
                   2))
 
 
-def compare(ids=None, param_to_compare='model_name'):
-    if not ids:
+def compare(ids=None, param_to_compare='model_name', query=None):
+    if not ids and not query:
         histories = get_all()
-    else:
+    elif ids:
         histories = get_many(ids)
+    elif query:
+        histories = list(mongoi.HistoryDb().all.find(query))
     # loss
     lines_loss = []
     plt.subplot(2, 2, 1)
@@ -95,9 +97,13 @@ def comparison_y(history, value_to_compare):
         return np.array(history[value_to_compare])
 
 
-def delete(id):
+def delete(ids):
     db = mongoi.HistoryDb()
-    db.db.all.delete_many({'id': id})
+    if isinstance(ids, int):
+        db.db.all.delete_many({'id': ids})
+    elif isinstance(ids, list):
+        for id in ids:
+            db.db.all.delete_many({'id': id})
 
 
 def export(id):
@@ -156,7 +162,7 @@ def get_many(ids):
     for id in ids:
         id = int(id)  # in case they come as numpy ints
         try:
-            docs.append(next(db.all.get(id)))
+            docs.append(db.all.get(id))
         except:
             raise Exception('History with id %s not found' % id)
     return docs
@@ -165,11 +171,10 @@ def get_many(ids):
 def get_one(id):
     id = int(id)  # in case it comes as a numpy int
     db = mongoi.HistoryDb()
-    try:
-        history = next(db.all.get(id))
-        return history
-    except:
+    history = db.all.get(id)
+    if not history:
         raise Exception('No history with id %s found' % id)
+    return history
 
 
 def global_keys():
@@ -241,21 +246,20 @@ def plot(history, param_to_compare, value_to_compare, iter_key):
 
 
 def print_config(docs):
-    print('----\t----\t----\t\t----\t----\t\t----\t\t----')
-    print('id\talpha\thidden_size\tp_keep\tp_keep_rnn\tgrad_clip_norm\tlambda')
-    print('----\t----\t----\t\t----\t----\t\t----\t\t----')
+    print('----\t----\t----\t\t----\t\t----\t\t----\t\t----')
+    print('id\talpha\thidden_size\tp_keep_ff\tp_keep_rnn\tgrad_clip_norm\tlambda')
+    print('----\t----\t----\t\t----\t\t----\t\t----\t\t----')
     for doc in docs:
-        print('%s\t%s\t%s\t\t%s\t%s\t\t%s\t\t%s' %
+        print('%s\t%s\t%s\t\t%s\t\t%s\t\t%s\t\t%s' %
               (doc['id'],
                doc['config']['learning_rate'],
                doc['config']['hidden_size'],
-               doc['config']['p_keep'],
+               doc['config']['p_keep_ff'] if 'p_keep_ff' in doc['config'].keys() else doc['config']['p_keep'],
                doc['config']['p_keep_rnn']
                    if 'p_keep_rnn' in doc['config'].keys()
                    else 'na',
                doc['config']['grad_clip_norm'],
-               doc['config']['lambda']
-               ))
+               doc['config']['lambda']))
 
 
 def print_core(docs):
@@ -311,10 +315,10 @@ def report_tuning(id, iter, accuracy):
     update_list(id, float(accuracy), 'tuning_accuracy')
 
 
-def runs():
+def runs(query={}):
     print('Training histories:')
     db = mongoi.HistoryDb()
-    docs = list(db.all.find_all())
+    docs = list(db.all.find(query))
     if len(docs) == 0:
         print('No runs found.')
         return

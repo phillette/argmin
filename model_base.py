@@ -13,9 +13,9 @@ def config(embed_size=300,
            p_keep_rnn=1.0,
            p_keep_input=1.0,
            representation_learning_rate=5e-4,
-           classification_learning_rate=5e-4,
+           classifier_learning_rate=5e-4,
            linear_logits_output=3,
-           linear_learning_rate=0.01):
+           linear_classifier_learning_rate=0.01):
     return {
         'embed_size': embed_size,
         'learning_rate': learning_rate,
@@ -26,10 +26,9 @@ def config(embed_size=300,
         'p_keep_rnn': p_keep_rnn,
         'p_keep_input': p_keep_input,
         'representation_learning_rate': representation_learning_rate,
-        'classification_learning_rate': classification_learning_rate,
+        'classifier_learning_rate': classifier_learning_rate,
         'linear_logits_output': linear_logits_output,
-        'linear_learning_rate': linear_learning_rate
-    }
+        'linear_classifier_learning_rate': linear_classifier_learning_rate}
 
 
 def fully_connected_with_dropout(inputs,
@@ -57,20 +56,8 @@ class Model:
         self.dropout_config = dropout.DropoutConfig(
             config=self.config,
             training_flag=self.training_flag)
-        # I reckon I could clean these up with a function
-        self.embed_size = config['embed_size']
-        self.learning_rate = config['learning_rate']
-        self.grad_clip_norm = config['grad_clip_norm']
-        self.hidden_size = config['hidden_size']
-        self.lamda = config['lambda']
-        self.p_keep_ff = config['p_keep_ff']
-        self.p_keep_rnn = config['p_keep_rnn']
-        self.p_keep_input = config['p_keep_input']
-        self.representation_learning_rate \
-            = config['representation_learning_rate']
-        self.classification_learning_rate \
-            = config['classification_learning_rate']
-        self.weights_to_scale_factor = {}  # redundant
+        for key in config.keys():
+            exec('self.%s = config[%s]' % (key, key))
         self._training_variables()
         self._training_placeholders()
         self._training_ops()
@@ -147,30 +134,36 @@ class Model:
     @decorators.define_scope
     def optimize(self):
         optimizer = tf.train.AdamOptimizer(self.learning_rate)
+        # items in grads_and_vars: gv[0] = gradient; gv[1] = variable.
         grads_and_vars = optimizer.compute_gradients(
             self.loss,
             self._all_weights() + self._all_biases())
         if self.grad_clip_norm > 0.0:
-            grads_and_vars = util.clip_gradients(grads_and_vars,
-                                                 norm=self.grad_clip_norm)
+            grads_and_vars = util.clip_gradients(
+                grads_and_vars=grads_and_vars,
+                norm=self.grad_clip_norm)
         return optimizer.apply_gradients(grads_and_vars)
 
     @decorators.define_scope
-    def optimize_classification(self):
-        """Perform optimization for classification.
+    def optimize_classifier(self):
+        """Perform optimization for the primary classifier.
 
         Considering the network consists of two parts:
         * representation learning
         * classification
         In transfer learning we can set different learning
         rates for each part. This op is for classification.
+        Specifically, for the main classifier defined in
+        the logits op. It therefore calculates gradients
+        with respect to the main loss function: loss.
 
-        This op depends on the _classification_weights()
-        function to define which weights in the model
-        apply to classification.
+        This op depends on the _classifier_params()
+        function to define which parameters in the model
+        pertain to the main classifer. By default those in the
+        logits scope will be selected.
         """
-        optimizer = tf.train.AdamOptimizer(self.classification_learning_rate)
-        weights_to_optimize = self._classification_weights()
+        optimizer = tf.train.AdamOptimizer(self.classifier_learning_rate)
+        weights_to_optimize = self._classifier_params()
         grads_and_vars = optimizer.compute_gradients(
             self.loss,
             weights_to_optimize)
@@ -180,13 +173,27 @@ class Model:
         return optimizer.apply_gradients(grads_and_vars)
 
     @decorators.define_scope
-    def optimize_linear_logits(self):
+    def optimize_linear_classifier(self):
+        """Perform optimization for the linear classifier.
+
+        The linear classifier is designed for transfer learning.
+        Since the transfer target data sets are small, we
+        want to use a classifier with fewer parameters.
+        We therefore use a single layer, logistic regression
+        classifier.
+
+        This op depends on the _linear_classifier_params()
+        function to define which parameters in the model
+        pertain to the linear classifier. By default those in the
+        linear_logits scope will be selected.
+        """
         optimizer = tf.train.AdamOptimizer(self.config['linear_learning_rate'])
-        grads_and_vars = optimizer.compute_gradients(self.linear_loss,
-                                                     self._all_weights())  # HERE'S A BIG QUESTION: WHY NOT BIASES HERE?
+        grads_and_vars = optimizer.compute_gradients(
+            self._linear_classifier_params())
         if self.grad_clip_norm > 0.0:
-            grads_and_vars = util.clip_gradients(grads_and_vars,
-                                                 norm=self.grad_clip_norm)
+            grads_and_vars = util.clip_gradients(
+                grads_and_vars=grads_and_vars,
+                norm=self.grad_clip_norm)
         return optimizer.apply_gradients(grads_and_vars)
 
     @decorators.define_scope
@@ -200,18 +207,19 @@ class Model:
         rates for each part. This op is for representation
         learning.
 
-        This op depends on the _representation_weights()
-        function to define which weights in the model
-        apply to representation learning.
+        This op depends on the _representation_params()
+        function to define which params in the model
+        pertain to representation learning.
         """
         optimizer = tf.train.AdamOptimizer(self.representation_learning_rate)
-        weights_to_optimize = self._representation_weights()
+        weights_to_optimize = self._representation_params()
         grads_and_vars = optimizer.compute_gradients(
             self.loss,
             weights_to_optimize)
         if self.grad_clip_norm > 0.0:
-            grads_and_vars = util.clip_gradients(grads_and_vars,
-                                                 norm=self.grad_clip_norm)
+            grads_and_vars = util.clip_gradients(
+                grads_and_vars=grads_and_vars,
+                norm=self.grad_clip_norm)
         return optimizer.apply_gradients(grads_and_vars)
 
     @decorators.define_scope
@@ -256,16 +264,22 @@ class Model:
                 v in tf.get_collection(tf.GraphKeys.TRAINABLE_VARIABLES)
                 if v.name.endswith('weights:0')]
 
-    def _classification_weights(self):
-        return [w for w
-                in self._all_weights()
-                if w.name.startswith('logits')]
+    def _classifier_params(self):
+        weights = [w for w
+                   in self._all_weights()
+                   if w.name.startswith('logits')]
+        biases = [b for b
+                  in self._all_biases()
+                  if b.name.startswith('logits')]
+        return weights + biases
 
     def _init_backend(self):
         self.classifier_input
         self.logits
         self.loss
         self.optimize
+        self.optimize_representation
+        self.optimize_classifier
         self.linear_logits
         self.linear_loss
         self.optimize_linear_logits
@@ -275,14 +289,25 @@ class Model:
         self.confidences
         self.summary
 
-    def _init_transfer_optimization(self):
-        self.optimize_representation
-        self.optimize_classification
+    def _linear_classifier_params(self):
+        weights = [w for w
+                   in self._all_weights()
+                   if w.name.startswith('linear_logits')]
+        biases = [b for b
+                  in self._all_biases()
+                  if b.name.startswith('linear_logits')]
+        return weights + biases
 
-    def _representation_weights(self):
-        return [w for w
-                in self._all_weights()
-                if not w.name.startswith('logits')]
+    def _representation_params(self):
+        weights = [w for w
+                   in self._all_weights()
+                   if (not w.name.startswith('logits')
+                       and not w.name.startswith('linear_logits'))]
+        biases = [b for b
+                  in self._all_biases()
+                  if (not b.name.startswith('logits')
+                      and not b.name.startswith('linear_logits'))]
+        return weights + biases
 
     def _training_ops(self):
         self.update_epoch = tf.assign(

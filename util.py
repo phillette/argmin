@@ -23,8 +23,11 @@ def ckpt_path(model_name, transfer=False):
 
 
 def clip_gradients(grads_and_vars, norm=3.0, axes=0):
-    return [(tf.clip_by_norm(gv[0], clip_norm=norm, axes=axes), gv[1])
-            for gv in grads_and_vars]
+    return [(tf.clip_by_norm(gv[0],
+                             clip_norm=norm,
+                             axes=axes), gv[1])
+            for gv in grads_and_vars
+            if gv[0] is not None]
 
 
 def concat(premises, hypotheses):
