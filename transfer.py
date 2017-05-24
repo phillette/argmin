@@ -16,7 +16,7 @@ FINAL_PARAM_STEPS = {
         'mnli': -1
     },
     'BiLSTMEnc': {
-        'snli': 120176,  # 7 epochs
+        'snli': 120176,  # 15 epochs
         'mnli': -1
     }}
 COLLECTIONS = {

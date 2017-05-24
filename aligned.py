@@ -380,3 +380,27 @@ class ChenAlignA(BiRNNAlignment):
         v1, v2 = util.split_after_concat(h2, self.batch_size)
 
         return v1, v2
+
+    @decorators.define_scope
+    def aggregate(self):
+        # [batch_size, timesteps, hidden_size]
+        V1, V2 = self.compare
+
+        avg_premises = tf.reduce_mean(V1, axis=1)
+        max_premises = tf.reduce_max(V1, axis=1)
+        avg_hypotheses = tf.reduce_mean(V2, axis=1)
+        max_hypotheses = tf.reduce_max(V2, axis=1)
+        concatenated = tf.concat([avg_premises,
+                                  max_premises,
+                                  avg_hypotheses,
+                                  max_hypotheses],
+                                 axis=1)
+        # [batch_size, 4 * hidden_size] (that's 2 * hidden_size per sentence)
+        concatenated.set_shape(
+           [None, 4 * int(self.hidden_size / self.config['p_keep_ff'])])
+
+        dropped = tf.nn.dropout(
+            x=concatenated,
+            keep_prob=self.dropout_config.ops['input'])
+
+        return dropped
