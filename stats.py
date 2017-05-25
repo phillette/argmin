@@ -26,8 +26,8 @@ COLLECTION_SIZE = {
     },
     'carstens': {
         'all': 4058,
-        'train': 3500,
-        'test': 558
+        'train': 3700,
+        'test': 358
     },
     'node': {
         'debate_train': 159,

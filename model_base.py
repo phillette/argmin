@@ -229,7 +229,7 @@ class Model:
         pertain to the linear classifier. By default those in the
         linear_logits scope will be selected.
         """
-        optimizer = tf.train.AdagradOptimizer(
+        optimizer = tf.train.AdamOptimizer(
             self.linear_classifier_learning_rate)
         grads_and_vars = optimizer.compute_gradients(
             self.linear_loss,

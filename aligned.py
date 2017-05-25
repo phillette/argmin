@@ -113,7 +113,7 @@ class Alignment(model_base.Model):
         """
         # [2 * batch_size, timesteps, hidden_size]
         F1 = model_base.fully_connected_with_dropout(
-            inputs=self.projected,
+            inputs=self.project,
             num_outputs=self.hidden_size,
             activation_fn=tf.nn.relu,
             dropout_config=self.dropout_config,
@@ -270,11 +270,11 @@ class Alignment(model_base.Model):
         """Define the vectors to pass to the classifer."""
         return self.aggregate
 
-    @decorators.define_scope
-    def optimize(self):
-        optimizer = \
-            tf.train.AdagradOptimizer(self.learning_rate).minimize(self.loss)
-        return optimizer
+    #@decorators.define_scope
+    #def optimize(self):
+    #    optimizer = \
+    #        tf.train.AdagradOptimizer(self.learning_rate).minimize(self.loss)
+    #    return optimizer
 
 
 class BiRNNAlignment(Alignment):

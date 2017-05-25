@@ -36,7 +36,7 @@ FINAL_PARAM_STEPS = {
     },
     'BiLSTMEnc': {
         'snli': 257520,  # 15 epochs
-        'mnli': -1
+        'mnli': 291856   # 16 or 17 I think
     }}
 COLLECTIONS = {
     'carstens': {
@@ -189,7 +189,7 @@ def transfer_train(model,
             collection='train',
             num_epochs=100,
             sess=sess,
-            batch_size=4,
+            batch_size=32,
             tuning_collection='test',
             load_ckpt=load_ckpt,
             save_ckpt=True,
@@ -314,21 +314,20 @@ if __name__ == '__main__':
         p_keep_input=0.8,
         hidden_size=200,
         representation_learning_rate=5e-6,
-        classifier_learning_rate=5e-5,
-        linear_classifier_learning_rate=1e-3,
-        linear_logits_output=3)
+        classifier_learning_rate=5e-4,
+        linear_classifier_learning_rate=1e-3)
     model = rnn_encoders.BiLSTMEncoder(config)
     target = 'carstens'
     #transfer.initial_accuracies(
     #    model=model,
     #    transfer_from='snli',
     #    transfer_to=target)
-    #transfer.initial_accuracies(
-    #    model=model,
-    #    transfer_from='mnli',
-    #    transfer_to=target)
+    initial_accuracies(
+        model=model,
+        transfer_from='mnli',
+        transfer_to=target)
     transfer_train(
         model=model,
-        transfer_from='snli',
+        transfer_from='mnli',
         transfer_to=target,
-        load_ckpt=True)
+        load_ckpt=False)
