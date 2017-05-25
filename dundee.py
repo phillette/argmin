@@ -1,5 +1,6 @@
 import mongoi
 import process_data
+import json
 
 
 """
@@ -22,5 +23,6 @@ But I would want to remove the urls it would seem.
 """
 
 
-def blah():
-    pass
+if __name__ == '__main__':
+    file = 'data/dundee/nodeset7.json'
+

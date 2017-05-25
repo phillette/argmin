@@ -111,23 +111,31 @@ class Alignment(model_base.Model):
           alphas, betas: both tensors of shape
             [batch_size, timesteps, hidden_size].
         """
+        input = util.concat(
+            premises=self.premises_encoding,
+            hypotheses=self.hypotheses_encoding)
+        input_dropped = tf.nn.dropout(
+            x=input,
+            keep_prob=self.dropout_config.ops['p_keep_input']
+        )
+
         # [2 * batch_size, timesteps, hidden_size]
         F1 = model_base.fully_connected_with_dropout(
-            inputs=self.project,
+            inputs=input_dropped,
             num_outputs=self.hidden_size,
             activation_fn=tf.nn.relu,
             dropout_config=self.dropout_config,
             dropout_key='ff')
-        F2 = model_base.fully_connected_with_dropout(
-            inputs=F1,
-            num_outputs=self.hidden_size,
-            activation_fn=tf.nn.relu,
-            dropout_config=self.dropout_config,
-            dropout_key='ff')
+        #F2 = model_base.fully_connected_with_dropout(
+        #    inputs=F1,
+        #    num_outputs=self.hidden_size,
+        #    activation_fn=tf.nn.relu,
+        #    dropout_config=self.dropout_config,
+        #    dropout_key='ff')
 
         # [batch_size, timesteps, hidden_size]
         F_premises, F_hypotheses = util.split_after_concat(
-            tensor=F2,
+            tensor=F1,
             batch_size=self.batch_size)
 
         # [batch_size, timesteps, timesteps]
@@ -196,15 +204,15 @@ class Alignment(model_base.Model):
             activation_fn=tf.nn.relu,
             dropout_config=self.dropout_config,
             dropout_key='ff')
-        G2 = model_base.fully_connected_with_dropout(
-            inputs=G1,
-            num_outputs=self.hidden_size,
-            activation_fn=tf.nn.relu,
-            dropout_config=self.dropout_config,
-            dropout_key='ff')
+        #G2 = model_base.fully_connected_with_dropout(
+        #    inputs=G1,
+        #    num_outputs=self.hidden_size,
+        #    activation_fn=tf.nn.relu,
+        #    dropout_config=self.dropout_config,
+        #    dropout_key='ff')
 
         # [batch_size, timesteps, hidden_size]
-        V1, V2 = util.split_after_concat(G2, self.batch_size)
+        V1, V2 = util.split_after_concat(G1, self.batch_size)
 
         return V1, V2
 
@@ -269,6 +277,17 @@ class Alignment(model_base.Model):
     def classifier_input(self):
         """Define the vectors to pass to the classifer."""
         return self.aggregate
+
+    @decorators.define_scope
+    def logits(self):
+        a1 = model_base.fully_connected_with_dropout(
+            inputs=self.classifier_input,
+            num_outputs=self.hidden_size,
+            activation_fn=self.activation_fn,
+            dropout_config=self.dropout_config,
+            dropout_key='ff')
+        a2 = tf.contrib.layers.fully_connected(a1, 3, None)
+        return a2
 
 
 class BiRNNAlignment(Alignment):
