@@ -152,22 +152,3 @@ class ErrorExaminer:
         print(doc['sentence1'])
         print('Hypothesis:')
         print(doc['sentence2'])
-
-
-class ResultExaminer:
-    def __init__(self, db, collection):
-        self.n = stats.COLLECTION_SIZE[db][collection]
-        self.results = pd.DataFrame(data=None,
-                                    index=np.arange(self.n) + 1,
-                                    columns=['predicted_label',
-                                             'confidence',
-                                             'correct'])
-
-    def new_batch_results(self,
-                          ids,
-                          predicted_labels,
-                          confidences,
-                          correct_predictions):
-        self.results.iloc[ids] = [predicted_labels,
-                                  confidences,
-                                  correct_predictions]
