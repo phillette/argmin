@@ -12,7 +12,9 @@ COLLECTIONS = {
     'mnli': ['train', 'dev_matched', 'dev_mismatched'],
     'carstens': ['all', 'train', 'test'],
     'history': ['all'],
-    'node': ['debate_train', 'debate_test', 'wiki_train', 'wiki_test']
+    'node': ['debate_train', 'debate_test', 'wiki_train', 'wiki_test'],
+    'debate': ['train', 'test'],
+    'wiki': ['train', 'test']
 }
 
 
@@ -28,6 +30,10 @@ def get_db(db_name):
         return HistoryDb()
     elif db_name == 'node':
         return NodeDb()
+    elif db_name == 'debate':
+        return DebateDb()
+    elif db_name == 'wiki':
+        return WikiDb()
     else:
         raise Exception('Unexpected db_name: %s' % db_name)
 
@@ -105,6 +111,24 @@ class CarstensDb(RepositoryFacade):
         self.test = Repository('carstens', self.db.test)
 
 
+class DebateDb(RepositoryFacade):
+    """ Repository Facade for the NoDe data set, DebatePedia part.
+
+    Access to specific collections in this db are provided by
+    Repository class attributes.
+
+    http://www-sop.inria.fr/NoDE/
+
+    Attributes:
+      train: Repository for the DebatePedia train collection.
+      test: Repository for the DebatePedia test collection.
+    """
+    def __init__(self):
+        RepositoryFacade.__init__(self, db_name='node')
+        self.train = Repository('node', self.db.debate_train)
+        self.test = Repository('node', self.db.debate_test)
+
+
 class DundeeDb(RepositoryFacade):
     def __init__(self):
         RepositoryFacade.__init__(self, db_name='dundee')
@@ -174,6 +198,24 @@ class SNLIDb(RepositoryFacade):
         self.train = Repository('snli', self.db.train)
         self.dev = Repository('snli', self.db.dev)
         self.test = Repository('snli', self.db.test)
+
+
+class WikiDb(RepositoryFacade):
+    """ Repository Facade for the NoDe data set, Wiki part.
+
+        Access to specific collections in this db are provided by
+        Repository class attributes.
+
+        http://www-sop.inria.fr/NoDE/
+
+        Attributes:
+          train: Repository for the Wikipedia train collection.
+          test: Repository for the Wikipedia test collection
+        """
+    def __init__(self):
+        RepositoryFacade.__init__(self, db_name='node')
+        self.train = Repository('node', self.db.wiki_train)
+        self.test = Repository('node', self.db.wiki_test)
 
 
 class HistoryDb(RepositoryFacade):

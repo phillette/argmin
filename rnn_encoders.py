@@ -101,11 +101,11 @@ class Encoder(model_base.Model):
             # looking at this now I think this should be in another config...
             num_outputs=int(self.hidden_size / self.dropout_config.raw['ff']),
             activation_fn=tf.tanh)
-        h1_dropped = tf.nn.dropout(
+        self.h1_dropped = tf.nn.dropout(
             x=h1,
             keep_prob=self.dropout_config.ops['ff'])
         h2 = tf.contrib.layers.fully_connected(
-            inputs=h1_dropped,
+            inputs=self.h1_dropped,
             num_outputs=int(self.hidden_size / self.dropout_config.raw['ff']),
             activation_fn=tf.tanh)
         h2_dropped = tf.nn.dropout(
@@ -174,6 +174,13 @@ class BiLSTMEncoder(Encoder):
         concatenated = tf.concat(output, axis=2)
         max_pooled = tf.reduce_max(concatenated, axis=1)
         return max_pooled
+
+    @decorators.define_scope
+    def linear_logits(self):
+        return tf.contrib.layers.fully_connected(
+            inputs=self.h1_dropped,
+            num_outputs=self.config['linear_logits_output'],
+            activation_fn=None)
 
 
 class SimpleEncoder(model_base.Model):

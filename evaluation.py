@@ -2,21 +2,23 @@ import util
 import batching
 import tensorflow as tf
 import prediction
+import stats
 
 
-def accuracies(model, epoch_to_load, db_name):
+def accuracies(model, epoch_to_load, train_db_name, target_db_name):
     with tf.Session() as sess:
         sess.run(tf.global_variables_initializer())
-        iters_per_epoch = batching.num_iters(db_name, 'train')
+        iters_per_epoch = batching.num_iters(train_db_name, 'train')
         ckpt_step_to_load = epoch_to_load * iters_per_epoch
         util.load_checkpoint_at_step(
             model_name=model.name,
             global_step=ckpt_step_to_load,
             saver=tf.train.Saver(),
             sess=sess)
-        prediction.accuracy(model, db_name, 'train', sess)
-        prediction.accuracy(model, db_name, 'dev', sess)
-        prediction.accuracy(model, db_name, 'test', sess)
+        prediction.accuracy(model, target_db_name, 'train', sess)
+        for collection in stats.DEV_SETS[target_db_name]:
+            prediction.accuracy(model, target_db_name, collection, sess)
+        prediction.accuracy(model, target_db_name, 'test', sess)
 
 
 def accuracy(model, db, collection, sess):

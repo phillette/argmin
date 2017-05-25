@@ -142,7 +142,11 @@ def train(model, db, collection, num_epochs, sess,
                     = sess.run([model.loss,
                                 model.accuracy,
                                 model.optimize_representation,
-                                model.optimize_classification])  # feed_dict?
+                                model.optimize_classifier],
+                               feed_dict_fn(
+                                   model=model,
+                                   batch=batch,
+                                   in_training=False))
             else:
                 batch_loss, batch_accuracy, _ \
                     = sess.run([model.loss,

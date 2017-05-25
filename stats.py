@@ -34,6 +34,14 @@ COLLECTION_SIZE = {
         'debate_test': 161,
         'wiki_train': 228,
         'wiki_test': 224
+    },
+    'debate': {
+        'train': 159,
+        'test': 161
+    },
+    'wiki': {
+        'train': 228,
+        'test': 224
     }
 }
 NO_GOLD_LABEL_COUNTS = {
@@ -62,4 +70,11 @@ SAMPLES_WITH_OOV = {
     'carstens': {
         'all': 1353
     }
+}
+DEV_SETS = {
+    'snli': ['dev'],
+    'mnli': ['dev_matched', 'dev_mismatched'],
+    'carstens': ['all'],
+    'debate': [],
+    'wiki': []
 }

@@ -6,12 +6,12 @@ import errors
 
 PREFERRED_BATCH_SIZES = {
     'snli': {
-        'train': 64,
-        'dev': 64,
-        'test': 64
+        'train': 32,
+        'dev': 32,
+        'test': 32
     },
     'carstens': {
-        'all': 4
+        'all': 32
     }
 }
 
@@ -116,7 +116,7 @@ def add_third_dimension(sentence_matrices):
 def get_batch_gen(db, collection, batch_size=None):
     if not batch_size:
         batch_size = get_batch_size(db, collection)
-    gen = RandomGenerator(db, collection, buffer_size=batch_size * 2)
+    gen = RandomGenerator(db, collection, buffer_size=min(100, batch_size * 10))
     while True:
         ids = []
         premises = []

@@ -119,20 +119,29 @@ class Model:
         return tf.contrib.layers.fully_connected(
             inputs=self.classifier_input,
             num_outputs=self.config['linear_logits_output'],
-            activation_fn=tf.sigmoid)
+            activation_fn=None)  # passing this to tf.nn.sigmoid_cross_entropy
 
     @decorators.define_scope
     def linear_loss(self):
         cross_entropy = tf.reduce_sum(
-            tf.nn.sparse_softmax_cross_entropy_with_logits(
-                labels=tf.argmax(self.Y, axis=1),
+            tf.nn.sigmoid_cross_entropy_with_logits(
+                labels=self.Y,
                 logits=self.linear_logits,
-                name='softmax_cross_entropy'))
+                name='sigmoid_cross_entropy'))
         penalty_term = tf.multiply(
             tf.cast(self.lamda, tf.float64),
             sum([tf.nn.l2_loss(w) for w in self._all_weights()]),
             name='penalty_term')
         return tf.add(cross_entropy, penalty_term, name='loss')
+
+    @decorators.define_scope
+    def linear_accuracy(self):
+        predicted_labels = tf.argmax(self.linear_logits, axis=1)
+        correct_predictions = tf.equal(
+            predicted_labels,
+            tf.argmax(self.Y, axis=1))
+        accuracy = tf.reduce_mean(tf.cast(correct_predictions, tf.float64))
+        return accuracy
 
     @decorators.define_scope
     def logits(self):
@@ -220,7 +229,8 @@ class Model:
         pertain to the linear classifier. By default those in the
         linear_logits scope will be selected.
         """
-        optimizer = tf.train.AdamOptimizer(self.linear_classifier_learning_rate)
+        optimizer = tf.train.AdagradOptimizer(
+            self.linear_classifier_learning_rate)
         grads_and_vars = optimizer.compute_gradients(
             self.linear_loss,
             self._linear_classifier_params())

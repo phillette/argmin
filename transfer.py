@@ -1,3 +1,4 @@
+"""Code for transfer learning."""
 import tensorflow as tf
 import aligned
 import model_base
@@ -7,6 +8,24 @@ import util
 import batching
 import mongoi
 import numpy as np
+import prediction
+import stats
+import rnn_encoders
+
+
+"""The transfer process.
+
+* First pickle the params...
+
+* FOR EACH TARGET DB
+1) initial_accuracies(transfer_from='snli')
+2) initial_accuracies(transfer_from='mnli')
+3) transfer_train(transfer_from='snli', linear=False)
+4) transfer_train(transfer_from='snli', linear=True)
+5) transfer_train(transfer_from='mnli', linear=False)
+6) transfer_train(transfer_from='mnli', linear=True)
+7) final_accuracies()
+"""
 
 
 TRANSFER_MODELS = ['ChenAlignA', 'BiLSTMEnc']
@@ -16,7 +35,7 @@ FINAL_PARAM_STEPS = {
         'mnli': -1
     },
     'BiLSTMEnc': {
-        'snli': 120176,  # 15 epochs
+        'snli': 257520,  # 15 epochs
         'mnli': -1
     }}
 COLLECTIONS = {
@@ -53,39 +72,128 @@ def final_param_path(model_name, transfer_from):
     return path
 
 
+def initial_accuracies(model,
+                       transfer_from,
+                       transfer_to):
+    """Get initial accuracies from learned params.
+
+    Args:
+      model: the model to evaluate.
+      transfer_from: the name of the db training was performed on.
+      transfer_to: the name of the db to transfer to.
+    """
+    print('Determining initial transfer accuracies '
+          'for model %s train on %s with target %s...'
+          % (model.name, transfer_from, transfer_to))
+    with tf.Session() as sess:
+        sess.run(tf.global_variables_initializer())
+        load_model_from_pickles(
+            model,
+            transfer_from,
+            sess,
+            excluded_scopes=['linear_logits'])
+        prediction.accuracy(model, transfer_to, 'train', sess)
+        for collection in stats.DEV_SETS[transfer_to]:
+            prediction.accuracy(model, transfer_to, collection, sess)
+        prediction.accuracy(model, transfer_to, 'test', sess)
+
+
+def load_model(model, transfer_from, sess):
+    """Initialize the model parameters.
+
+    Args:
+      model: the model to load.
+      transfer_from: the name of the db training was performed on.
+    """
+    param_path = final_param_path(model.name, transfer_from)
+    step_to_load = FINAL_PARAM_STEPS[model.name][transfer_from]
+    util.load_checkpoint_at_step(
+        model_name=model.name,
+        global_step=step_to_load,
+        saver=tf.train.Saver(),
+        sess=sess,
+        path=param_path)
+
+
+def load_model_from_pickles(model, transfer_from, sess, excluded_scopes=[]):
+    for weight in model._all_weights():
+        if not param_excluded(weight.name, excluded_scopes):
+            params = util.load_pickle(pickle_name(model.name,
+                                                  transfer_from,
+                                                  weight.name))
+            sess.run(tf.assign(weight, params))
+    for bias in model._all_biases():
+        if not param_excluded(bias.name, excluded_scopes):
+            params = util.load_pickle(pickle_name(model.name,
+                                                  transfer_from,
+                                                  bias.name))
+            sess.run(tf.assign(bias, params))
+
+
+def param_excluded(name, excluded_scopes):
+    scope = name.split('/')[0]
+    return scope in excluded_scopes
+
+
+def pickle_name(model_name, transfer_from, weight_name):
+    dir = '%s-%s/' % (model_name, transfer_from)
+    name = weight_name.replace('/', '-')
+    name = name.replace(':', '--')
+    return dir + name + '.pkl'
+
+
+def pickle_params(model, transfer_from):
+    with tf.Session() as sess:
+        load_model(model, transfer_from, sess)
+        for weight in model._all_weights():
+            w = sess.run(weight)
+            util.save_pickle(w, pickle_name(model.name,
+                                            transfer_from,
+                                            weight.name))
+        for bias in model._all_biases():
+            b = sess.run(bias)
+            util.save_pickle(b, pickle_name(model.name,
+                                            transfer_from,
+                                            bias.name))
+
+
 def transfer_train(model,
                    transfer_from,
                    transfer_to,
-                   full_or_linear):
+                   load_ckpt=False):
     """Perform transfer learning training.
 
     Loads the relevant parameters and performs transfer
     training.
 
+    Learning rates should already be set on the model passed.
+
     Args:
       model: the model to train.
       transfer_from: the name of the db training was performed on.
       transfer_to: the name of the db to transfer to.
-      full_or_linear: whether to use a full classifier or just a
-        linear classifier.
+      linear: boolean indicatig whether to use a full classifier (False)
+        or just a linear classifier (True).
     """
     with tf.Session() as sess:
         sess.run(tf.global_variables_initializer())
-        param_path = final_param_path(model.name, transfer_from)
-        step_to_load = FINAL_PARAM_STEPS[model.name][transfer_from]
-        util.load_checkpoint_at_step(
-            model_name=model.name,
-            global_step=step_to_load,
-            saver=tf.train.Saver(),
+        load_model_from_pickles(
+            model,
+            transfer_from,
+            sess,
+            excluded_scopes=['linear_logits'])
+        model.reset_training_state(sess)
+        training.train(
+            model=model,
+            db=transfer_to,
+            collection='train',
+            num_epochs=100,
             sess=sess,
-            path=param_path)
-        # report train and test results with no further training?
-        # needs to be a reset of training variables on the model???
-        # do the training process...
-
-
-
-
+            batch_size=4,
+            tuning_collection='test',
+            load_ckpt=load_ckpt,
+            save_ckpt=True,
+            transfer=True)
 
 
 def extract_chen_representation():
@@ -200,21 +308,27 @@ def get_features():
 
 
 if __name__ == '__main__':
-    config = model_base.config(learning_rate=1e-3,
-                               hidden_size=200,
-                               p_keep_input=0.8)
-    model = aligned.LinearTChen(config)
-    with tf.Session() as sess:
-        sess.run(tf.global_variables_initializer())
-        training.train(model=model,
-                       db='carstens',
-                       collection='train',
-                       tuning_collection='test',
-                       num_epochs=200,
-                       sess=sess,
-                       batch_size=32,
-                       load_ckpt=False,
-                       save_ckpt=False,
-                       transfer=False,
-                       batch_gen_fn=batching.get_batch_gen_transfer,
-                       feed_dict_fn=util.feed_dict_transfer)
+    config = model_base.config(  # the config should be loaded with ckpt...
+        p_keep_ff=0.5,
+        p_keep_rnn=0.8,
+        p_keep_input=0.8,
+        hidden_size=200,
+        representation_learning_rate=5e-6,
+        classifier_learning_rate=5e-5,
+        linear_classifier_learning_rate=1e-3,
+        linear_logits_output=3)
+    model = rnn_encoders.BiLSTMEncoder(config)
+    target = 'carstens'
+    #transfer.initial_accuracies(
+    #    model=model,
+    #    transfer_from='snli',
+    #    transfer_to=target)
+    #transfer.initial_accuracies(
+    #    model=model,
+    #    transfer_from='mnli',
+    #    transfer_to=target)
+    transfer_train(
+        model=model,
+        transfer_from='snli',
+        transfer_to=target,
+        load_ckpt=True)
