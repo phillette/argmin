@@ -4,6 +4,7 @@ import pandas as pd
 import numpy as np
 import batching
 import util
+import mongoi
 
 
 """
@@ -11,6 +12,8 @@ What kinds of things do I want to do here?
 1) Be able to examine random or particular predictions one by one in detail.
 2) Be able to add annotations like what I have for MNLI or custom ones.
 3) Be able to count statistics along the lines of the annotations.
+4) Need a "difference" calculation between two result sets:
+    - which results moved from wrong to right and vice versa.
 
 * We start by getting the results into a dictionary {id: [values]}
 * We can make that a dataframe - set up a function. For queries and stats.
@@ -51,16 +54,21 @@ def get_results(model, db, collection, sess, to_pandafy=True):
             correct_predictions))
     results = dict(zip(ids, values))
     if to_pandafy:
-        results = pandafy(results)
+        results = pandafy(results, db, collection)
     return results
 
 
-def pandafy(results):
+# GET THE SENTENCES IN AT PREVIOUS STEP OR IN PANDAFY?
+
+
+def pandafy(results, db, collection):
     """Create a pandas DataFrame from prediction results dictionary.
 
     Args:
       results: Dictionary of structure
-        {id: [predicted_label, confidence, correct]}
+        {id: [predicted_label, confidence, correct]}.
+      db: the name of the db the results come from.
+      collection: the name of the collection the results come from.
     Returns:
       Pandas dictionary with id as index, and three columns:
         [label, confidence, correct].
