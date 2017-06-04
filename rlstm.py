@@ -2,7 +2,7 @@
 import tensorflow as tf
 
 
-class ChildSumTreeLSTM(tf.contrib.rnn.BasicLSTMCell):
+class ChildSumTreeLSTMCall(tf.contrib.rnn.BasicLSTMCell):
     """Child-sum tree-LSTM cell.
 
     This is based on https://arxiv.org/pdf/1503.00075.
