@@ -2,7 +2,7 @@
 import tensorflow as tf
 
 
-class ChildSumTreeLSTMCall(tf.contrib.rnn.BasicLSTMCell):
+class ChildSumTreeLSTMCell(tf.contrib.rnn.BasicLSTMCell):
     """Child-sum tree-LSTM cell.
 
     This is based on https://arxiv.org/pdf/1503.00075.
@@ -28,7 +28,7 @@ class ChildSumTreeLSTMCall(tf.contrib.rnn.BasicLSTMCell):
           num_units: int, the number of units in the cell.
           keep_prob: the keep probability for dropout.
         """
-        super(ChildSumTreeLSTM, self).__init__(num_units)
+        super(ChildSumTreeLSTMCell, self).__init__(num_units)
         self._keep_prob = keep_prob
 
     def __call__(self, inputs, states, scope=None):
