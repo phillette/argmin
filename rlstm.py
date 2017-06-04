@@ -85,4 +85,4 @@ class ChildSumTreeLSTMCell(tf.contrib.rnn.BasicLSTMCell):
 
 
 if __name__ == '__main__':
-    cell = ChildSumTreeLSTM(300)
+    cell = ChildSumTreeLSTMCell(300)
