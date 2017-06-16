@@ -187,7 +187,7 @@ def transfer_train(model,
             model=model,
             db=transfer_to,
             collection='train',
-            num_epochs=100,
+            num_epochs=400,
             sess=sess,
             batch_size=32,
             tuning_collection='test',
@@ -313,19 +313,19 @@ if __name__ == '__main__':
         p_keep_rnn=0.8,
         p_keep_input=0.8,
         hidden_size=200,
-        representation_learning_rate=5e-6,
+        representation_learning_rate=5e-7,
         classifier_learning_rate=5e-4,
-        linear_classifier_learning_rate=1e-3)
+        linear_classifier_learning_rate=1e-2)
     model = rnn_encoders.BiLSTMEncoder(config)
     target = 'carstens'
     #transfer.initial_accuracies(
     #    model=model,
     #    transfer_from='snli',
     #    transfer_to=target)
-    initial_accuracies(
-        model=model,
-        transfer_from='mnli',
-        transfer_to=target)
+    #initial_accuracies(
+    #    model=model,
+    #    transfer_from='mnli',
+    #    transfer_to=target)
     transfer_train(
         model=model,
         transfer_from='mnli',

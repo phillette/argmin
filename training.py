@@ -139,14 +139,14 @@ def train(model, db, collection, num_epochs, sess,
             # ops to run
             if transfer:
                 batch_loss, batch_accuracy, _, _ \
-                    = sess.run([model.loss,
-                                model.accuracy,
+                    = sess.run([model.linear_loss,
+                                model.linear_accuracy,
                                 model.optimize_representation,
-                                model.optimize_classifier],
+                                model.optimize_linear_classifier],
                                feed_dict_fn(
                                    model=model,
                                    batch=batch,
-                                   in_training=False))
+                                   in_training=True))
             else:
                 batch_loss, batch_accuracy, _ \
                     = sess.run([model.loss,
