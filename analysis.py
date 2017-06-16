@@ -34,9 +34,9 @@ def determine_max_linear_adj_recursion_depth(db, collection):
     MNLI  train           3        2
           dev_matched     2        0
           dev_mismatched  0        2
-    SNLI  train           *        *
-          dev             *        *
-          test            *        *
+    SNLI  train           2        3
+          dev             1        2
+          test            2        0
 
     Percentage of samples with linear adjective recursion:
     db    collection      percentage
@@ -44,9 +44,9 @@ def determine_max_linear_adj_recursion_depth(db, collection):
     MNLI  train           10 %
           dev_matched     11 %
           dev_mismatched  8  %
-    SNLI  train           *
-          dev_matched     *
-          dev_mismatched  *
+    SNLI  train           8  %
+          dev_matched     9  %
+          dev_mismatched  9  %
 
     Args:
       db: the name of the db to query.
@@ -191,7 +191,7 @@ if __name__ == '__main__':
     count = 0
     premise_max_depth = 0
     hypothesis_max_depth = 0
-    for sample in db.train.all():
+    for sample in db.test.all():
         count += 1
         premise = nlp(sample['sentence1'])
         hypothesis = nlp(sample['sentence2'])
