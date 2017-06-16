@@ -75,6 +75,19 @@ class PickleNotFoundError(Error):
         self.file_name = file_name
 
 
+class UnexpectedTypeError(Error):
+    """The value of an argument is an unexpected type.
+
+    Attributes:
+      expected_type: the type expected.
+      actual_type: the type passed.
+    """
+
+    def __init__(self, expected_type, actual_type):
+        self.expected_type = expected_type
+        self.actual_type = actual_type
+
+
 class UnexpectedValueError(Error):
     """The value of an argument is unexpected.
 
