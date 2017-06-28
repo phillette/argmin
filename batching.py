@@ -2,6 +2,7 @@ import mongoi
 import numpy as np
 import stats
 import errors
+import tensorflow_fold as td
 
 
 PREFERRED_BATCH_SIZES = {
@@ -14,6 +15,60 @@ PREFERRED_BATCH_SIZES = {
         'all': 32
     }
 }
+
+
+class Batcher:
+    """Base class for a wrapper for a batch generator.
+
+    This class is intended to be reusable across epochs. It therefore in theory
+    accepts a generator of generators. In practice we want to wrap a function
+    that retrieves a generator from MongoDB. What is done with that are details
+    left entirely up to the conscience of individual subclasses.
+
+    At the other end, the main function that needs to be implemented is
+    next_batch().
+
+    Attributes:
+      batch_size: Integer, pre-defined.
+      data_generator: Function that returns pymongo.cursor.Cursor.
+    """
+
+    def __init__(self, batch_size, data_generator):
+        """Create a new Batcher.
+
+        Args:
+          batch_size: Integer, the number of samples per batch.
+          data_generator: Function that returns pymongo.cursor.Cursor.
+        """
+        self.batch_size = batch_size
+        self.data_generator = data_generator
+
+    def next_batch(self):
+        raise NotImplementedError()
+
+
+class FoldBatcher(Batcher):
+    """Batcher for preparing data for TensorFlow Fold models.
+
+    We need to:
+    - call the data_generator() function and keep a list of the data.
+    -
+    """
+
+    def __init__(self, batch_size, data_generator, compiler):
+        """Create a new FoldBatcher.
+
+        Args:
+          batch_size: Integer, the number of samples per batch.
+          data_generator: Function that returns pymongo.cursor.Cursor.
+          compiler: td.Compiler, from a loaded model.
+        """
+        super(FoldBatcher, self).__init__(batch_size, data_generator)
+        self.compiler = compiler
+        self.data = compiler.build_loom_inputs(data_generator())
+
+    def next_batch(self):
+        pass
 
 
 class Batch:
