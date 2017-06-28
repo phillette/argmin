@@ -187,6 +187,34 @@ def _get_vector(token, oov):
         return token.vector
 
 
+def phrase_split(doc):
+    root = next(t for t in doc if t.head == t)
+    next_roots = [root]
+    phrases = []
+    while len(next_roots) > 0:
+        next_root = next_roots[0]
+        next_roots.remove(next_root)
+        new_phrase, new_next_roots = _phrase_splitting(next_root)
+        phrases.append(new_phrase)
+        next_roots += new_next_roots
+    return phrases
+
+
+def _phrase_splitting(root):
+    print('Root = %s' % root.text)
+    splitters = ['ccomp', 'xcomp']
+    this_phrase = sorted(
+        [root] + [c for c in root.children if c.dep_ not in splitters],
+        key=lambda x: x.i)
+    print('Phrase: %s' % this_phrase)
+    text_of_phrase = [c.text for c in this_phrase]
+    print('Text of phrase: %s' % text_of_phrase)
+    print('Joined: %s' % ' '.join(text_of_phrase))
+    next_roots = [c for c in root.children if c.dep_ in splitters]
+    print('Next roots: %s' % next_roots)
+    return ' '.join(text_of_phrase), next_roots
+
+
 def pre_process(db_name):
     """Perform all pre-processing for the db.
 
@@ -255,3 +283,25 @@ def _sentence_matrix(sentence, nlp, null_vector, oov):
         ))
     matrix = np.vstack([null_vector, matrix])
     return matrix
+
+
+if __name__ == '__main__':
+    import spacy
+    import mongoi
+    nlp = spacy.load('en')
+    db = mongoi.MNLIDb()
+    docs_to_take = 2
+    generator = db.train.all()
+    sentences = []
+    phrases = []
+    for i in range(docs_to_take):
+        doc = next(generator)
+        sentences.append(doc['sentence1'])
+        sentences.append(doc['sentence2'])
+        phrases += phrase_split(nlp(doc['sentence1']))
+        phrases += phrase_split(nlp(doc['sentence2']))
+    print('\n------')
+    for sentence in sentences:
+        print(sentence)
+    for phrase in phrases:
+        print(phrase)
