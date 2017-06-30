@@ -4,6 +4,7 @@ from bson.binary import Binary
 import _pickle as cPickle
 import numpy as np
 import errors
+from hsdbi import mongo
 
 
 # list of collections in each db
