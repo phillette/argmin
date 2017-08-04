@@ -216,7 +216,7 @@ def _phrase_splitting(root):
 
 
 def pre_process(db_name):
-    """Perform all pre-processing for the db.
+    """Perform all pre_processing for the db.
 
     Args:
       db_name: the db to operate on.
@@ -227,7 +227,7 @@ def pre_process(db_name):
     """
     if db_name not in mongoi.COLLECTIONS.keys():
         raise errors.DbNotFoundError(db_name)
-    print('Performing all pre-processing for %s' % db_name)
+    print('Performing all pre_processing for %s' % db_name)
 
     remove_no_gold_label_samples(db_name)
     generate_friendly_ids(db_name)
@@ -237,7 +237,7 @@ def pre_process(db_name):
     oov.generate_random_vectors()
     generate_sentence_matrices(db_name, oov)
 
-    print('All pre-processing completed.')
+    print('All pre_processing completed.')
 
 
 def remove_no_gold_label_samples(db_name):
