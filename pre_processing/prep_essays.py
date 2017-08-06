@@ -19,29 +19,42 @@ Plan:
 3) Assess the results
 """
 
-
+NUM_ESSAYS = 402
 STANCE_CODE = {
     'For': 0,
     'none': 1,
     'Against': 2}
 RELATION_CODE = {
-    'supports': 0}
+    'supports': 0,
+    'attacks': 2}
+
+
+class Essay:
+    def __init__(self, essay_no):
+        self.essay_no = essay_no
+        file_path = get_file_path(essay_no)
+        node_lines, stance_lines, relation_lines = lines_by_type(file_path)
+        nodes, ids_to_ixs, ixs_to_ids = text_nodes(essay_no, node_lines)
+        self.nodes = nodes
+        self.major_claim_ixs = get_major_claim_ixs(nodes)
+        self.adj_mat = get_adj_mat(
+            nodes, ids_to_ixs, stance_lines, relation_lines)
 
 
 class TextNode:
-    def __init__(self, essay_number, line):
-        self.essay_number = essay_number
-        self.line = line
-        split_line = line.split('\t')
-        self.id = int(split_line[0].replace('T', '')) - 1
-        self.type = split_line[1].split(' ')[0]
-        self.text = split_line[2]
+    def __init__(self, essay_no, id, ix, type, text):
+        self.essay_no = essay_no
+        self.id = id
+        self.ix = ix
+        self.type = type
+        self.text = text
 
     def __repr__(self):
-        return 'essay%s\nT%s\nType "%s"\nText:\n%s' % (self.essay_number,
-                                                       self.node_id,
-                                                       self.node_type,
-                                                       self.text)
+        return 'essay%s\nT%s\n(%s)\nType "%s"\nText:\n%s' % (self.essay_no,
+                                                             self.id,
+                                                             self.ix,
+                                                             self.type,
+                                                             self.text)
 
 
 class Relations:
@@ -79,24 +92,77 @@ def build_corpus_a():
     #    corpus.append({})
 
 
-def nodes_and_relations(file_path):
+def get_adj_mat(nodes, ids_to_ixs, stance_lines, relation_lines):
+    node_count = len(nodes)
+    major_claim_ixs = get_major_claim_ixs(nodes)
+    adj_mat = np.ones((node_count, node_count), dtype='int32')
+    for stance_line in stance_lines:
+        split_line = stance_line.rstrip().split('\t')[1].split(' ')
+        child_id = split_line[1]
+        child_ix = ids_to_ixs[child_id]
+        relation = STANCE_CODE[split_line[2]]
+        for parent_ix in major_claim_ixs:
+            adj_mat[parent_ix][child_ix] = relation
+    for relation_line in relation_lines:
+        split_line = relation_line.rstrip().split('\t')[1].split(' ')
+        child_id = split_line[1].split(':')[1]
+        child_ix = ids_to_ixs[child_id]
+        parent_id = split_line[2].split(':')[1]
+        parent_ix = ids_to_ixs[parent_id]
+        relation = RELATION_CODE[split_line[0]]
+        adj_mat[parent_ix][child_ix] = relation
+    return adj_mat
+
+
+def get_essay_no(file_path):
     file_name = file_path.split('/')[-1]
-    essay_number = file_name.replace('.ann', '').replace('essay', '')
+    essay_no = file_name.replace('.ann', '').replace('essay', '')
+    return essay_no
+
+
+def get_file_path(essay_no):
+    if essay_no >= 100:
+        no_str = '%s' % essay_no
+    elif essay_no >= 10:
+        no_str = '0%s' % essay_no
+    else:
+        no_str = '00%s' % essay_no
+    return 'data/pec/essay%s.ann' % no_str
+
+
+def get_major_claim_ixs(nodes):
+    return [n.ix for n in nodes if n.type == 'MajorClaim']
+
+
+def lines_by_type(file_path):
     with open(file_path) as file:
         lines = file.readlines()
-        text_nodes = [TextNode(essay_number, l) for l in lines
-                      if l.startswith('T')]
+        node_lines = [l for l in lines if l.startswith('T')]
         stance_lines = [l for l in lines if l.startswith('A')]
         relation_lines = [l for l in lines if l.startswith('R')]
-        relations = Relations(
-            essay_number, len(text_nodes), stance_lines, relation_lines)
-        return text_nodes, relations
+    return node_lines, stance_lines, relation_lines
+
+
+def text_nodes(essay_no, node_lines):
+    split_lines = [l.split('\t') for l in node_lines]
+    ids = [l[0] for l in split_lines]
+    ixs = list(range(len(node_lines)))
+    types = [l[1].split(' ')[0] for l in split_lines]
+    texts = [l[2] for l in split_lines]
+    nodes = [TextNode(essay_no, ids[i], ixs[i], types[i], texts[i])
+             for i in range(len(node_lines))]
+    ids_to_ixs = dict(zip(ids, ixs))
+    ixs_to_ids = dict(zip(ixs, ids))
+    return nodes, ids_to_ixs, ixs_to_ids
+
+
+def view_file(essay_no):
+    with open(get_file_path(essay_no)) as f:
+        lines = f.readlines()
+        for line in lines:
+            print(line)
 
 
 if __name__ == '__main__':
-    build_corpus_a()
-    #file_path = 'data/pec/essay022.ann'
-    #nodes, relations = nodes_and_relations(file_path)
-    #for node in nodes:
-    #    print(node)
-    #print(relations.adj_mat)
+    for essay_no in [i + 1 for i in range(NUM_ESSAYS)]:
+        essay = Essay(essay_no)
