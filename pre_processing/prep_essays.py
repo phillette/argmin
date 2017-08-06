@@ -1,5 +1,4 @@
 """Argumentation mining of persuasive essay corpus."""
-import os
 import numpy as np
 
 
@@ -19,7 +18,14 @@ Plan:
 3) Assess the results
 """
 
+
 NUM_ESSAYS = 402
+# These are the NLI data labels
+REVERSE_LABEL_MAP = {
+    0: "entailment",
+    1: "neutral",
+    2: "contradiction"}
+# These are in line with NLI labels
 STANCE_CODE = {
     'For': 0,
     'none': 1,
@@ -76,20 +82,23 @@ class Relations:
 
 def build_corpus_a():
     corpus = []
-    nodes = []
-    relations = []
-    file_names = [f for f in os.listdir('data/pec') if f.endswith('ann')]
-    for file_name in file_names:
-        try:
-            file_nodes, file_relations = nodes_and_relations('data/pec/%s'
-                                                             % file_name)
-        except Exception as e:
-            print(file_name)
-            raise e
-    #    nodes += file_nodes
-    #    relations.append(file_relations)
-    #for i in range(len(nodes)):
-    #    corpus.append({})
+    for essay in get_essays():
+        corpus += essay_to_labeled_pairs(essay)
+    return corpus
+
+
+def essay_to_labeled_pairs(essay):
+    data = []
+    for s1 in essay.nodes:
+        for s2 in essay.nodes:
+            # Come back and double check this logic: which the child, parent?
+            sample = {
+                'sentence1': s1.text,
+                'sentence2': s2.text,
+                'gold_label': REVERSE_LABEL_MAP[essay.adj_mat[s2.ix][s1.ix]],
+                'label': essay.adj_mat[s2.ix][s1.ix]}
+            data.append(sample)
+    return data
 
 
 def get_adj_mat(nodes, ids_to_ixs, stance_lines, relation_lines):
@@ -118,6 +127,14 @@ def get_essay_no(file_path):
     file_name = file_path.split('/')[-1]
     essay_no = file_name.replace('.ann', '').replace('essay', '')
     return essay_no
+
+
+def get_essay_nos():
+    return [i + 1 for i in range(NUM_ESSAYS)]
+
+
+def get_essays():
+    return [Essay(no) for no in get_essay_nos()]
 
 
 def get_file_path(essay_no):
@@ -164,5 +181,15 @@ def view_file(essay_no):
 
 
 if __name__ == '__main__':
-    for essay_no in [i + 1 for i in range(NUM_ESSAYS)]:
-        essay = Essay(essay_no)
+    corpus = build_corpus_a()
+    print(len(corpus))
+    print(len([s for s in corpus if s['label'] == 0]))
+    print(len([s for s in corpus if s['label'] == 1]))
+    print(len([s for s in corpus if s['label'] == 2]))
+
+
+# Corpus A stats:
+# 98471 sentence pairs
+# 5958 supports
+# 91798 neutrals
+# 715 attacks
