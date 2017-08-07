@@ -1,11 +1,12 @@
-import tensorflow as tf
-import numpy as np
-import batching
-import util
 import time
-import prediction
-import hist
 
+import numpy as np
+import tensorflow as tf
+
+import batching
+import hist
+import prediction
+from argmin import util
 
 DEBUG = False
 

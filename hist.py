@@ -1,11 +1,13 @@
-import numpy as np
-import matplotlib.pyplot as plt
-import mongoi
 import datetime
-import stats
 import itertools
+
+import matplotlib.pyplot as plt
+import numpy as np
+
 import batching
-import util
+import mongoi
+import stats
+from argmin import util
 
 
 def batch_size_info(history):

@@ -1,8 +1,8 @@
 import tensorflow as tf
+
 import decorators
 import model_base
-import util
-
+from argmin import util
 
 # control randomization for reproducibility
 tf.set_random_seed(1984)

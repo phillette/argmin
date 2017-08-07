@@ -1,7 +1,8 @@
 import tensorflow as tf
+
 import decorators
-import util
 import dropout
+from argmin import util
 
 
 def config(embed_size=300,

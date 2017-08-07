@@ -1,5 +1,6 @@
 """Argumentation mining of persuasive essay corpus."""
 import numpy as np
+from argmin.util import pickling
 
 
 """
@@ -84,6 +85,7 @@ def build_corpus_a():
     corpus = []
     for essay in get_essays():
         corpus += essay_to_labeled_pairs(essay)
+    pickling.save(corpus, 'pec_pairs.pkl')
     return corpus
 
 
@@ -93,6 +95,7 @@ def essay_to_labeled_pairs(essay):
         for s2 in essay.nodes:
             # Come back and double check this logic: which the child, parent?
             sample = {
+                'essay_no': s1.essay_no,
                 'sentence1': s1.text,
                 'sentence2': s2.text,
                 'gold_label': REVERSE_LABEL_MAP[essay.adj_mat[s2.ix][s1.ix]],

@@ -1,17 +1,17 @@
 """Code for transfer learning."""
-import tensorflow as tf
-import aligned
-import model_base
-import training
-import evaluation
-import util
-import batching
-import mongoi
 import numpy as np
-import prediction
-import stats
-import rnn_encoders
+import tensorflow as tf
 
+import aligned
+import batching
+import evaluation
+import model_base
+import mongoi
+import prediction
+import rnn_encoders
+import stats
+import training
+from argmin import util
 
 """The transfer process.
 

@@ -1,8 +1,9 @@
-import util
-import batching
 import tensorflow as tf
+
+import batching
 import prediction
 import stats
+from argmin import util
 
 
 def accuracies(model, epoch_to_load, train_db_name, target_db_name):

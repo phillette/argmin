@@ -1,6 +1,7 @@
 import tensorflow as tf
+
+from argmin.util import dropout_vector, add_bias, clip_gradients
 from decorators import define_scope
-from util import dropout_vector, add_bias, clip_gradients
 
 
 class AdditiveSentence:

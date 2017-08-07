@@ -1,12 +1,12 @@
 import unittest
-from testing import prep_essays_tests
-
+from coldnet.testing import training_tests
 
 # > python -m unittest discover
 
 
 test_cases = [
-    prep_essays_tests.PrepEssaysTests
+    training_tests.BalancedDataLoaderTests,
+
 ]
 
 

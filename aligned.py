@@ -1,10 +1,10 @@
 """Models that use Alignment between sentences."""
 import tensorflow as tf
-import model_base
-import decorators
-import util
-import rnn_encoders
 
+import decorators
+import model_base
+import rnn_encoders
+from argmin import util
 
 # control randomization for reproducibility
 tf.set_random_seed(1984)

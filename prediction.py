@@ -1,12 +1,13 @@
 import os
-import batching
+
 import numpy as np
-import util
 import tensorflow as tf
-import mongoi
-import pandas as pd
-import stats
+
+import batching
 import labeling
+import mongoi
+import stats
+from argmin import util
 
 
 def load_ckpt_at_epoch(model, epoch, db_name, collection_name,
@@ -65,7 +66,7 @@ def evaluate(model, sess, db='snli', collection='test', transfer=False):
             = sess.run([model.predicted_labels,
                         model.confidences,
                         model.correct_predictions],
-                        util.feed_dict(model, batch))
+                       util.feed_dict(model, batch))
         re.new_batch_results(batch.ids,
                              predicted_labels,
                              confidences,
