@@ -81,6 +81,11 @@ class Relations:
             self.adj_mat[parent_id][child_id] = relation
 
 
+def all_text():
+    essay_nos = get_essay_nos()
+
+
+
 def build_corpus_a():
     corpus = []
     for essay in get_essays():
@@ -94,13 +99,14 @@ def essay_to_labeled_pairs(essay):
     for s1 in essay.nodes:
         for s2 in essay.nodes:
             # Come back and double check this logic: which the child, parent?
-            sample = {
-                'essay_no': s1.essay_no,
-                'sentence1': s1.text,
-                'sentence2': s2.text,
-                'gold_label': REVERSE_LABEL_MAP[essay.adj_mat[s2.ix][s1.ix]],
-                'label': essay.adj_mat[s2.ix][s1.ix]}
-            data.append(sample)
+            if s1.ix != s2.ix:
+                sample = {
+                    'essay_no': s1.essay_no,
+                    'sentence1': s1.text,
+                    'sentence2': s2.text,
+                    'gold_label': REVERSE_LABEL_MAP[essay.adj_mat[s2.ix][s1.ix]],
+                    'label': essay.adj_mat[s2.ix][s1.ix]}
+                data.append(sample)
     return data
 
 
